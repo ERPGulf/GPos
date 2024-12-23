@@ -1,0 +1,163 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2024-05-27 11:37:13.879779",
+ "default_view": "List",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "discount_field",
+  "column_break_avqx",
+  "show_item",
+  "barcode_setting_section",
+  "prefix_included_or_not",
+  "no_of_prefix_character",
+  "prefix",
+  "column_break_lbzy",
+  "item_code_total_digits",
+  "branch",
+  "item_code_starting_position",
+  "price_and_weight_section",
+  "weight_starting_position",
+  "weight_total_digitsexcluding_decimal",
+  "no_of_decimal_in_weights",
+  "column_break_avtn",
+  "price_included_in_barcode_or_not",
+  "price_starting_position",
+  "price_total_digitsexcluding_decimals",
+  "no_of_decimal_in_price",
+  "tab_2_tab"
+ ],
+ "fields": [
+  {
+   "default": "0",
+   "fieldname": "discount_field",
+   "fieldtype": "Check",
+   "label": "discount field"
+  },
+  {
+   "fieldname": "column_break_avqx",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "show_item",
+   "fieldtype": "Check",
+   "label": "Show Item pictures"
+  },
+  {
+   "fieldname": "barcode_setting_section",
+   "fieldtype": "Section Break",
+   "label": "Barcode setting"
+  },
+  {
+   "default": "0",
+   "fieldname": "prefix_included_or_not",
+   "fieldtype": "Check",
+   "label": "prefix included or not"
+  },
+  {
+   "fieldname": "no_of_prefix_character",
+   "fieldtype": "Data",
+   "label": "no of prefix character"
+  },
+  {
+   "fieldname": "prefix",
+   "fieldtype": "Data",
+   "label": "prefix"
+  },
+  {
+   "fieldname": "column_break_lbzy",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "item_code_total_digits",
+   "fieldtype": "Data",
+   "label": "item code total digits"
+  },
+  {
+   "fieldname": "branch",
+   "fieldtype": "Data",
+   "label": "branch"
+  },
+  {
+   "fieldname": "item_code_starting_position",
+   "fieldtype": "Data",
+   "label": "item code starting position"
+  },
+  {
+   "fieldname": "price_and_weight_section",
+   "fieldtype": "Section Break",
+   "label": "price and weight"
+  },
+  {
+   "fieldname": "weight_starting_position",
+   "fieldtype": "Data",
+   "label": "weight starting position"
+  },
+  {
+   "fieldname": "weight_total_digitsexcluding_decimal",
+   "fieldtype": "Data",
+   "label": "Weight total digits(excluding decimal)"
+  },
+  {
+   "fieldname": "no_of_decimal_in_weights",
+   "fieldtype": "Data",
+   "label": "No of decimal in weights"
+  },
+  {
+   "fieldname": "column_break_avtn",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "price_included_in_barcode_or_not",
+   "fieldtype": "Check",
+   "label": "price included in barcode or not"
+  },
+  {
+   "fieldname": "price_starting_position",
+   "fieldtype": "Data",
+   "label": "price starting position"
+  },
+  {
+   "fieldname": "price_total_digitsexcluding_decimals",
+   "fieldtype": "Data",
+   "label": "price total digits(excluding decimals)"
+  },
+  {
+   "fieldname": "no_of_decimal_in_price",
+   "fieldtype": "Data",
+   "label": "No of decimal in price"
+  },
+  {
+   "fieldname": "tab_2_tab",
+   "fieldtype": "Tab Break",
+   "label": "Tab 2"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2024-12-23 10:57:29.025864",
+ "modified_by": "Administrator",
+ "module": "Gpos",
+ "name": "pos setting",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
