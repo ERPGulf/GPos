@@ -8,7 +8,7 @@ from werkzeug.wrappers import Response
 from frappe.utils import (
 	now_datetime
 )
-
+from frappe.utils.password import get_decrypted_password
 @frappe.whitelist(allow_guest=True)
 def generate_token_secure( api_key, api_secret, app_key):
 
@@ -348,34 +348,87 @@ def  cache2():
 
 
 @frappe.whitelist(allow_guest=True)
-def pos_setting():
-    systemSettings = frappe.get_doc('pos setting')
-    if systemSettings.show_item==1:
-        var=True
-    else:
-        var=False
-    data={
+def pos_setting(name=None):
+        systemSettings = frappe.get_doc('pos setting')
+        var = True if systemSettings.show_item == 1 else False
+        Zatca_Multiple_Setting = frappe.get_doc('Zatca Multiple Setting', name) if name else None
+        # return Zatca_Multiple_Setting
+        linked_doctype = Zatca_Multiple_Setting.custom_linked_doctype if Zatca_Multiple_Setting else None
 
-        "discount_field":systemSettings.discount_field,
-        "prefix_included_or_not":systemSettings.prefix_included_or_not,
-        "no_of_prefix_character":int(systemSettings.no_of_prefix_character),
-        "prefix":systemSettings.prefix,
-        "item_code_total_digits":int(systemSettings.item_code_total_digits),
-        "item_code_starting_position":int(systemSettings.item_code_starting_position),
-        "weight_starting_position":int(systemSettings.weight_starting_position),
-        "weight_total_digitsexcluding_decimal":int(systemSettings.weight_total_digitsexcluding_decimal),
-        "no_of_decimal_in_weights":int(systemSettings.no_of_decimal_in_weights),
-        "price_included_in_barcode_or_not":int(systemSettings.price_included_in_barcode_or_not),
-        "price_starting_position":int(systemSettings.price_starting_position),
-        "price_total_digitsexcluding_decimals":int(systemSettings.price_total_digitsexcluding_decimals),
-        "no_of_decimal_in_price":int(systemSettings.no_of_decimal_in_price),
-        "show_item_pictures":var
+        zatca = frappe.get_doc('Company', linked_doctype) if linked_doctype else frappe.get_doc('Company', "Zatca Live (Demo)")
+        address = frappe.get_all(
+                "Address",
+                fields=[
+                    "address_line1",
+                    "address_line2",
+                    "custom_building_number",
+                    "city",
+                    "pincode",
+                    "state",
+                    "country",
+                ],
+                filters=[
+                    ["is_your_company_address", "=", "1"],
+                    ["Dynamic Link", "link_name", "=", "Zatca Live (Demo)"],
+                ],
+                limit=1
+            )
 
-    }
-    doc= frappe.get_doc('Company',"Zatca Live (Demo)")
-    return doc
-    return Response(json.dumps({"data":data}), status=200, mimetype='application/json')
 
+        if name:
+            certificate = Zatca_Multiple_Setting.custom_certficate
+            private_key = Zatca_Multiple_Setting.custom_private_key
+            public_key = Zatca_Multiple_Setting.custom_public_key
+        else:
+            certificate = zatca.custom_certificate
+            private_key = zatca.custom_private_key
+            public_key = zatca.custom_public_key
+
+
+        encoded_certificate = base64.b64encode(certificate.encode('utf-8')).decode('utf-8')
+
+        encoded_private_key = base64.b64encode(private_key.encode('utf-8')).decode('utf-8')
+        encoded_public_key = base64.b64encode(public_key.encode('utf-8')).decode('utf-8')
+        # return encoded_certificate,encoded_private_key,encoded_public_key
+
+        address_record = address[0] if address else None
+
+        data = {
+            "discount_field": systemSettings.discount_field,
+            "prefix_included_or_not": systemSettings.prefix_included_or_not,
+            "no_of_prefix_character": int(systemSettings.no_of_prefix_character),
+            "prefix": systemSettings.prefix,
+            "item_code_total_digits": int(systemSettings.item_code_total_digits),
+            "item_code_starting_position": int(systemSettings.item_code_starting_position),
+            "weight_starting_position": int(systemSettings.weight_starting_position),
+            "weight_total_digitsexcluding_decimal": int(systemSettings.weight_total_digitsexcluding_decimal),
+            "no_of_decimal_in_weights": int(systemSettings.no_of_decimal_in_weights),
+            "price_included_in_barcode_or_not": int(systemSettings.price_included_in_barcode_or_not),
+            "price_starting_position": int(systemSettings.price_starting_position),
+            "price_total_digitsexcluding_decimals": int(systemSettings.price_total_digitsexcluding_decimals),
+            "no_of_decimal_in_price": int(systemSettings.no_of_decimal_in_price),
+            "show_item_pictures": var,
+            "zatca": {
+                "company_name": zatca.name,
+                "company_taxid": zatca.tax_id,
+                "certificate": encoded_certificate,
+                "pih": Zatca_Multiple_Setting.custom_pih if Zatca_Multiple_Setting else zatca.custom_pih,
+                "Abbr": zatca.abbr,
+                "tax_id": zatca.tax_id,
+                "private_key": encoded_private_key,
+                "public_key": encoded_public_key,
+                "linked_doctype": Zatca_Multiple_Setting.custom_linked_doctype if Zatca_Multiple_Setting else None,
+                "company_registration_no": zatca.custom_company_registration,
+                "address": {
+                    "address_line1": address_record.address_line1 if address_record else None,
+                    "city": address_record.city if address_record else None,
+                    "pincode": int(address_record.pincode) if address_record and address_record.pincode else None,
+                    "country": address_record.country if address_record else None,
+                    "building_number": int(address_record.custom_building_number) if address_record and address_record.custom_building_number else None,
+                } if address_record else None,
+            }
+        }
+        return Response(json.dumps({"data": data}), status=200, mimetype='application/json')
 
 @frappe.whitelist(allow_guest=True)
 def warehouse_details(id=None):
@@ -508,7 +561,7 @@ def getOfflinePOSUsers(id=None,offset=0,limit=50):
     mypass = get_decrypted_password('POS Offline Users', '3ff95f9d07','password', False)
 
     docs = frappe.db.get_all('POS Offline Users',
-        fields=['name','offine_username','shop_name','password','user as actual_user_name,branch_address', 'printe_template as print_template'],
+        fields=['name','offine_username','shop_name','password','custom_phone as phone','user as actual_user_name,branch_address', 'printe_template as print_template'],
         # filters=filters,
         order_by='offine_username',
         limit_start=offset,
