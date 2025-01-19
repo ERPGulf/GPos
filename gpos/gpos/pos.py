@@ -9,50 +9,60 @@ from frappe.utils import (
 	now_datetime
 )
 from frappe.utils.password import get_decrypted_password
+from frappe.utils.image import optimize_image
+from mimetypes import guess_type
+from frappe.utils import now_datetime, cint
 @frappe.whitelist(allow_guest=True)
 def generate_token_secure( api_key, api_secret, app_key):
-
-
+            try:
                 try:
-                    try:
-                        app_key = base64.b64decode(app_key).decode("utf-8")
-                    except Exception as e:
-                        return Response(json.dumps({"message": "Security Parameters are not valid" , "user_count": 0}), status=401, mimetype='application/json')
-                    clientID, clientSecret, clientUser = frappe.db.get_value('OAuth Client', {'app_name': app_key}, ['client_id', 'client_secret','user'])
-
-                    if clientID is None:
-                        # return app_key
-                        return Response(json.dumps({"message": "Security Parameters are not valid" , "user_count": 0}), status=401, mimetype='application/json')
-
-                    client_id = clientID  # Replace with your OAuth client ID
-                    client_secret = clientSecret  # Replace with your OAuth client secret
-                    url =  frappe.local.conf.host_name  + "/api/method/frappe.integrations.oauth2.get_token"
-                    payload = {
-                        "username": api_key,
-                        "password": api_secret,
-                        "grant_type": "password",
-                        "client_id": client_id,
-                        "client_secret": client_secret,
-
-                    }
-                    files = []
-                    headers = {"Content-Type": "application/json"}
-                    response = requests.request("POST", url, data=payload, files=files)
-                    if response.status_code == 200:
-                        result_data = json.loads(response.text)
-                        return Response(json.dumps({"data":result_data}), status=200, mimetype='application/json')
-
-
-                    else:
-
-                        frappe.local.response.http_status_code = 401
-                        return json.loads(response.text)
-
-
+                    app_key = base64.b64decode(app_key).decode("utf-8")
                 except Exception as e:
+                    return Response(json.dumps({"message": "Security Parameters are not valid" , "user_count": 0}), status=401, mimetype='application/json')
+                clientID, clientSecret, clientUser = frappe.db.get_value('OAuth Client', {'app_name': app_key}, ['client_id', 'client_secret','user'])
+                doc=frappe.db.get_value('OAuth Client', {'app_name': app_key}, ['name','client_id', 'client_secret','user'])
 
 
-                        return Response(json.dumps({"message": e , "user_count": 0}), status=500, mimetype='application/json')
+                if clientID is None:
+                    # return app_key
+                    return Response(json.dumps({"message": "Security Parameters are not valid" , "user_count": 0}), status=401, mimetype='application/json')
+
+                client_id = clientID  # Replace with your OAuth client ID
+                client_secret = clientSecret  # Replace with your OAuth client secret
+
+                url =  frappe.local.conf.host_name  + "/api/method/frappe.integrations.oauth2.get_token"
+
+
+                payload = {
+                    "username": api_key,
+                    "password": api_secret,
+                    "grant_type": "password",
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+
+                }
+                files = []
+                headers = {"Content-Type": "application/json"}
+
+                response = requests.request("POST", url, data=payload, files=files)
+
+                if response.status_code == 200:
+
+                    result_data = json.loads(response.text)
+
+                    return Response(json.dumps({"data":result_data}), status=200, mimetype='application/json')
+
+
+                else:
+
+                    frappe.local.response.http_status_code = 401
+                    return json.loads(response.text)
+
+
+            except Exception as e:
+
+
+                    return Response(json.dumps({"message": e , "user_count": 0}), status=500, mimetype='application/json')
 
 
 
@@ -62,6 +72,7 @@ def generate_token_secure( api_key, api_secret, app_key):
 @frappe.whitelist(allow_guest=True)
 def create_refresh_token(refresh_token):
                     url =  frappe.local.conf.host_name  + "/api/method/frappe.integrations.oauth2.get_token"
+
                     payload = f'grant_type=refresh_token&refresh_token={refresh_token}'
                     headers = {
                         'Content-Type': 'application/x-www-form-urlencoded'
@@ -124,148 +135,6 @@ def get_items(item_group=None):
 
     result = list(grouped_items.values())
     return Response(json.dumps({"data":result}), status=200, mimetype='application/json')
-
-
-@frappe.whitelist()
-
-def create_invoice(customer_id,items, taxes, Customer_Purchase_Order=None,payments=None,discount_amount=None,unique_id=None):
-        if not taxes:
-            return Response(json.dumps({"data": "taxes information not provided"}), status=404, mimetype='application/json')
-
-        customer_details = frappe.get_all("Customer", fields=["name"], filters={'name': ['like', customer_id]})
-        if not customer_details:
-            return Response(json.dumps({"data": "customer id not found"}), status=404, mimetype='application/json')
-
-
-        try:
-            invoice_items = []
-            company = frappe.defaults.get_defaults().company
-            doc = frappe.get_doc("Company", company)
-            payment_items=[]
-            for payment in payments:
-                mode_of_payment=payment["mode_of_payment"]
-                mode_of_payment_exist= frappe.get_value("Mode of Payment", {"name":mode_of_payment}, "name")
-
-                if not mode_of_payment_exist:
-                    payment_item={
-                        "mode_of_payment":mode_of_payment,
-                        "amount":payment.get("amount",0)
-                    }
-                else:
-                    payment_item={
-                        "mode_of_payment":mode_of_payment,
-                        "amount":payment.get("amount",0)
-                    }
-                payment_items.append(payment_item)
-
-            # payment_list = [{"mode_of_payment": "Cash"}]
-
-            for item in items:
-                item_code = item["item_name"]
-                item_exists = frappe.get_value("Item", {"name": item_code}, "name")
-
-                if not item_exists:
-                    invoice_item = {
-                        "item_name": item_code,
-                        "qty": item.get("quantity", 0),
-                        "rate": item.get("rate", 0),
-                        "uom": item.get("uom", "Nos"),
-                        # "income_account": item.get("income_account", income_account)
-                    }
-                else:
-                    invoice_item = {
-                        "item_code": item_code,
-                        "qty": item.get("quantity", 0),
-                        "rate": item.get("rate", 0),
-                    }
-
-                invoice_items.append(invoice_item)
-
-            taxes_list = []
-            for tax in taxes:
-                charge_type = tax.get("charge_type")
-                account_head = tax.get("account_head")
-                amount = tax.get("amount")
-                description=tax.get("description")
-
-                # if charge_type and account_head and amount is not None:
-                taxes_list.append({
-                        "charge_type": charge_type,
-                        "account_head": account_head,
-                        "tax_amount": amount,
-                        "description": description,
-
-                    })
-
-            new_invoice = frappe.get_doc({
-                "doctype": "POS Invoice",
-                "customer": customer_id,
-                "custom_unique_id":unique_id,
-                "discount_amount":discount_amount,
-                "items": invoice_items,
-                "payments":payment_items,
-                "taxes": taxes_list,
-                "po_no": Customer_Purchase_Order,
-
-
-            })
-
-            new_invoice.insert(ignore_permissions=True)
-            new_invoice.save()
-
-            iitem = frappe.get_doc("POS Invoice", new_invoice.name)
-            payment_dict=[]
-            for account in iitem.payments:
-                payment_data={
-                    "mode_of_payment":account.mode_of_payment,
-                    "amount":account.amount
-                }
-                payment_dict.append(payment_data)
-            attribute_dict = []
-            for attribute in iitem.items:
-                attribute_data = {
-                    "item_name": attribute.item_name,
-                    "item_code": attribute.item_code,
-                    "quantity": attribute.qty,
-                    "rate": attribute.rate,
-                    "uom": attribute.uom,
-                    "income_account": attribute.income_account
-                }
-                attribute_dict.append(attribute_data)
-            sales_dict=[]
-            for sales in iitem.taxes:
-                sales_data={
-                    "charge_type": sales.charge_type,
-                    "account_head": sales.account_head,
-                    "tax_amount": sales.tax_amount,
-                    "total":sales.total,
-                    "description": sales.description,
-                    # "tax_percentage":sales.tax_percentage
-
-                }
-                sales_dict.append(sales_data)
-            customer_info = {
-                "id": new_invoice.name,
-                "customer_id": new_invoice.customer,
-                "unique_id":new_invoice.custom_unique_id,
-                "customer_name": new_invoice.customer_name,
-                "total_quantity": new_invoice.total_qty,
-                "total": new_invoice.total,
-                "grand_total": new_invoice.grand_total,
-                "Customer's Purchase Order": int(new_invoice.po_no),
-                "discount_amount":new_invoice.discount_amount,
-                "items": attribute_dict,
-                "taxes":sales_dict,
-                "payments":payment_dict
-            }
-
-            return Response(json.dumps({"data": customer_info}), status=200, mimetype='application/json')
-
-        except Exception as e:
-                return Response(json.dumps({"message": str(e)}), status=404, mimetype='application/json')
-
-
-
 
 
 @frappe.whitelist()
@@ -348,10 +217,10 @@ def  cache2():
 
 
 @frappe.whitelist(allow_guest=True)
-def pos_setting(name=None):
+def pos_setting(machine_name):
         systemSettings = frappe.get_doc('pos setting')
         var = True if systemSettings.show_item == 1 else False
-        Zatca_Multiple_Setting = frappe.get_doc('Zatca Multiple Setting', name) if name else None
+        Zatca_Multiple_Setting = frappe.get_doc('Zatca Multiple Setting', machine_name) if machine_name else None
         # return Zatca_Multiple_Setting
         linked_doctype = Zatca_Multiple_Setting.custom_linked_doctype if Zatca_Multiple_Setting else None
 
@@ -375,7 +244,7 @@ def pos_setting(name=None):
             )
 
 
-        if name:
+        if machine_name:
             certificate = Zatca_Multiple_Setting.custom_certficate
             private_key = Zatca_Multiple_Setting.custom_private_key
             public_key = Zatca_Multiple_Setting.custom_public_key
@@ -575,6 +444,249 @@ def getOfflinePOSUsers(id=None,offset=0,limit=50):
 
     return  Response(json.dumps({"data": docs }), status=200, mimetype='application/json')
 
+@frappe.whitelist(allow_guest=True)
+def parse_json_field(field):
+    try:
+        return json.loads(field) if isinstance(field, str) else field
+    except json.JSONDecodeError:
+        raise ValueError(f"Invalid JSON format for field: {field}")
+
+
+@frappe.whitelist()
+def create_invoice(
+    customer_id, items, taxes, PIH,
+    Customer_Purchase_Order=None, payments=None, discount_amount=None, unique_id=None
+):
+    sync_id=frappe.get_all("POS Invoice",["name"],filters={'custom_unique_id': ['like',unique_id]})
+    if sync_id:
+        return Response(json.dumps({"data":"A duplicate entry was detected,unique ID already exists."}), status=409, mimetype='application/json')
+    customer_details = frappe.get_all("Customer", fields=["name"], filters={'name': ['like', customer_id]})
+    if not customer_details:
+            return Response(
+                json.dumps({"data": "Customer ID not found"}),
+                status=404, mimetype='application/json'
+            )
+    try:
+
+        items = parse_json_field(frappe.form_dict.get("items"))
+        taxes = parse_json_field(frappe.form_dict.get("taxes"))
+        payments = parse_json_field(frappe.form_dict.get("payments"))
+        discount_amount = float(frappe.form_dict.get("discount_amount", 0))
+        Customer_Purchase_Order = frappe.form_dict.get("Customer_Purchase_Order")
+        unique_id = frappe.form_dict.get("unique_id")
+        PIH = frappe.form_dict.get("PIH")
+
+
+        for item in items:
+            item['rate'] = float(item.get('rate', 0))
+            item['quantity'] = float(item.get('quantity', 0))
+
+        for payment in payments:
+            payment['amount'] = float(payment.get('amount', 0))
+
+
+        customer_details = frappe.get_all("Customer", fields=["name"], filters={'name': ['like', customer_id]})
+        if not customer_details:
+            return Response(
+                json.dumps({"data": "Customer ID not found"}),
+                status=404, mimetype='application/json'
+            )
+
+
+        invoice_items = []
+        for item in items:
+            item_code = item["item_name"]
+            invoice_items.append({
+                "item_code": item_code if frappe.get_value("Item", {"name": item_code}, "name") else None,
+                "item_name": item_code if not frappe.get_value("Item", {"name": item_code}, "name") else None,
+                "qty": item.get("quantity", 0),
+                "rate": item.get("rate", 0),
+                "uom": item.get("uom", "Nos"),
+            })
+
+
+        taxes_list = [{
+            "charge_type": tax.get("charge_type"),
+            "account_head": tax.get("account_head"),
+            "tax_amount": tax.get("amount"),
+            "description": tax.get("description"),
+        } for tax in taxes or []]
+
+
+        payment_items = []
+        for payment in payments or []:
+            mode_of_payment = payment["mode_of_payment"]
+            payment_items.append({
+                "mode_of_payment": mode_of_payment,
+                "amount": payment.get("amount", 0)
+            })
+
+
+        new_invoice = frappe.get_doc({
+            "doctype": "POS Invoice",
+            "customer": customer_id,
+            "custom_unique_id": unique_id,
+            "discount_amount": discount_amount,
+            "items": invoice_items,
+            "payments": payment_items,
+            "taxes": taxes_list,
+            "po_no": Customer_Purchase_Order,
+            "custom_pih": PIH,
+        })
+
+
+        new_invoice.insert(ignore_permissions=True)
+        new_invoice.save()
+
+
+        uploaded_files = frappe.request.files
+        xml_url, qr_code_url = None, None
+        if "xml" in uploaded_files:
+            new_invoice.custom_xml = process_file_upload(uploaded_files["xml"], ignore_permissions=True)
+        if "qr_code" in uploaded_files:
+            new_invoice.custom_qr_code = process_file_upload(uploaded_files["qr_code"], ignore_permissions=True)
+
+
+        new_invoice.save(ignore_permissions=True)
+        new_invoice.submit()
+
+        # Prepare response data
+        iitem = frappe.get_doc("POS Invoice", new_invoice.name)
+        response_data = {
+            "id": new_invoice.name,
+            "customer_id": new_invoice.customer,
+            "unique_id": new_invoice.custom_unique_id,
+            "customer_name": new_invoice.customer_name,
+            "total_quantity": new_invoice.total_qty,
+            "total": new_invoice.total,
+            "grand_total": new_invoice.grand_total,
+            "Customer's Purchase Order": int(new_invoice.po_no),
+            "discount_amount": new_invoice.discount_amount,
+            "xml": new_invoice.custom_xml,
+            "qr_code": new_invoice.custom_qr_code,
+            "PIH": new_invoice.custom_pih,
+            "machine_name":new_invoice.custom_machine_name,
+            "items": [{
+                "item_name": attr.item_name,
+                "item_code": attr.item_code,
+                "quantity": attr.qty,
+                "rate": attr.rate,
+                "uom": attr.uom,
+                "income_account": attr.income_account,
+            } for attr in iitem.items],
+            "taxes": [{
+                "charge_type": sales.charge_type,
+                "account_head": sales.account_head,
+                "tax_amount": sales.tax_amount,
+                "total": sales.total,
+                "description": sales.description,
+            } for sales in iitem.taxes],
+            "payments": [{
+                "mode_of_payment": payment.mode_of_payment,
+                "amount": payment.amount,
+            } for payment in iitem.payments],
+        }
+
+        return Response(
+            json.dumps({"data": response_data}),
+            status=200, mimetype='application/json'
+        )
+
+    except ValueError as ve:
+        return Response(
+            json.dumps({"message": str(ve)}),
+            status=400, mimetype='application/json'
+        )
+    except Exception as e:
+        return Response(
+            json.dumps({"message":e}),
+            status=500, mimetype='application/json'
+        )
 
 
 
+@frappe.whitelist(allow_guest=False)
+def optimize_image_content(content, content_type):
+    """Optimize image content if required."""
+    args = {"content": content, "content_type": content_type}
+    if frappe.form_dict.max_width:
+        args["max_width"] = int(frappe.form_dict.max_width)
+    if frappe.form_dict.max_height:
+        args["max_height"] = int(frappe.form_dict.max_height)
+    return optimize_image(**args)
+
+
+@frappe.whitelist(allow_guest=False)
+def attach_field_to_doc(doc):
+    """Attach the file to a specific field in the document."""
+    attach_field = frappe.get_doc(frappe.form_dict.doctype, frappe.form_dict.docname)
+    setattr(attach_field, frappe.form_dict.fieldname, doc.file_url)
+    attach_field.save(ignore_permissions=True)
+
+
+@frappe.whitelist(allow_guest=False)
+def process_file_upload(file, ignore_permissions):
+    """Handle the file upload process."""
+    content = file.stream.read()
+    filename = file.filename
+    content_type = guess_type(filename)[0]
+
+    if frappe.form_dict.optimize and content_type.startswith("image/"):
+        content = optimize_image_content(content, content_type)
+
+    frappe.local.uploaded_file = content
+    frappe.local.uploaded_filename = filename
+
+    doc = frappe.get_doc(
+        {
+            "doctype": "File",
+            "attached_to_doctype": frappe.form_dict.doctype,
+            "attached_to_name": frappe.form_dict.docname,
+            "attached_to_field": frappe.form_dict.fieldname,
+            "folder": frappe.form_dict.folder or "Home",
+            "file_name": filename,
+            "file_url": frappe.form_dict.fileurl,
+            "is_private": cint(frappe.form_dict.is_private),
+            "content": content,
+        }
+    ).save(ignore_permissions=ignore_permissions)
+
+    if frappe.form_dict.fieldname:
+        attach_field_to_doc(doc)
+
+    return doc.file_url
+
+
+@frappe.whitelist(allow_guest=False)
+def upload_file():
+    """To upload files into the Doctype"""
+    _, ignore_permissions = validate_user_permissions()
+    files = frappe.request.files
+    file_names = []
+    urls = []
+
+    for key, file in files.items():
+        file_names.append(key)
+        urls.append(process_file_upload(file, ignore_permissions))
+    return urls
+
+
+@frappe.whitelist(allow_guest=False)
+def validate_user_permissions():
+    """Validate user permissions and return user and ignore_permissions."""
+    if frappe.session.user == "Guest":
+        if frappe.get_system_settings("allow_guests_to_upload_files"):
+            return None, True
+        raise frappe.PermissionError
+    else:
+        user = frappe.get_doc("User", frappe.session.user)
+        return user, False
+
+
+@frappe.whitelist(allow_guest=False)
+def get_number_of_files(file_storage):
+    """To get the number of total files"""
+    if hasattr(file_storage, "get_num_files") and callable(file_storage.get_num_files):
+        return file_storage.get_num_files()
+    else:
+        return 0
