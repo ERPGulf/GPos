@@ -219,3 +219,7 @@ app_license = "mit"
 # auth_hooks = [
 #	"gpos.auth.validate"
 # ]
+
+fixtures = [
+    {"dt": "Workspace", "filters": {"module": "Zatca Erpgulf"}},
+    {"dt": "Custom Field", "filters": {"module": "Zatca Erpgulf"}},]
