@@ -454,7 +454,7 @@ def parse_json_field(field):
 
 @frappe.whitelist()
 def create_invoice(
-    customer_name, items, taxes, PIH,zatca_pos_name=None,
+    customer_name, items, taxes, PIH,machine_name=None,
     Customer_Purchase_Order=None, payments=None, discount_amount=None, unique_id=None
 ):
     sync_id=frappe.get_all("POS Invoice",["name"],filters={'custom_unique_id': ['like',unique_id]})
@@ -532,7 +532,7 @@ def create_invoice(
             "taxes": taxes_list,
             "po_no": Customer_Purchase_Order,
             "custom_pih": PIH,
-            "custom_zatca_pos_name":zatca_pos_name,
+            "custom_zatca_pos_name":machine_name,
         })
 
 
