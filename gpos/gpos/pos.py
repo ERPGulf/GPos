@@ -454,16 +454,16 @@ def parse_json_field(field):
 
 @frappe.whitelist()
 def create_invoice(
-    customer_id, items, taxes, PIH,
+    customer_name, items, taxes, PIH,
     Customer_Purchase_Order=None, payments=None, discount_amount=None, unique_id=None
 ):
     sync_id=frappe.get_all("POS Invoice",["name"],filters={'custom_unique_id': ['like',unique_id]})
     if sync_id:
         return Response(json.dumps({"data":"A duplicate entry was detected,unique ID already exists."}), status=409, mimetype='application/json')
-    customer_details = frappe.get_all("Customer", fields=["name"], filters={'name': ['like', customer_id]})
+    customer_details = frappe.get_all("Customer", fields=["name"], filters={'name': ['like', customer_name]})
     if not customer_details:
             return Response(
-                json.dumps({"data": "Customer ID not found"}),
+                json.dumps({"status_code":"Not found","data": "Customer ID not found"}),
                 status=404, mimetype='application/json'
             )
     try:
@@ -485,10 +485,10 @@ def create_invoice(
             payment['amount'] = float(payment.get('amount', 0))
 
 
-        customer_details = frappe.get_all("Customer", fields=["name"], filters={'name': ['like', customer_id]})
+        customer_details = frappe.get_all("Customer", fields=["name"], filters={'name': ['like', customer_name]})
         if not customer_details:
             return Response(
-                json.dumps({"data": "Customer ID not found"}),
+                json.dumps({"data": "Customer name not found"}),
                 status=404, mimetype='application/json'
             )
 
@@ -524,7 +524,7 @@ def create_invoice(
 
         new_invoice = frappe.get_doc({
             "doctype": "POS Invoice",
-            "customer": customer_id,
+            "customer": customer_name,
             "custom_unique_id": unique_id,
             "discount_amount": discount_amount,
             "items": invoice_items,
