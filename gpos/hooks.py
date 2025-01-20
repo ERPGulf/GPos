@@ -221,5 +221,5 @@ app_license = "mit"
 # ]
 
 fixtures = [
-    {"dt": "Workspace", "filters": {"module": "Zatca Erpgulf"}},
-    {"dt": "Custom Field", "filters": {"module": "Zatca Erpgulf"}},]
+    {"dt": "Workspace", "filters": {"module": "Gpos"}},
+    {"dt": "Custom Field", "filters": {"module": "Gpos"}},]
