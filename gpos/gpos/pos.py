@@ -262,6 +262,7 @@ def pos_setting(machine_name):
 
         address_record = address[0] if address else None
 
+
         data = {
             "discount_field": systemSettings.discount_field,
             "prefix_included_or_not": systemSettings.prefix_included_or_not,
@@ -277,6 +278,21 @@ def pos_setting(machine_name):
             "price_total_digitsexcluding_decimals": int(systemSettings.price_total_digitsexcluding_decimals),
             "no_of_decimal_in_price": int(systemSettings.no_of_decimal_in_price),
             "show_item_pictures": var,
+            "inclusive":systemSettings.inclusive,
+            "exclusive":systemSettings.exclusive,
+            "post_to_sales_invoice":systemSettings.post_to_sales_invoice,
+            "post_to_pos_invoice":systemSettings.post_to_pos_invoice,
+            "is_tax_included_in_price":systemSettings.is_tax_included_in_price,
+            "taxes": [
+                {
+                    "charge_type": tax.charge_type,
+                    "account_head": tax.account_head,
+                    "tax_rate": tax.rate,
+                    "total": tax.total,
+                    "description": tax.description,
+                }
+                for tax in systemSettings.sales_taxes_and_charges
+            ],
             "zatca": {
                 "company_name": zatca.name,
                 "company_taxid": zatca.tax_id,
@@ -452,181 +468,6 @@ def parse_json_field(field):
         raise ValueError(f"Invalid JSON format for field: {field}")
 
 
-@frappe.whitelist()
-def create_invoice(
-    customer_name, items,tax_rate,PIH,machine_name=None,
-    Customer_Purchase_Order=None, payments=None, discount_amount=None, unique_id=None
-):
-
-    sync_id=frappe.get_all("POS Invoice",["name"],filters={'custom_unique_id': ['like',unique_id]})
-    if sync_id:
-        return Response(json.dumps({"data":"A duplicate entry was detected,unique ID already exists."}), status=409, mimetype='application/json')
-    try:
-
-        items = parse_json_field(frappe.form_dict.get("items"))
-        # taxes = parse_json_field(frappe.form_dict.get("taxes"))
-        payments = parse_json_field(frappe.form_dict.get("payments"))
-        discount_amount = float(frappe.form_dict.get("discount_amount", 0))
-        Customer_Purchase_Order = frappe.form_dict.get("Customer_Purchase_Order")
-        unique_id = frappe.form_dict.get("unique_id")
-        PIH = frappe.form_dict.get("PIH")
-
-
-
-        for item in items:
-            item['rate'] = float(item.get('rate', 0))
-            item['quantity'] = float(item.get('quantity', 0))
-
-        for payment in payments:
-            payment['amount'] = float(payment.get('amount', 0))
-
-
-        customer_details = frappe.get_all("Customer", fields=["name"], filters={'name': ['like', customer_name]})
-        if not customer_details:
-            return Response(
-                json.dumps({"data": "Customer name not found"}),
-                status=404, mimetype='application/json'
-            )
-
-        setting=frappe.get_doc("Gpos setting")
-        for charge in setting.get("sales_taxes_and_charges"):
-            charge_type= charge.get("charge_type")
-            account_head= charge.get("account_head")
-            description= charge.get("description")
-
-
-        invoice_items = []
-        for item in items:
-            item_code = item["item_code"]
-            invoice_items.append({
-                "item_code": item_code if frappe.get_value("Item", {"name": item_code}, "name") else None,
-                # "item_name": item_code if not frappe.get_value("Item", {"name": item_code}, "name") else None,
-                "qty": item.get("quantity", 0),
-                "rate": item.get("rate", 0),
-                "uom": item.get("uom", "Nos"),
-            })
-
-
-
-        taxes_list = [{
-            "charge_type":charge_type,
-            "account_head":account_head,
-            "rate": tax_rate,
-            "description":description,
-        }]
-
-
-        payment_items = []
-        for payment in payments or []:
-            mode_of_payment = payment["mode_of_payment"]
-            payment_items.append({
-                "mode_of_payment": mode_of_payment,
-                "amount": payment.get("amount", 0)
-            })
-
-
-        new_invoice = frappe.get_doc({
-            "doctype": "POS Invoice",
-            "customer": customer_name,
-            "custom_unique_id": unique_id,
-            "discount_amount": discount_amount,
-            "items": invoice_items,
-            "payments": payment_items,
-            "taxes": taxes_list,
-            "po_no": Customer_Purchase_Order,
-            "custom_zatca_pos_name":machine_name,
-        })
-
-
-        new_invoice.insert(ignore_permissions=True)
-        new_invoice.save()
-
-
-
-
-
-        uploaded_files = frappe.request.files
-        xml_url, qr_code_url = None, None
-        if "xml" in uploaded_files:
-            new_invoice.custom_xml = process_file_upload(
-            uploaded_files["xml"],
-            ignore_permissions=True,
-            is_private=True  # Set the file as private
-        )
-        if "qr_code" in uploaded_files:
-            new_invoice.custom_qr_code = process_file_upload(
-                uploaded_files["qr_code"],
-                ignore_permissions=True,
-                is_private=True  # Set the file as private
-            )
-
-        new_invoice.save(ignore_permissions=True)
-        new_invoice.submit()
-        frappe.db.set_value("Zatca Multiple Setting", "tpmm1pm9kb", "custom_pih", PIH)
-
-        doc = frappe.get_doc("Zatca Multiple Setting", "tpmm1pm9kb")
-
-        # Submit the document
-        doc.save()
-
-
-
-
-        # Prepare response data
-        iitem = frappe.get_doc("POS Invoice", new_invoice.name)
-        response_data = {
-            "id": new_invoice.name,
-            "customer_id": new_invoice.customer,
-            "unique_id": new_invoice.custom_unique_id,
-            "customer_name": new_invoice.customer_name,
-            "total_quantity": new_invoice.total_qty,
-            "total": new_invoice.total,
-            "grand_total": new_invoice.grand_total,
-            "Customer's Purchase Order": int(new_invoice.po_no),
-            "discount_amount": new_invoice.discount_amount,
-            "xml": new_invoice.custom_xml,
-            "qr_code": new_invoice.custom_qr_code,
-            "PIH": doc.custom_pih,
-            "machine_name":new_invoice.custom_zatca_pos_name,
-            "items": [{
-                "item_name": attr.item_name,
-                "item_code": attr.item_code,
-                "quantity": attr.qty,
-                "rate": attr.rate,
-                "uom": attr.uom,
-                "income_account": attr.income_account,
-            } for attr in iitem.items],
-            "taxes": [{
-                "charge_type": sales.charge_type,
-                "account_head": sales.account_head,
-                "tax_rate": sales.rate,
-                "total": sales.total,
-                "description": sales.description,
-            } for sales in iitem.taxes],
-            "payments": [{
-                "mode_of_payment": payment.mode_of_payment,
-                "amount": payment.amount,
-            } for payment in iitem.payments],
-        }
-
-        return Response(
-            json.dumps({"data": response_data}),
-            status=200, mimetype='application/json'
-        )
-
-    except ValueError as ve:
-        return Response(
-            json.dumps({"message": str(ve)}),
-            status=400, mimetype='application/json'
-        )
-    except Exception as e:
-        return Response(
-            json.dumps({"message":e}),
-            status=500, mimetype='application/json'
-        )
-
-
-
 @frappe.whitelist(allow_guest=False)
 def optimize_image_content(content, content_type):
     """Optimize image content if required."""
@@ -714,16 +555,188 @@ def get_number_of_files(file_storage):
         return 0
 
 
-# @frappe.whitelist(allow_guest=True)
-# def update1(PIH):
-#     # Fetch the document
-#     doc = frappe.get_doc("Zatca Multiple Setting", "g0hkqm7ani")
 
-#     # Update the field
-#     doc.custom_pih = PIH
+@frappe.whitelist(allow_guest=False)
+def create_invoice(
+    customer_name, items, tax_rate, PIH, machine_name=None,
+    Customer_Purchase_Order=None, payments=None, discount_amount=None, unique_id=None
+):
+    try:
 
-#     # Save the document, ignoring permissions if necessary
-#     doc.submit()
+        pos_settings = frappe.get_doc("pos setting")
 
-#     # Return the updated document
-#     return doc
+
+        items = parse_json_field(frappe.form_dict.get("items"))
+        payments = parse_json_field(frappe.form_dict.get("payments"))
+        discount_amount = float(frappe.form_dict.get("discount_amount", 0))
+        Customer_Purchase_Order = frappe.form_dict.get("Customer_Purchase_Order")
+        unique_id = frappe.form_dict.get("unique_id")
+        PIH = frappe.form_dict.get("PIH")
+
+
+        for item in items:
+            item['rate'] = float(item.get('rate', 0))
+            item['quantity'] = float(item.get('quantity', 0))
+
+        for payment in payments or []:
+            payment['amount'] = float(payment.get('amount', 0))
+
+        customer_details = frappe.get_all("Customer", fields=["name"], filters={'name': ['like', customer_name]})
+        if not customer_details:
+            return Response(
+                json.dumps({"data": "Customer name not found"}),
+                status=404, mimetype='application/json'
+            )
+
+
+        taxes_list = [
+            {
+                "charge_type": charge.get("charge_type"),
+                "account_head": charge.get("account_head"),
+                "rate": tax_rate,
+                "description": charge.get("description"),
+            }
+            for charge in pos_settings.get("sales_taxes_and_charges")
+        ]
+
+        invoice_items = [
+            {
+                "item_code": item["item_code"] if frappe.get_value("Item", {"name": item["item_code"]}, "name") else None,
+                "qty": item.get("quantity", 0),
+                "rate": item.get("rate", 0),
+                "uom": item.get("uom", "Nos"),
+            }
+            for item in items
+        ]
+
+
+        payment_items = [
+            {
+                "mode_of_payment": payment["mode_of_payment"],
+                "amount": payment.get("amount", 0),
+            }
+            for payment in payments or []
+        ]
+        if pos_settings.post_to_pos_invoice and pos_settings.post_to_sales_invoice:
+            return Response(
+                json.dumps({"data": "Both POS Invoice and Sales Invoice creation are enabled. Please enable only one."}),
+                status=400, mimetype='application/json'
+            )
+
+        if pos_settings.post_to_pos_invoice:
+            doctype = "POS Invoice"
+            pos_sync_id = frappe.get_all("POS Invoice", ["name"], filters={'custom_unique_id': ['like', unique_id]})
+            if pos_sync_id:
+                return Response(json.dumps({"data": "A duplicate entry was detected, unique ID already exists."}), status=409, mimetype='application/json')
+        elif pos_settings.post_to_sales_invoice:
+            doctype = "Sales Invoice"
+            sales_sync_id = frappe.get_all("Sales Invoice", ["name"], filters={'custom_unique_id': ['like', unique_id]})
+            if sales_sync_id:
+                return Response(json.dumps({"data": "A duplicate entry was detected, unique ID already exists."}), status=409, mimetype='application/json')
+        else:
+            return Response(
+                json.dumps({"data": "Neither POS Invoice nor Sales Invoice creation is enabled in settings."}),
+                status=400, mimetype='application/json'
+            )
+
+
+        new_invoice = frappe.get_doc({
+            "doctype": doctype,
+            "customer": customer_name,
+            "custom_unique_id": unique_id,
+            "discount_amount": discount_amount,
+            "items": invoice_items,
+            "payments": payment_items,
+            "taxes": taxes_list,
+            "po_no": Customer_Purchase_Order,
+            "custom_zatca_pos_name": machine_name,
+        })
+
+        new_invoice.insert(ignore_permissions=True)
+        new_invoice.save()
+        uploaded_files = frappe.request.files
+        xml_url, qr_code_url = None, None
+        if "xml" in uploaded_files:
+            new_invoice.custom_xml = process_file_upload(
+            uploaded_files["xml"],
+            ignore_permissions=True,
+            is_private=True
+        )
+        if "qr_code" in uploaded_files:
+            new_invoice.custom_qr_code = process_file_upload(
+                uploaded_files["qr_code"],
+                ignore_permissions=True,
+                is_private=True
+            )
+
+        new_invoice.save(ignore_permissions=True)
+        new_invoice.submit()
+        frappe.db.set_value("Zatca Multiple Setting", "tpmm1pm9kb", "custom_pih", PIH)
+
+        doc = frappe.get_doc("Zatca Multiple Setting", "tpmm1pm9kb")
+
+
+        doc.save()
+
+
+
+
+        response_data = {
+            "id": new_invoice.name,
+            "customer_id": new_invoice.customer,
+            "unique_id": new_invoice.custom_unique_id,
+            "customer_name": new_invoice.customer_name,
+            "total_quantity": new_invoice.total_qty,
+            "total": new_invoice.total,
+            "grand_total": new_invoice.grand_total,
+            "Customer's Purchase Order": int(new_invoice.po_no) if new_invoice.po_no else None,
+            "discount_amount": new_invoice.discount_amount,
+            "xml": new_invoice.custom_xml if hasattr(new_invoice, "custom_xml") else None,
+            "qr_code": new_invoice.custom_qr_code if hasattr(new_invoice, "custom_qr_code") else None,
+            "pih":doc.custom_pih,
+
+            "items": [
+                {
+                    "item_name": item.item_name,
+                    "item_code": item.item_code,
+                    "quantity": item.qty,
+                    "rate": item.rate,
+                    "uom": item.uom,
+                    "income_account": item.income_account,
+                }
+                for item in new_invoice.items
+            ],
+            "taxes": [
+                {
+                    "charge_type": tax.charge_type,
+                    "account_head": tax.account_head,
+                    "tax_rate": tax.rate,
+                    "total": tax.total,
+                    "description": tax.description,
+                }
+                for tax in new_invoice.taxes
+            ],
+            "payments": [
+                {
+                    "mode_of_payment": payment.mode_of_payment,
+                    "amount": payment.amount,
+                }
+                for payment in new_invoice.payments
+            ],
+        }
+
+        return Response(
+            json.dumps({"data": response_data}),
+            status=200, mimetype='application/json'
+        )
+
+    except ValueError as ve:
+        return Response(
+            json.dumps({"message":ve}),
+            status=400, mimetype='application/json'
+        )
+    except Exception as e:
+        return Response(
+            json.dumps({"message": e}),
+            status=500, mimetype='application/json'
+        )

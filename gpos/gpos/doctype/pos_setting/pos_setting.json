@@ -8,8 +8,15 @@
  "engine": "InnoDB",
  "field_order": [
   "discount_field",
+  "inclusive",
+  "exclusive",
   "column_break_avqx",
   "show_item",
+  "post_to_sales_invoice",
+  "post_to_pos_invoice",
+  "is_tax_included_in_price",
+  "section_break_udxx",
+  "sales_taxes_and_charges",
   "barcode_setting_section",
   "prefix_included_or_not",
   "no_of_prefix_character",
@@ -135,12 +142,52 @@
    "fieldname": "tab_2_tab",
    "fieldtype": "Tab Break",
    "label": "Tab 2"
+  },
+  {
+   "default": "0",
+   "fieldname": "inclusive",
+   "fieldtype": "Check",
+   "label": " Inclusive"
+  },
+  {
+   "default": "0",
+   "fieldname": "exclusive",
+   "fieldtype": "Check",
+   "label": "exclusive "
+  },
+  {
+   "fieldname": "section_break_udxx",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "sales_taxes_and_charges",
+   "fieldtype": "Table",
+   "label": "Sales Taxes and Charges",
+   "options": "Sales Taxes and Charges"
+  },
+  {
+   "default": "0",
+   "fieldname": "post_to_sales_invoice",
+   "fieldtype": "Check",
+   "label": "post_to_sales_invoice"
+  },
+  {
+   "default": "0",
+   "fieldname": "post_to_pos_invoice",
+   "fieldtype": "Check",
+   "label": "post to POS invoice "
+  },
+  {
+   "default": "0",
+   "fieldname": "is_tax_included_in_price",
+   "fieldtype": "Check",
+   "label": "is_tax_included_in_price"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-12-23 10:57:29.025864",
+ "modified": "2025-01-21 14:40:50.244759",
  "modified_by": "Administrator",
  "module": "Gpos",
  "name": "pos setting",
