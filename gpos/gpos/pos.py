@@ -454,27 +454,23 @@ def parse_json_field(field):
 
 @frappe.whitelist()
 def create_invoice(
-    customer_name, items, taxes, PIH,machine_name=None,
+    customer_name, items,tax_rate,PIH,machine_name=None,
     Customer_Purchase_Order=None, payments=None, discount_amount=None, unique_id=None
 ):
+
     sync_id=frappe.get_all("POS Invoice",["name"],filters={'custom_unique_id': ['like',unique_id]})
     if sync_id:
         return Response(json.dumps({"data":"A duplicate entry was detected,unique ID already exists."}), status=409, mimetype='application/json')
-    customer_details = frappe.get_all("Customer", fields=["name"], filters={'name': ['like', customer_name]})
-    if not customer_details:
-            return Response(
-                json.dumps({"status_code":"Not found","data": "Customer ID not found"}),
-                status=404, mimetype='application/json'
-            )
     try:
 
         items = parse_json_field(frappe.form_dict.get("items"))
-        taxes = parse_json_field(frappe.form_dict.get("taxes"))
+        # taxes = parse_json_field(frappe.form_dict.get("taxes"))
         payments = parse_json_field(frappe.form_dict.get("payments"))
         discount_amount = float(frappe.form_dict.get("discount_amount", 0))
         Customer_Purchase_Order = frappe.form_dict.get("Customer_Purchase_Order")
         unique_id = frappe.form_dict.get("unique_id")
         PIH = frappe.form_dict.get("PIH")
+
 
 
         for item in items:
@@ -492,25 +488,32 @@ def create_invoice(
                 status=404, mimetype='application/json'
             )
 
+        setting=frappe.get_doc("Gpos setting")
+        for charge in setting.get("sales_taxes_and_charges"):
+            charge_type= charge.get("charge_type")
+            account_head= charge.get("account_head")
+            description= charge.get("description")
+
 
         invoice_items = []
         for item in items:
-            item_code = item["item_name"]
+            item_code = item["item_code"]
             invoice_items.append({
                 "item_code": item_code if frappe.get_value("Item", {"name": item_code}, "name") else None,
-                "item_name": item_code if not frappe.get_value("Item", {"name": item_code}, "name") else None,
+                # "item_name": item_code if not frappe.get_value("Item", {"name": item_code}, "name") else None,
                 "qty": item.get("quantity", 0),
                 "rate": item.get("rate", 0),
                 "uom": item.get("uom", "Nos"),
             })
 
 
+
         taxes_list = [{
-            "charge_type": tax.get("charge_type"),
-            "account_head": tax.get("account_head"),
-            "tax_amount": tax.get("amount"),
-            "description": tax.get("description"),
-        } for tax in taxes or []]
+            "charge_type":charge_type,
+            "account_head":account_head,
+            "rate": tax_rate,
+            "description":description,
+        }]
 
 
         payment_items = []
@@ -531,7 +534,6 @@ def create_invoice(
             "payments": payment_items,
             "taxes": taxes_list,
             "po_no": Customer_Purchase_Order,
-            "custom_pih": PIH,
             "custom_zatca_pos_name":machine_name,
         })
 
@@ -540,16 +542,35 @@ def create_invoice(
         new_invoice.save()
 
 
+
+
+
         uploaded_files = frappe.request.files
         xml_url, qr_code_url = None, None
         if "xml" in uploaded_files:
-            new_invoice.custom_xml = process_file_upload(uploaded_files["xml"], ignore_permissions=True)
+            new_invoice.custom_xml = process_file_upload(
+            uploaded_files["xml"],
+            ignore_permissions=True,
+            is_private=True  # Set the file as private
+        )
         if "qr_code" in uploaded_files:
-            new_invoice.custom_qr_code = process_file_upload(uploaded_files["qr_code"], ignore_permissions=True)
-
+            new_invoice.custom_qr_code = process_file_upload(
+                uploaded_files["qr_code"],
+                ignore_permissions=True,
+                is_private=True  # Set the file as private
+            )
 
         new_invoice.save(ignore_permissions=True)
         new_invoice.submit()
+        frappe.db.set_value("Zatca Multiple Setting", "tpmm1pm9kb", "custom_pih", PIH)
+
+        doc = frappe.get_doc("Zatca Multiple Setting", "tpmm1pm9kb")
+
+        # Submit the document
+        doc.save()
+
+
+
 
         # Prepare response data
         iitem = frappe.get_doc("POS Invoice", new_invoice.name)
@@ -565,7 +586,7 @@ def create_invoice(
             "discount_amount": new_invoice.discount_amount,
             "xml": new_invoice.custom_xml,
             "qr_code": new_invoice.custom_qr_code,
-            "PIH": new_invoice.custom_pih,
+            "PIH": doc.custom_pih,
             "machine_name":new_invoice.custom_zatca_pos_name,
             "items": [{
                 "item_name": attr.item_name,
@@ -578,7 +599,7 @@ def create_invoice(
             "taxes": [{
                 "charge_type": sales.charge_type,
                 "account_head": sales.account_head,
-                "tax_amount": sales.tax_amount,
+                "tax_rate": sales.rate,
                 "total": sales.total,
                 "description": sales.description,
             } for sales in iitem.taxes],
@@ -626,7 +647,7 @@ def attach_field_to_doc(doc):
 
 
 @frappe.whitelist(allow_guest=False)
-def process_file_upload(file, ignore_permissions):
+def process_file_upload(file, ignore_permissions, is_private=False):
     """Handle the file upload process."""
     content = file.stream.read()
     filename = file.filename
@@ -647,7 +668,7 @@ def process_file_upload(file, ignore_permissions):
             "folder": frappe.form_dict.folder or "Home",
             "file_name": filename,
             "file_url": frappe.form_dict.fileurl,
-            "is_private": cint(frappe.form_dict.is_private),
+            "is_private": cint(is_private),  # Use the is_private parameter
             "content": content,
         }
     ).save(ignore_permissions=ignore_permissions)
@@ -691,3 +712,18 @@ def get_number_of_files(file_storage):
         return file_storage.get_num_files()
     else:
         return 0
+
+
+# @frappe.whitelist(allow_guest=True)
+# def update1(PIH):
+#     # Fetch the document
+#     doc = frappe.get_doc("Zatca Multiple Setting", "g0hkqm7ani")
+
+#     # Update the field
+#     doc.custom_pih = PIH
+
+#     # Save the document, ignoring permissions if necessary
+#     doc.submit()
+
+#     # Return the updated document
+#     return doc

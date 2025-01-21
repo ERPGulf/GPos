@@ -1,0 +1,69 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-01-21 11:05:47.579608",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "inclusive",
+  "exclusive",
+  "sales_taxes_and_charges",
+  "post_to_sales_invoice",
+  "post_to_pos_invoice"
+ ],
+ "fields": [
+  {
+   "default": "0",
+   "fieldname": "inclusive",
+   "fieldtype": "Check",
+   "label": " Inclusive"
+  },
+  {
+   "default": "0",
+   "fieldname": "exclusive",
+   "fieldtype": "Check",
+   "label": "exclusive "
+  },
+  {
+   "fieldname": "sales_taxes_and_charges",
+   "fieldtype": "Table",
+   "label": "Sales Taxes and Charges",
+   "options": "Sales Taxes and Charges"
+  },
+  {
+   "default": "0",
+   "fieldname": "post_to_sales_invoice",
+   "fieldtype": "Check",
+   "label": "Post to sales invoice"
+  },
+  {
+   "default": "0",
+   "fieldname": "post_to_pos_invoice",
+   "fieldtype": "Check",
+   "label": "post to POS invoice "
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2025-01-21 11:56:54.594792",
+ "modified_by": "Administrator",
+ "module": "Gpos",
+ "name": "Gpos setting",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
