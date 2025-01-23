@@ -283,6 +283,7 @@ def pos_setting(machine_name):
             "post_to_sales_invoice":systemSettings.post_to_sales_invoice,
             "post_to_pos_invoice":systemSettings.post_to_pos_invoice,
             "is_tax_included_in_price":systemSettings.is_tax_included_in_price,
+            "tax_percentage":systemSettings.tax_percentage,
             "taxes": [
                 {
                     "charge_type": tax.charge_type,
@@ -740,3 +741,5 @@ def create_invoice(
             json.dumps({"message": e}),
             status=500, mimetype='application/json'
         )
+
+

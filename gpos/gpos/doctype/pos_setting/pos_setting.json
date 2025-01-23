@@ -23,6 +23,7 @@
   "prefix",
   "column_break_lbzy",
   "item_code_total_digits",
+  "tax_percentage",
   "branch",
   "item_code_starting_position",
   "price_and_weight_section",
@@ -182,12 +183,17 @@
    "fieldname": "is_tax_included_in_price",
    "fieldtype": "Check",
    "label": "is_tax_included_in_price"
+  },
+  {
+   "fieldname": "tax_percentage",
+   "fieldtype": "Percent",
+   "label": "tax_percentage"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-01-21 14:40:50.244759",
+ "modified": "2025-01-22 15:21:49.391776",
  "modified_by": "Administrator",
  "module": "Gpos",
  "name": "pos setting",
