@@ -3,18 +3,9 @@
     "invoice_date": "19/11/2024",
     "supplier": {
         "name": "HIKIT TRADING (PRIVATE) LIMITED",
-        "address": [
-            "74 STEPPES ROAD",
-            "CHISIPITE",
-            "HARARE",
-            "ZIMBABWE"
-        ],
-        "city": [
-            "HARARE"
-        ],
-        "country": [
-            "ZIMBABWE"
-        ],
+        "address": "(PRIVATE) LIMITED Fiscal Tax Invoice t/a CHANGA SAFARI CAMP 74 STEPPES ROAD CHISIPITE HARARE ZIMBABWE",
+        "city": "HARARE",
+        "country": "ZIMBABWE",
         "TIN": "2000135779",
         "VAT": "220120678",
         "email": "bookings@thehide.com",
@@ -22,17 +13,9 @@
     },
     "customer": {
         "name": "THE HIDE SAFARIS (USD)",
-        "address": [
-            "74 STEPPES ROAD",
-            "CHISIPITE",
-            "HARARE"
-        ],
-        "city": [
-            "CHISIPITE"
-        ],
-        "country": [
-            "HARARE"
-        ],
+        "address": "74 STEPPES ROAD CHISIPITE HARARE",
+        "city": "CHISIPITE",
+        "country": "HARARE",
         "TIN": "2000061019",
         "VAT": "220130867",
         "email": "accounts@thehide.com",
