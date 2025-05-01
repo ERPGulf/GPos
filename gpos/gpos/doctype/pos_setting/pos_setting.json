@@ -17,6 +17,7 @@
   "post_to_sales_invoice",
   "post_to_pos_invoice",
   "is_tax_included_in_price",
+  "zatca_multiple_setting",
   "section_break_udxx",
   "sales_taxes_and_charges",
   "barcode_setting_section",
@@ -202,12 +203,18 @@
    "fieldtype": "Link",
    "label": "income_account",
    "options": "Account"
+  },
+  {
+   "fieldname": "zatca_multiple_setting",
+   "fieldtype": "Link",
+   "label": "Zatca Multiple Setting",
+   "options": "Zatca Multiple Setting"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-05-01 10:51:15.288014",
+ "modified": "2025-05-01 16:07:59.428651",
  "modified_by": "Administrator",
  "module": "Gpos",
  "name": "pos setting",

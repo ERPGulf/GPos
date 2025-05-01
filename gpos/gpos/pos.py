@@ -891,9 +891,10 @@ def create_invoice(
 
         new_invoice.save(ignore_permissions=True)
         new_invoice.submit()
-        frappe.db.set_value("Zatca Multiple Setting", "n9va72eppu", "custom_pih", PIH)
+        zatca_setting_name = pos_settings.zatca_multiple_setting
+        frappe.db.set_value("Zatca Multiple Setting", zatca_setting_name, "custom_pih", PIH)
 
-        doc = frappe.get_doc("Zatca Multiple Setting", "n9va72eppu")
+        doc = frappe.get_doc("Zatca Multiple Setting", zatca_setting_name)
 
         doc.save()
         template = frappe.get_doc("Item Tax Template", new_invoice.items[0].item_tax_template)
