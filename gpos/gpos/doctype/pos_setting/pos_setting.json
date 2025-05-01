@@ -10,6 +10,8 @@
   "discount_field",
   "inclusive",
   "exclusive",
+  "item_tax_template",
+  "income_account",
   "column_break_avqx",
   "show_item",
   "post_to_sales_invoice",
@@ -188,12 +190,24 @@
    "fieldname": "tax_percentage",
    "fieldtype": "Percent",
    "label": "tax_percentage"
+  },
+  {
+   "fieldname": "item_tax_template",
+   "fieldtype": "Link",
+   "label": "item_tax_template",
+   "options": "Item Tax Template"
+  },
+  {
+   "fieldname": "income_account",
+   "fieldtype": "Link",
+   "label": "income_account",
+   "options": "Account"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-01-22 15:21:49.391776",
+ "modified": "2025-05-01 10:51:15.288014",
  "modified_by": "Administrator",
  "module": "Gpos",
  "name": "pos setting",

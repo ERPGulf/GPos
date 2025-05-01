@@ -441,8 +441,6 @@ def warehouse_details(id=None):
     # Define the filter
     filters = {"name": ["like", f"%{id}%"]} if id else {}
 
-    # Fetch the list of POS Invoices
-    # Fetch all POS Invoices
     pos_invoices = frappe.get_list("POS Invoice", fields=["name"], filters=filters)
 
     # Initialize list to store all items with warehouse details including POS Invoice name
@@ -790,8 +788,8 @@ def create_invoice(
                 "qty": item.get("quantity", 0),
                 "rate": item.get("rate", 0),
                 "uom": item.get("uom", "Nos"),
-                "income_account":"4110 - Sales - ZL",
-                "item_tax_template":"15 Zatca - ZL"
+                "income_account":pos_settings.income_account,
+                "item_tax_template":pos_settings.item_tax_template,
             }
             for item in items
         ]
@@ -892,12 +890,12 @@ def create_invoice(
 
         new_invoice.save(ignore_permissions=True)
         new_invoice.submit()
-        frappe.db.set_value("Zatca Multiple Setting", "f7qhpt819n", "custom_pih", PIH)
+        frappe.db.set_value("Zatca Multiple Setting", "n9va72eppu", "custom_pih", PIH)
 
-        doc = frappe.get_doc("Zatca Multiple Setting", "f7qhpt819n")
+        doc = frappe.get_doc("Zatca Multiple Setting", "n9va72eppu")
 
         doc.save()
-        template = frappe.get_doc("Item Tax Template", "15 Zatca - ZL")
+        template = frappe.get_doc("Item Tax Template", new_invoice.items[0].item_tax_template)
         item_tax_rate = None
 
         if template.taxes:
