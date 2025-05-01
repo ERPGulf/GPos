@@ -319,6 +319,7 @@ def pos_setting(machine_name):
         if linked_doctype
         else frappe.get_doc("Company", "Zatca Live (Demo)")
     )
+    company=frappe.get_doc("Company", linked_doctype)
     address = frappe.get_all(
         "Address",
         fields=[
@@ -332,7 +333,7 @@ def pos_setting(machine_name):
         ],
         filters=[
             ["is_your_company_address", "=", "1"],
-            ["Dynamic Link", "link_name", "=", "Zatca Live"],
+            ["Dynamic Link", "link_name", "=", company.name],
         ],
         limit=1,
     )
