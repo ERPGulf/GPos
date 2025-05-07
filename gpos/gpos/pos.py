@@ -140,11 +140,27 @@ def get_items(item_group=None):
     ]
     filters = {"item_group": ["like", f"%{item_group}%"]} if item_group else {}
     items = frappe.get_all("Item", fields=fields, filters=filters)
+    item_meta = frappe.get_meta("Item")
+    has_arabic = "custom_item_name_arabic" in [df.fieldname for df in item_meta.fields]
+    has_english = "custom_item_name_in_english" in [df.fieldname for df in item_meta.fields]
 
 
     grouped_items = {}
 
     for item in items:
+        item_doc = frappe.get_doc("Item", item.name)
+
+    # Determine English and Arabic names
+        item_name_arabic = ""
+        item_name_english = ""
+
+        if has_arabic and item_doc.get("custom_item_name_arabic"):
+            item_name_arabic = item_doc.custom_item_name_arabic
+            item_name_english = item.item_name
+        elif has_english and item_doc.get("custom_item_name_in_english"):
+            item_name_arabic = item.item_name
+            item_name_english = item_doc.custom_item_name_in_english
+        
         uoms = frappe.get_all(
             "UOM Conversion Detail",
             filters={"parent": item.name},
@@ -176,6 +192,8 @@ def get_items(item_group=None):
                 "item_id": item.name,
                 "item_code": item.name,  # assuming 'name' is the item_code here
                 "item_name": item.item_name,
+                "item_name_english": item_name_english,
+                "item_name_arabic": item_name_arabic,
                 "tax_percentage": (
                     item.get('custom_tax_percentage') or 0.0
                 ),
