@@ -128,16 +128,24 @@ def create_refresh_token(refresh_token):
             json.dumps({"data": response.text}), status=401, mimetype="application/json"
         )
 
-
+from datetime import datetime
 @frappe.whitelist(allow_guest=True)
-def get_items(item_group=None):
+def get_items(item_group=None,last_updated_time=None):
     fields = [
         "name",
         "stock_uom",
         "item_name",
         "item_group",
         "description",
+        "modified",
     ]
+    if last_updated_time:
+        try:
+            last_updated_dt = datetime.strptime(last_updated_time, "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            return Response(json.dumps({"error": "Invalid datetime format. Use YYYY-MM-DD HH:MM:SS"}), status=400, mimetype="application/json")
+    else:
+        last_updated_dt = None
     filters = {"item_group": ["like", f"%{item_group}%"]} if item_group else {}
     items = frappe.get_all("Item", fields=fields, filters=filters)
     item_meta = frappe.get_meta("Item")
@@ -148,7 +156,18 @@ def get_items(item_group=None):
     grouped_items = {}
 
     for item in items:
+        item_modified = item.modified
         item_doc = frappe.get_doc("Item", item.name)
+        item_prices = frappe.get_all(
+            "Item Price",
+            fields=["price_list_rate", "uom", "modified"],
+            filters={"item_code": item.name},
+        )
+        if last_updated_dt:
+            if item_modified <= last_updated_dt and not any(
+                price.modified > last_updated_dt for price in item_prices  # FIXED here
+            ):
+                continue
 
     # Determine English and Arabic names
         item_name_arabic = ""
@@ -218,6 +237,140 @@ def get_items(item_group=None):
         json.dumps({"data": result}), status=200, mimetype="application/json"
     )
 
+@frappe.whitelist(allow_guest=True)
+def get_items_page(item_group=None, last_updated_time=None, page=1, page_size=20):
+    from math import ceil
+
+    fields = [
+        "name",
+        "stock_uom",
+        "item_name",
+        "item_group",
+        "description",
+        "modified",
+    ]
+
+    try:
+        page = int(page)
+        page_size = int(page_size)
+    except ValueError:
+        return Response(json.dumps({"error": "Invalid pagination parameters"}), status=400, mimetype="application/json")
+
+    if last_updated_time:
+        try:
+            last_updated_dt = datetime.strptime(last_updated_time, "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            return Response(json.dumps({"error": "Invalid datetime format. Use YYYY-MM-DD HH:MM:SS"}), status=400, mimetype="application/json")
+    else:
+        last_updated_dt = None
+
+    filters = {"item_group": ["like", f"%{item_group}%"]} if item_group else {}
+
+    all_items = frappe.get_all("Item", fields=fields, filters=filters, order_by="modified desc")
+
+    item_meta = frappe.get_meta("Item")
+    has_arabic = "custom_item_name_arabic" in [df.fieldname for df in item_meta.fields]
+    has_english = "custom_item_name_in_english" in [df.fieldname for df in item_meta.fields]
+
+    filtered_items = []
+    for item in all_items:
+        item_modified = item.modified
+        item_prices = frappe.get_all(
+            "Item Price",
+            fields=["modified"],
+            filters={"item_code": item.name},
+        )
+
+        if last_updated_dt:
+            if item_modified <= last_updated_dt and not any(
+                price.modified > last_updated_dt for price in item_prices
+            ):
+                continue
+        filtered_items.append(item)
+
+    total_count = len(filtered_items)
+    total_pages = ceil(total_count / page_size)
+    start = (page - 1) * page_size
+    end = start + page_size
+    paginated_items = filtered_items[start:end]
+
+    grouped_items = {}
+
+    for item in paginated_items:
+        item_doc = frappe.get_doc("Item", item.name)
+
+        item_name_arabic = ""
+        item_name_english = ""
+
+        if has_arabic and item_doc.get("custom_item_name_arabic"):
+            item_name_arabic = item_doc.custom_item_name_arabic
+            item_name_english = item.item_name
+        elif has_english and item_doc.get("custom_item_name_in_english"):
+            item_name_arabic = item.item_name
+            item_name_english = item_doc.custom_item_name_in_english
+
+        uoms = frappe.get_all(
+            "UOM Conversion Detail",
+            filters={"parent": item.name},
+            fields=["uom", "conversion_factor"]
+        )
+        barcodes = frappe.get_all(
+            "Item Barcode",
+            filters={"parent": item.name},
+            fields=["barcode", "uom"]
+        )
+        item_prices = frappe.get_all(
+            "Item Price",
+            fields=["price_list_rate", "uom"],
+            filters={"item_code": item.name},
+        )
+
+        price_map = {price.uom: price.price_list_rate for price in item_prices}
+
+        if item.item_group not in grouped_items:
+            grouped_items[item.item_group] = {
+                "item_group_id": item.item_group,
+                "item_group": item.item_group,
+                "items": [],
+            }
+
+        grouped_items[item.item_group]["items"].append(
+            {
+                "item_id": item.name,
+                "item_code": item.name,
+                "item_name": item.item_name,
+                "item_name_english": item_name_english,
+                "item_name_arabic": item_name_arabic,
+                "tax_percentage": item.get('custom_tax_percentage') or 0.0,
+                "description": item.description,
+                "barcodes": [
+                    {"barcode": barcode.barcode, "uom": barcode.uom}
+                    for barcode in barcodes
+                ],
+                "uom": [
+                    {
+                        "uom": uom.uom,
+                        "conversion_factor": uom.conversion_factor,
+                        "price": price_map.get(uom.uom, 0.0)
+                    }
+                    for uom in uoms
+                ],
+            }
+        )
+
+    result = {
+        "data": list(grouped_items.values()),
+        "pagination": {
+            "page": page,
+            "page_size": page_size,
+            "total_pages": total_pages,
+            "total_items": total_count,
+        }
+    }
+
+    return Response(
+        json.dumps(result), status=200, mimetype="application/json"
+    )
 
 @frappe.whitelist()
 def add_user_key(user_key, user_name):
