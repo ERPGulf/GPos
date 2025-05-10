@@ -128,26 +128,48 @@ def create_refresh_token(refresh_token):
             json.dumps({"data": response.text}), status=401, mimetype="application/json"
         )
 
-from datetime import datetime
+
 @frappe.whitelist(allow_guest=True)
 def get_items(item_group=None,last_updated_time=None):
+    from datetime import datetime
     fields = [
         "name",
         "stock_uom",
         "item_name",
         "item_group",
         "description",
-        "modified",
+        "modified"
     ]
+    # filters = {"item_group": ["like", f"%{item_group}%"]} if item_group else {}
+    item_filters = {}
+    if item_group:
+        item_filters["item_group"] = ["like", f"%{item_group}%"]
+
+    item_codes_set = set()
+
     if last_updated_time:
         try:
             last_updated_dt = datetime.strptime(last_updated_time, "%Y-%m-%d %H:%M:%S")
         except ValueError:
-            return Response(json.dumps({"error": "Invalid datetime format. Use YYYY-MM-DD HH:MM:SS"}), status=400, mimetype="application/json")
-    else:
-        last_updated_dt = None
-    filters = {"item_group": ["like", f"%{item_group}%"]} if item_group else {}
-    items = frappe.get_all("Item", fields=fields, filters=filters)
+            return Response(json.dumps({
+                "error": "Invalid datetime format. Use YYYY-MM-DD HH:MM:SS"
+            }), status=400, mimetype="application/json")
+
+        # Get items modified after last_updated_time
+        modified_item_filters = item_filters.copy()
+        modified_item_filters["modified"] = [">", last_updated_dt]
+        modified_items = frappe.get_all("Item", fields=["name"], filters=modified_item_filters)
+        item_codes_set.update([item["name"] for item in modified_items])
+
+        # Get item codes from modified Item Price
+        price_items = frappe.get_all("Item Price", fields=["item_code"], filters={"modified": [">", last_updated_dt]})
+        item_codes_set.update([p["item_code"] for p in price_items])
+
+        if not item_codes_set:
+            return Response(json.dumps({"data": []}), status=200, mimetype="application/json")
+
+        item_filters["name"] = ["in", list(item_codes_set)]
+    items = frappe.get_all("Item", fields=fields, filters=item_filters)
     item_meta = frappe.get_meta("Item")
     has_arabic = "custom_item_name_arabic" in [df.fieldname for df in item_meta.fields]
     has_english = "custom_item_name_in_english" in [df.fieldname for df in item_meta.fields]
@@ -156,18 +178,7 @@ def get_items(item_group=None,last_updated_time=None):
     grouped_items = {}
 
     for item in items:
-        item_modified = item.modified
         item_doc = frappe.get_doc("Item", item.name)
-        item_prices = frappe.get_all(
-            "Item Price",
-            fields=["price_list_rate", "uom", "modified"],
-            filters={"item_code": item.name},
-        )
-        if last_updated_dt:
-            if item_modified <= last_updated_dt and not any(
-                price.modified > last_updated_dt for price in item_prices  # FIXED here
-            ):
-                continue
 
     # Determine English and Arabic names
         item_name_arabic = ""
@@ -236,10 +247,11 @@ def get_items(item_group=None,last_updated_time=None):
     return Response(
         json.dumps({"data": result}), status=200, mimetype="application/json"
     )
-
 @frappe.whitelist(allow_guest=True)
-def get_items_page(item_group=None, last_updated_time=None, page=1, page_size=20):
-    from math import ceil
+def get_items_page(item_group=None, last_updated_time=None, limit=50, offset=0):
+    import json
+    from datetime import datetime
+    # from werkzeug.wrappers import Response
 
     fields = [
         "name",
@@ -247,56 +259,55 @@ def get_items_page(item_group=None, last_updated_time=None, page=1, page_size=20
         "item_name",
         "item_group",
         "description",
-        "modified",
+        "modified"
     ]
+    item_filters = {}
+    if item_group:
+        item_filters["item_group"] = ["like", f"%{item_group}%"]
 
-    try:
-        page = int(page)
-        page_size = int(page_size)
-    except ValueError:
-        return Response(json.dumps({"error": "Invalid pagination parameters"}), status=400, mimetype="application/json")
+    item_codes_set = set()
 
     if last_updated_time:
         try:
             last_updated_dt = datetime.strptime(last_updated_time, "%Y-%m-%d %H:%M:%S")
         except ValueError:
-            return Response(json.dumps({"error": "Invalid datetime format. Use YYYY-MM-DD HH:MM:SS"}), status=400, mimetype="application/json")
-    else:
-        last_updated_dt = None
+            return Response(json.dumps({
+                "error": "Invalid datetime format. Use YYYY-MM-DD HH:MM:SS"
+            }), status=400, mimetype="application/json")
 
-    filters = {"item_group": ["like", f"%{item_group}%"]} if item_group else {}
+        # Get items modified after last_updated_time
+        modified_item_filters = item_filters.copy()
+        modified_item_filters["modified"] = [">", last_updated_dt]
+        modified_items = frappe.get_all("Item", fields=["name"], filters=modified_item_filters)
+        item_codes_set.update([item["name"] for item in modified_items])
 
-    all_items = frappe.get_all("Item", fields=fields, filters=filters, order_by="modified desc")
+        # Get item codes from modified Item Price
+        price_items = frappe.get_all("Item Price", fields=["item_code"], filters={"modified": [">", last_updated_dt]})
+        item_codes_set.update([p["item_code"] for p in price_items])
+
+        if not item_codes_set:
+            return Response(json.dumps({"data": []}), status=200, mimetype="application/json")
+
+        item_filters["name"] = ["in", list(item_codes_set)]
+
+    # Convert limit and offset to integers
+    try:
+        limit = int(limit)
+        offset = int(offset)
+    except ValueError:
+        return Response(json.dumps({
+            "error": "Invalid limit or offset. Must be integers."
+        }), status=400, mimetype="application/json")
+
+    items = frappe.get_all("Item", fields=fields, filters=item_filters, limit_page_length=limit, limit_start=offset)
 
     item_meta = frappe.get_meta("Item")
     has_arabic = "custom_item_name_arabic" in [df.fieldname for df in item_meta.fields]
     has_english = "custom_item_name_in_english" in [df.fieldname for df in item_meta.fields]
 
-    filtered_items = []
-    for item in all_items:
-        item_modified = item.modified
-        item_prices = frappe.get_all(
-            "Item Price",
-            fields=["modified"],
-            filters={"item_code": item.name},
-        )
-
-        if last_updated_dt:
-            if item_modified <= last_updated_dt and not any(
-                price.modified > last_updated_dt for price in item_prices
-            ):
-                continue
-        filtered_items.append(item)
-
-    total_count = len(filtered_items)
-    total_pages = ceil(total_count / page_size)
-    start = (page - 1) * page_size
-    end = start + page_size
-    paginated_items = filtered_items[start:end]
-
     grouped_items = {}
 
-    for item in paginated_items:
+    for item in items:
         item_doc = frappe.get_doc("Item", item.name)
 
         item_name_arabic = ""
@@ -325,7 +336,7 @@ def get_items_page(item_group=None, last_updated_time=None, page=1, page_size=20
             filters={"item_code": item.name},
         )
 
-        price_map = {price.uom: price.price_list_rate for price in item_prices}
+        price_map = {price["uom"]: price["price_list_rate"] for price in item_prices}
 
         if item.item_group not in grouped_items:
             grouped_items[item.item_group] = {
@@ -341,36 +352,30 @@ def get_items_page(item_group=None, last_updated_time=None, page=1, page_size=20
                 "item_name": item.item_name,
                 "item_name_english": item_name_english,
                 "item_name_arabic": item_name_arabic,
-                "tax_percentage": item.get('custom_tax_percentage') or 0.0,
+                "tax_percentage": (
+                    item_doc.get('custom_tax_percentage') or 0.0
+                ),
                 "description": item.description,
                 "barcodes": [
-                    {"barcode": barcode.barcode, "uom": barcode.uom}
+                    {"barcode": barcode["barcode"], "uom": barcode["uom"]}
                     for barcode in barcodes
                 ],
                 "uom": [
                     {
-                        "uom": uom.uom,
-                        "conversion_factor": uom.conversion_factor,
-                        "price": price_map.get(uom.uom, 0.0)
+                        "uom": uom["uom"],
+                        "conversion_factor": uom["conversion_factor"],
+                        "price": price_map.get(uom["uom"], 0.0)
                     }
                     for uom in uoms
                 ],
             }
         )
 
-    result = {
-        "data": list(grouped_items.values()),
-        "pagination": {
-            "page": page,
-            "page_size": page_size,
-            "total_pages": total_pages,
-            "total_items": total_count,
-        }
-    }
-
+    result = list(grouped_items.values())
     return Response(
-        json.dumps(result), status=200, mimetype="application/json"
+        json.dumps({"data": result}), status=200, mimetype="application/json"
     )
+
 
 @frappe.whitelist()
 def add_user_key(user_key, user_name):
@@ -450,11 +455,24 @@ def create_customer(
         pass
 
 
+# @frappe.whitelist(allow_guest=True)
+# def customer_list(id=None):
+#     doc = frappe.get_list(
+#         "Customer",
+#         fields=["name as id", "mobile_no as phone_no", "customer_name"],
+#         filters={"name": ["like", f"{id}"]} if id else None,
+#     )
+#     return Response(json.dumps({"data": doc}), status=200, mimetype="application/json")
 @frappe.whitelist(allow_guest=True)
 def customer_list(id=None):
     doc = frappe.get_list(
         "Customer",
-        fields=["name as id", "mobile_no as phone_no", "customer_name"],
+        fields=[
+            "name as id", 
+            "mobile_no as phone_no", 
+            "customer_name", 
+            "custom_default_pos"
+        ],
         filters={"name": ["like", f"{id}"]} if id else None,
     )
     return Response(json.dumps({"data": doc}), status=200, mimetype="application/json")
