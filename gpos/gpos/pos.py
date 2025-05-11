@@ -209,6 +209,12 @@ def get_items(item_group=None,last_updated_time=None):
 
         # Build a mapping of UOM -> price
         price_map = {price.uom: price.price_list_rate for price in item_prices}
+        barcode_map = {}
+        for barcode in barcodes:
+            if barcode.uom in barcode_map:
+                barcode_map[barcode.uom].append(barcode.barcode)
+            else:
+                barcode_map[barcode.uom] = [barcode.barcode]
 
         if item.item_group not in grouped_items:
             grouped_items[item.item_group] = {
@@ -236,7 +242,8 @@ def get_items(item_group=None,last_updated_time=None):
                     {
                         "uom": uom.uom,
                         "conversion_factor": uom.conversion_factor,
-                        "price": price_map.get(uom.uom, 0.0)  # fetch price for this uom
+                        "price": price_map.get(uom.uom, 0.0),
+                        "barcode": ", ".join(barcode_map.get(uom.uom, [])) # fetch price for this uom
                     }
                     for uom in uoms
                 ],
@@ -337,6 +344,14 @@ def get_items_page(item_group=None, last_updated_time=None, limit=50, offset=0):
         )
 
         price_map = {price["uom"]: price["price_list_rate"] for price in item_prices}
+        # Group barcodes by UOM
+        barcode_map = {}
+        for barcode in barcodes:
+            if barcode.uom in barcode_map:
+                barcode_map[barcode.uom].append(barcode.barcode)
+            else:
+                barcode_map[barcode.uom] = [barcode.barcode]
+
 
         if item.item_group not in grouped_items:
             grouped_items[item.item_group] = {
@@ -364,7 +379,8 @@ def get_items_page(item_group=None, last_updated_time=None, limit=50, offset=0):
                     {
                         "uom": uom["uom"],
                         "conversion_factor": uom["conversion_factor"],
-                        "price": price_map.get(uom["uom"], 0.0)
+                        "price": price_map.get(uom["uom"], 0.0),
+                        "barcode": ", ".join(barcode_map.get(uom.uom, [])) 
                     }
                     for uom in uoms
                 ],
