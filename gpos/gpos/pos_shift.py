@@ -3,6 +3,7 @@ import json
 import base64
 import requests
 from werkzeug.wrappers import Response
+from datetime import datetime
 
 @frappe.whitelist(allow_guest=True)
 def parse_json_field(field):
@@ -38,11 +39,20 @@ def opening_shift(period_start_date, company, user, pos_profile):
                 "mode_of_payment": payment["mode_of_payment"],
                 "opening_amount": float(payment.get("opening_amount", 0))
             })
+        period_start_dt = datetime.strptime(period_start_date, "%Y-%m-%d %H:%M:%S")
+        offline_user_record = frappe.get_all(
+            "POS Offline Users",
+            filters={"offine_username": user},
+            fields=["user"],
+            limit=1
+        )
+        if offline_user_record:
+            user = offline_user_record[0].user
 
         # Create the POS Opening Entry only if validation passed
         doc = frappe.get_doc({
             "doctype": "POS Opening Entry",
-            "period_start_date": period_start_date,
+            "period_start_date": period_start_dt,
             "company": company,
             "user": user,
             "pos_profile": pos_profile,
@@ -55,8 +65,8 @@ def opening_shift(period_start_date, company, user, pos_profile):
 
         data = {
             "sync_id": doc.name,
-            "period_start_date": str(doc.period_start_date),
-            "posting_date": str(doc.posting_date),
+            "period_start_date": format_datetime_safe(doc.period_start_date),
+            "posting_date": format_datetime_safe(doc.posting_date),
             "company": doc.company,
             "pos_profile": doc.pos_profile,
             "user": doc.user,
@@ -126,11 +136,22 @@ def closing_shift(period_end_date,company, pos_opening_entry):
 
         # Fetch POS Opening Entry
         pos_opening = frappe.get_doc("POS Opening Entry", pos_opening_entry)
+        if pos_opening.status != "Open":
+            return Response(
+                json.dumps({
+                    "error": "Selected POS Opening Entry should be open."
+                }),
+                status=409,
+                mimetype="application/json"
+            )
+
+        period_end_dt = datetime.strptime(period_end_date, "%Y-%m-%d %H:%M:%S")
+        
 
         # Create POS Closing Entry
         doc = frappe.get_doc({
             "doctype": "POS Closing Entry",
-            "period_end_date":period_end_date ,
+            "period_end_date":period_end_dt ,
             "pos_opening_entry": pos_opening_entry,
             "company": company,
             "pos_profile": pos_opening.pos_profile,
@@ -146,9 +167,9 @@ def closing_shift(period_end_date,company, pos_opening_entry):
 
         data = {
             "sync_id": doc.name,
-            "period_start_date": str(doc.period_start_date),
-            "period_end_date": str(doc.period_end_date),
-            "posting_date": str(doc.posting_date),
+            "period_start_date": format_datetime_safe(doc.period_start_date),
+            "period_end_date": format_datetime_safe(doc.period_end_date),
+            "posting_date": format_datetime_safe(doc.posting_date),
             "posting_time": str(doc.posting_time),
             "pos_opening_entry": doc.pos_opening_entry,
             "company": doc.company,
@@ -183,3 +204,45 @@ def closing_shift(period_end_date,company, pos_opening_entry):
             status=500,
             mimetype="application/json"
         )
+from datetime import datetime, date
+
+def format_datetime_safe(value):
+    if isinstance(value, datetime):
+        return value.strftime("%Y-%m-%d %H:%M:%S")
+    elif isinstance(value, date):
+        return datetime.combine(value, datetime.min.time()).strftime("%Y-%m-%d %H:%M:%S")
+    elif isinstance(value, str):
+        try:
+            # Try parsing string (datetime format first, fallback to date)
+            try:
+                dt = datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                dt = datetime.strptime(value, "%Y-%m-%d")
+            return dt.strftime("%Y-%m-%d %H:%M:%S")
+        except:
+            return value  # fallback
+    return str(value)
+
+
+
+
+import frappe
+
+@frappe.whitelist(allow_guest=True)
+def get_pos_profiles_with_users():
+    profiles = frappe.get_all("POS Profile", fields=["name"])
+    result = []
+
+    for profile in profiles:
+        users = frappe.get_all(
+            "POS Profile User",
+            filters={"parent": profile.name, "parenttype": "POS Profile"},
+            fields=["user"]
+        )
+        user_list = [u.user for u in users]
+        result.append({
+            "pos_profile": profile.name,
+            "applicable_users": user_list
+        })
+
+    return result

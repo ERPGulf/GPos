@@ -800,15 +800,49 @@ def generate_token_secure_for_users(username, password, app_key):
         )
 
 
+# @frappe.whitelist(allow_guest=True)
+# def getOfflinePOSUsers(id=None, offset=0, limit=50):
+#     from frappe.utils.password import get_decrypted_password
+#     import base64
+
+#     mypass = get_decrypted_password(
+#         "POS Offline Users", "3ff95f9d07", "password", False
+#     )
+
+#     docs = frappe.db.get_all(
+#         "POS Offline Users",
+#         fields=[
+#             "name",
+#             "offine_username",
+#             "shop_name",
+#             "password",
+#             "user as actual_user_name,branch_address",
+#             "printe_template as print_template",
+#         ],
+#         # filters=filters,
+#         order_by="offine_username",
+#         limit_start=offset,
+#         limit_page_length=limit,
+#     )
+
+#     for doc in docs:
+#         doc.password = base64.b64encode(
+#             get_decrypted_password("POS Offline Users", doc.name, "password").encode(
+#                 "utf-8"
+#             )
+#         ).decode("utf-8")
+#         # if not client_secret:
+#         #     continue
+
+#     return Response(json.dumps({"data": docs}), status=200, mimetype="application/json")
 @frappe.whitelist(allow_guest=True)
 def getOfflinePOSUsers(id=None, offset=0, limit=50):
     from frappe.utils.password import get_decrypted_password
     import base64
+    import json
+    from werkzeug.wrappers import Response
 
-    mypass = get_decrypted_password(
-        "POS Offline Users", "3ff95f9d07", "password", False
-    )
-
+    # Fetch the offline users
     docs = frappe.db.get_all(
         "POS Offline Users",
         fields=[
@@ -816,25 +850,34 @@ def getOfflinePOSUsers(id=None, offset=0, limit=50):
             "offine_username",
             "shop_name",
             "password",
-            "user as actual_user_name,branch_address",
+            "user as actual_user_name",
+            "branch_address",
             "printe_template as print_template",
         ],
-        # filters=filters,
         order_by="offine_username",
         limit_start=offset,
         limit_page_length=limit,
     )
 
     for doc in docs:
-        doc.password = base64.b64encode(
-            get_decrypted_password("POS Offline Users", doc.name, "password").encode(
-                "utf-8"
-            )
-        ).decode("utf-8")
-        # if not client_secret:
-        #     continue
+        # Decrypt and encode the password in base64
+        decrypted_password = get_decrypted_password("POS Offline Users", doc.name, "password")
+        doc["password"] = base64.b64encode(decrypted_password.encode("utf-8")).decode("utf-8")
 
-    return Response(json.dumps({"data": docs}), status=200, mimetype="application/json")
+        # Fetch POS Profiles where this user is listed in applicable_for_users
+        pos_profiles = frappe.db.get_all(
+            "POS Profile User",
+            filters={"user": doc["actual_user_name"]},
+            fields=["parent as pos_profile"]
+        )
+        doc["pos_profiles"] = [p["pos_profile"] for p in pos_profiles]
+
+    return Response(
+        json.dumps({"data": docs}),
+        status=200,
+        mimetype="application/json"
+    )
+
 
 
 @frappe.whitelist(allow_guest=True)
