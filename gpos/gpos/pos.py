@@ -616,6 +616,7 @@ def pos_setting(machine_name):
                 "total": tax.total,
                 "description": tax.description,
                 "included_in_paid_amount": 1,
+                "included_in_print_rate": 1,
             }
             for tax in systemSettings.sales_taxes_and_charges
         ],
