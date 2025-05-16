@@ -986,6 +986,8 @@ def create_invoice(
     payments=None,
     discount_amount=None,
     unique_id=None,
+    custom_offline_creation_time=None,  # ✅ New param
+    pos_profile=None,
 
 ):
     try:
@@ -998,6 +1000,8 @@ def create_invoice(
         Customer_Purchase_Order = frappe.form_dict.get("Customer_Purchase_Order")
         unique_id = frappe.form_dict.get("unique_id")
         PIH = frappe.form_dict.get("PIH")
+        custom_offline_creation_time = frappe.form_dict.get("custom_offline_creation_time")  # ✅
+        pos_profile = frappe.form_dict.get("pos_profile")
 
 
         for item in items:
@@ -1120,6 +1124,9 @@ def create_invoice(
                 "taxes": taxes_list,
                 "po_no": Customer_Purchase_Order,
                 "custom_zatca_pos_name": machine_name,
+                "is_pos": 1,  # ✅ Always set POS flag
+                "custom_offline_creation_time": custom_offline_creation_time,  # ✅
+                "pos_profile": pos_profile,  # ✅
             }
         )
 
