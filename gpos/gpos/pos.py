@@ -130,16 +130,10 @@ def create_refresh_token(refresh_token):
 
 
 @frappe.whitelist(allow_guest=True)
-def get_items(item_group=None,last_updated_time=None):
+def get_items(item_group=None, last_updated_time=None):
     from datetime import datetime
-    fields = [
-        "name",
-        "stock_uom",
-        "item_name",
-        "item_group",
-        "description",
-        "modified"
-    ]
+
+    fields = ["name", "stock_uom", "item_name", "item_group", "description", "modified"]
     # filters = {"item_group": ["like", f"%{item_group}%"]} if item_group else {}
     item_filters = {}
     if item_group:
@@ -151,36 +145,49 @@ def get_items(item_group=None,last_updated_time=None):
         try:
             last_updated_dt = datetime.strptime(last_updated_time, "%Y-%m-%d %H:%M:%S")
         except ValueError:
-            return Response(json.dumps({
-                "error": "Invalid datetime format. Use YYYY-MM-DD HH:MM:SS"
-            }), status=400, mimetype="application/json")
+            return Response(
+                json.dumps(
+                    {"error": "Invalid datetime format. Use YYYY-MM-DD HH:MM:SS"}
+                ),
+                status=400,
+                mimetype="application/json",
+            )
 
         # Get items modified after last_updated_time
         modified_item_filters = item_filters.copy()
         modified_item_filters["modified"] = [">", last_updated_dt]
-        modified_items = frappe.get_all("Item", fields=["name"], filters=modified_item_filters)
+        modified_items = frappe.get_all(
+            "Item", fields=["name"], filters=modified_item_filters
+        )
         item_codes_set.update([item["name"] for item in modified_items])
 
         # Get item codes from modified Item Price
-        price_items = frappe.get_all("Item Price", fields=["item_code"], filters={"modified": [">", last_updated_dt]})
+        price_items = frappe.get_all(
+            "Item Price",
+            fields=["item_code"],
+            filters={"modified": [">", last_updated_dt]},
+        )
         item_codes_set.update([p["item_code"] for p in price_items])
 
         if not item_codes_set:
-            return Response(json.dumps({"data": []}), status=200, mimetype="application/json")
+            return Response(
+                json.dumps({"data": []}), status=200, mimetype="application/json"
+            )
 
         item_filters["name"] = ["in", list(item_codes_set)]
     items = frappe.get_all("Item", fields=fields, filters=item_filters)
     item_meta = frappe.get_meta("Item")
     has_arabic = "custom_item_name_arabic" in [df.fieldname for df in item_meta.fields]
-    has_english = "custom_item_name_in_english" in [df.fieldname for df in item_meta.fields]
-
+    has_english = "custom_item_name_in_english" in [
+        df.fieldname for df in item_meta.fields
+    ]
 
     grouped_items = {}
 
     for item in items:
         item_doc = frappe.get_doc("Item", item.name)
 
-    # Determine English and Arabic names
+        # Determine English and Arabic names
         item_name_arabic = ""
         item_name_english = ""
 
@@ -190,24 +197,22 @@ def get_items(item_group=None,last_updated_time=None):
         elif has_english and item_doc.get("custom_item_name_in_english"):
             item_name_arabic = item.item_name
             item_name_english = item_doc.custom_item_name_in_english
-        
+
         uoms = frappe.get_all(
             "UOM Conversion Detail",
             filters={"parent": item.name},
-            fields=["uom", "conversion_factor"]
+            fields=["uom", "conversion_factor"],
         )
         barcodes = frappe.get_all(
-            "Item Barcode",
-            filters={"parent": item.name},
-            fields=["barcode", "uom"]
+            "Item Barcode", filters={"parent": item.name}, fields=["barcode", "uom"]
         )
         item_prices = frappe.get_all(
             "Item Price",
             fields=["price_list_rate", "uom"],
             filters={
-                    "item_code": item.name,
-                     "price_list": "Standard Selling"
-                     },  # fix item.item_code to item.name
+                "item_code": item.name,
+                "price_list": "Standard Selling",
+            },  # fix item.item_code to item.name
         )
 
         # Build a mapping of UOM -> price
@@ -233,9 +238,7 @@ def get_items(item_group=None,last_updated_time=None):
                 "item_name": item.item_name,
                 "item_name_english": item_name_english,
                 "item_name_arabic": item_name_arabic,
-                "tax_percentage": (
-                    item.get('custom_tax_percentage') or 0.0
-                ),
+                "tax_percentage": (item.get("custom_tax_percentage") or 0.0),
                 "description": item.description,
                 "barcodes": [
                     {"barcode": barcode.barcode, "uom": barcode.uom}
@@ -246,7 +249,9 @@ def get_items(item_group=None,last_updated_time=None):
                         "uom": uom.uom,
                         "conversion_factor": uom.conversion_factor,
                         "price": price_map.get(uom.uom, 0.0),
-                        "barcode": ", ".join(barcode_map.get(uom.uom, [])) # fetch price for this uom
+                        "barcode": ", ".join(
+                            barcode_map.get(uom.uom, [])
+                        ),  # fetch price for this uom
                     }
                     for uom in uoms
                 ],
@@ -257,20 +262,16 @@ def get_items(item_group=None,last_updated_time=None):
     return Response(
         json.dumps({"data": result}), status=200, mimetype="application/json"
     )
+
+
 @frappe.whitelist(allow_guest=True)
 def get_items_page(item_group=None, last_updated_time=None, limit=50, offset=0):
     import json
     from datetime import datetime
+
     # from werkzeug.wrappers import Response
 
-    fields = [
-        "name",
-        "stock_uom",
-        "item_name",
-        "item_group",
-        "description",
-        "modified"
-    ]
+    fields = ["name", "stock_uom", "item_name", "item_group", "description", "modified"]
     item_filters = {}
     if item_group:
         item_filters["item_group"] = ["like", f"%{item_group}%"]
@@ -281,22 +282,34 @@ def get_items_page(item_group=None, last_updated_time=None, limit=50, offset=0):
         try:
             last_updated_dt = datetime.strptime(last_updated_time, "%Y-%m-%d %H:%M:%S")
         except ValueError:
-            return Response(json.dumps({
-                "error": "Invalid datetime format. Use YYYY-MM-DD HH:MM:SS"
-            }), status=400, mimetype="application/json")
+            return Response(
+                json.dumps(
+                    {"error": "Invalid datetime format. Use YYYY-MM-DD HH:MM:SS"}
+                ),
+                status=400,
+                mimetype="application/json",
+            )
 
         # Get items modified after last_updated_time
         modified_item_filters = item_filters.copy()
         modified_item_filters["modified"] = [">", last_updated_dt]
-        modified_items = frappe.get_all("Item", fields=["name"], filters=modified_item_filters)
+        modified_items = frappe.get_all(
+            "Item", fields=["name"], filters=modified_item_filters
+        )
         item_codes_set.update([item["name"] for item in modified_items])
 
         # Get item codes from modified Item Price
-        price_items = frappe.get_all("Item Price", fields=["item_code"], filters={"modified": [">", last_updated_dt]})
+        price_items = frappe.get_all(
+            "Item Price",
+            fields=["item_code"],
+            filters={"modified": [">", last_updated_dt]},
+        )
         item_codes_set.update([p["item_code"] for p in price_items])
 
         if not item_codes_set:
-            return Response(json.dumps({"data": []}), status=200, mimetype="application/json")
+            return Response(
+                json.dumps({"data": []}), status=200, mimetype="application/json"
+            )
 
         item_filters["name"] = ["in", list(item_codes_set)]
 
@@ -305,15 +318,25 @@ def get_items_page(item_group=None, last_updated_time=None, limit=50, offset=0):
         limit = int(limit)
         offset = int(offset)
     except ValueError:
-        return Response(json.dumps({
-            "error": "Invalid limit or offset. Must be integers."
-        }), status=400, mimetype="application/json")
+        return Response(
+            json.dumps({"error": "Invalid limit or offset. Must be integers."}),
+            status=400,
+            mimetype="application/json",
+        )
 
-    items = frappe.get_all("Item", fields=fields, filters=item_filters, limit_page_length=limit, limit_start=offset)
+    items = frappe.get_all(
+        "Item",
+        fields=fields,
+        filters=item_filters,
+        limit_page_length=limit,
+        limit_start=offset,
+    )
 
     item_meta = frappe.get_meta("Item")
     has_arabic = "custom_item_name_arabic" in [df.fieldname for df in item_meta.fields]
-    has_english = "custom_item_name_in_english" in [df.fieldname for df in item_meta.fields]
+    has_english = "custom_item_name_in_english" in [
+        df.fieldname for df in item_meta.fields
+    ]
 
     grouped_items = {}
 
@@ -333,12 +356,10 @@ def get_items_page(item_group=None, last_updated_time=None, limit=50, offset=0):
         uoms = frappe.get_all(
             "UOM Conversion Detail",
             filters={"parent": item.name},
-            fields=["uom", "conversion_factor"]
+            fields=["uom", "conversion_factor"],
         )
         barcodes = frappe.get_all(
-            "Item Barcode",
-            filters={"parent": item.name},
-            fields=["barcode", "uom"]
+            "Item Barcode", filters={"parent": item.name}, fields=["barcode", "uom"]
         )
         item_prices = frappe.get_all(
             "Item Price",
@@ -355,7 +376,6 @@ def get_items_page(item_group=None, last_updated_time=None, limit=50, offset=0):
             else:
                 barcode_map[barcode.uom] = [barcode.barcode]
 
-
         if item.item_group not in grouped_items:
             grouped_items[item.item_group] = {
                 "item_group_id": item.item_group,
@@ -370,9 +390,7 @@ def get_items_page(item_group=None, last_updated_time=None, limit=50, offset=0):
                 "item_name": item.item_name,
                 "item_name_english": item_name_english,
                 "item_name_arabic": item_name_arabic,
-                "tax_percentage": (
-                    item_doc.get('custom_tax_percentage') or 0.0
-                ),
+                "tax_percentage": (item_doc.get("custom_tax_percentage") or 0.0),
                 "description": item.description,
                 "barcodes": [
                     {"barcode": barcode["barcode"], "uom": barcode["uom"]}
@@ -383,7 +401,7 @@ def get_items_page(item_group=None, last_updated_time=None, limit=50, offset=0):
                         "uom": uom["uom"],
                         "conversion_factor": uom["conversion_factor"],
                         "price": price_map.get(uom["uom"], 0.0),
-                        "barcode": ", ".join(barcode_map.get(uom.uom, [])) 
+                        "barcode": ", ".join(barcode_map.get(uom.uom, [])),
                     }
                     for uom in uoms
                 ],
@@ -487,10 +505,10 @@ def customer_list(id=None):
     doc = frappe.get_list(
         "Customer",
         fields=[
-            "name as id", 
-            "mobile_no as phone_no", 
-            "customer_name", 
-            "custom_default_pos"
+            "name as id",
+            "mobile_no as phone_no",
+            "customer_name",
+            "custom_default_pos",
         ],
         filters={"name": ["like", f"{id}"]} if id else None,
     )
@@ -527,7 +545,7 @@ def pos_setting(machine_name):
         if linked_doctype
         else frappe.get_doc("Company", "Zatca Live (Demo)")
     )
-    company=frappe.get_doc("Company", linked_doctype)
+    company = frappe.get_doc("Company", linked_doctype)
     address = frappe.get_all(
         "Address",
         fields=[
@@ -597,6 +615,7 @@ def pos_setting(machine_name):
                 "tax_rate": tax.rate,
                 "total": tax.total,
                 "description": tax.description,
+                "included_in_paid_amount": 1,
             }
             for tax in systemSettings.sales_taxes_and_charges
         ],
@@ -837,6 +856,7 @@ def generate_token_secure_for_users(username, password, app_key):
 #         # if not client_secret:
 #         #     continue
 
+
 #     return Response(json.dumps({"data": docs}), status=200, mimetype="application/json")
 @frappe.whitelist(allow_guest=True)
 def getOfflinePOSUsers(id=None, offset=0, limit=50):
@@ -864,23 +884,22 @@ def getOfflinePOSUsers(id=None, offset=0, limit=50):
 
     for doc in docs:
         # Decrypt and encode the password in base64
-        decrypted_password = get_decrypted_password("POS Offline Users", doc.name, "password")
-        doc["password"] = base64.b64encode(decrypted_password.encode("utf-8")).decode("utf-8")
+        decrypted_password = get_decrypted_password(
+            "POS Offline Users", doc.name, "password"
+        )
+        doc["password"] = base64.b64encode(decrypted_password.encode("utf-8")).decode(
+            "utf-8"
+        )
 
         # Fetch POS Profiles where this user is listed in applicable_for_users
         pos_profiles = frappe.db.get_all(
             "POS Profile User",
             filters={"user": doc["actual_user_name"]},
-            fields=["parent as pos_profile"]
+            fields=["parent as pos_profile"],
         )
         doc["pos_profiles"] = [p["pos_profile"] for p in pos_profiles]
 
-    return Response(
-        json.dumps({"data": docs}),
-        status=200,
-        mimetype="application/json"
-    )
-
+    return Response(json.dumps({"data": docs}), status=200, mimetype="application/json")
 
 
 @frappe.whitelist(allow_guest=True)
@@ -977,7 +996,9 @@ def get_number_of_files(file_storage):
     else:
         return 0
 
+
 from frappe import ValidationError
+
 
 @frappe.whitelist(allow_guest=False)
 def create_invoice(
@@ -991,7 +1012,6 @@ def create_invoice(
     unique_id=None,
     custom_offline_creation_time=None,  # ✅ New param
     pos_profile=None,
-
 ):
     try:
 
@@ -1003,9 +1023,10 @@ def create_invoice(
         Customer_Purchase_Order = frappe.form_dict.get("Customer_Purchase_Order")
         unique_id = frappe.form_dict.get("unique_id")
         PIH = frappe.form_dict.get("PIH")
-        custom_offline_creation_time = frappe.form_dict.get("custom_offline_creation_time")  #k  ✅
+        custom_offline_creation_time = frappe.form_dict.get(
+            "custom_offline_creation_time"
+        )  # k  ✅
         pos_profile = frappe.form_dict.get("pos_profile")
-
 
         for item in items:
             item["rate"] = float(item.get("rate", 0))
@@ -1044,20 +1065,19 @@ def create_invoice(
                 "qty": item.get("quantity", 0),
                 "rate": item.get("rate", 0),
                 "uom": item.get("uom", "Nos"),
-                "income_account":pos_settings.income_account,
-                "item_tax_template":pos_settings.item_tax_template,
+                "income_account": pos_settings.income_account,
+                "item_tax_template": pos_settings.item_tax_template,
             }
             for item in items
         ]
 
         payment_items = [
-        {
-            "mode_of_payment": payment.get("mode_of_payment", "Cash"),
-            "amount": float(payment.get("amount", 0)),
-        }
-        for payment in payments or []
-    ]
-
+            {
+                "mode_of_payment": payment.get("mode_of_payment", "Cash"),
+                "amount": float(payment.get("amount", 0)),
+            }
+            for payment in payments or []
+        ]
 
         if pos_settings.post_to_pos_invoice and pos_settings.post_to_sales_invoice:
             return Response(
@@ -1150,18 +1170,21 @@ def create_invoice(
         new_invoice.save(ignore_permissions=True)
         new_invoice.submit()
         zatca_setting_name = pos_settings.zatca_multiple_setting
-        frappe.db.set_value("Zatca Multiple Setting", zatca_setting_name, "custom_pih", PIH)
+        frappe.db.set_value(
+            "Zatca Multiple Setting", zatca_setting_name, "custom_pih", PIH
+        )
 
         doc = frappe.get_doc("Zatca Multiple Setting", zatca_setting_name)
 
         doc.save()
-        template = frappe.get_doc("Item Tax Template", new_invoice.items[0].item_tax_template)
+        template = frappe.get_doc(
+            "Item Tax Template", new_invoice.items[0].item_tax_template
+        )
         item_tax_rate = None
 
         if template.taxes:
             # Assuming you want the first tax entry's rate
-           item_tax_rate = template.taxes[0].tax_rate
-
+            item_tax_rate = template.taxes[0].tax_rate
 
         response_data = {
             "id": new_invoice.name,
@@ -1224,25 +1247,22 @@ def create_invoice(
 
         error_message = str(ve)
 
-
         if "Status code: 400" in error_message:
             return Response(
                 json.dumps({"message": error_message}),
                 status=400,
-                mimetype="application/json"
+                mimetype="application/json",
             )
         else:
             # default to 500 if not 400 specific
             return Response(
                 json.dumps({"message": error_message}),
                 status=500,
-                mimetype="application/json"
+                mimetype="application/json",
             )
 
     except Exception as e:
         # Fallback for all other errors
         return Response(
-            json.dumps({"message": str(e)}),
-            status=500,
-            mimetype="application/json"
+            json.dumps({"message": str(e)}), status=500, mimetype="application/json"
         )
