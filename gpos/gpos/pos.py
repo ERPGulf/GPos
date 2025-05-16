@@ -1000,7 +1000,7 @@ def create_invoice(
         Customer_Purchase_Order = frappe.form_dict.get("Customer_Purchase_Order")
         unique_id = frappe.form_dict.get("unique_id")
         PIH = frappe.form_dict.get("PIH")
-        custom_offline_creation_time = frappe.form_dict.get("custom_offline_creation_time")  #  ✅
+        custom_offline_creation_time = frappe.form_dict.get("custom_offline_creation_time")  #k ✅
         pos_profile = frappe.form_dict.get("pos_profile")
 
 
