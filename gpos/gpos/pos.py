@@ -1039,7 +1039,7 @@ def create_invoice(
         customer_details = frappe.get_all(
             "Customer",
             fields=["name"],
-            filters={"customer_name": ["like", customer_name]},
+            filters={"name": ["like", customer_name]},
         )
         if not customer_details:
             return Response(
