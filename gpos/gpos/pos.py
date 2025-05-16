@@ -204,7 +204,10 @@ def get_items(item_group=None,last_updated_time=None):
         item_prices = frappe.get_all(
             "Item Price",
             fields=["price_list_rate", "uom"],
-            filters={"item_code": item.name},  # fix item.item_code to item.name
+            filters={
+                    "item_code": item.name,
+                     "price_list": "Standard Selling"
+                     },  # fix item.item_code to item.name
         )
 
         # Build a mapping of UOM -> price
