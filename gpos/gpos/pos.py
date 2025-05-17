@@ -509,6 +509,7 @@ def customer_list(id=None):
             "mobile_no as phone_no",
             "customer_name",
             "custom_default_pos",
+            "disabled",
         ],
         filters={"name": ["like", f"{id}"]} if id else None,
     )
