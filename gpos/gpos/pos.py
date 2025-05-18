@@ -1014,6 +1014,7 @@ def create_invoice(
     unique_id=None,
     custom_offline_creation_time=None,  # ✅ New param
     pos_profile=None,
+    pos_shift=None 
 ):
     try:
 
@@ -1029,6 +1030,8 @@ def create_invoice(
             "custom_offline_creation_time"
         )  # k  ✅
         pos_profile = frappe.form_dict.get("pos_profile")
+        pos_shift = frappe.form_dict.get("pos_shift")
+
 
         for item in items:
             item["rate"] = float(item.get("rate", 0))
@@ -1156,6 +1159,7 @@ def create_invoice(
                 "is_pos": 1,  # ✅ Always set POS flag
                 "custom_offline_creation_time": custom_offline_creation_time,  # ✅
                 "pos_profile": pos_profile,  # ✅
+                "posa_pos_opening_shift": pos_shift,
             }
         )
 

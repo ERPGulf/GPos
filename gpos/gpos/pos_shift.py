@@ -13,7 +13,7 @@ def parse_json_field(field):
         raise ValueError(f"Invalid JSON format for field: {field}")
 
 @frappe.whitelist(allow_guest=True)
-def opening_shift(period_start_date, company, user, pos_profile):
+def opening_shift(period_start_date, company, user, pos_profile,name):
     """
     Function to handle POS Opening Shift operations.
     """
@@ -39,6 +39,7 @@ def opening_shift(period_start_date, company, user, pos_profile):
                 "mode_of_payment": payment["mode_of_payment"],
                 "opening_amount": float(payment.get("opening_amount", 0))
             })
+        name = frappe.form_dict.get("name")    
         period_start_dt = datetime.strptime(period_start_date, "%Y-%m-%d %H:%M:%S")
         offline_user_record = frappe.get_all(
             "POS Offline Users",
@@ -51,7 +52,8 @@ def opening_shift(period_start_date, company, user, pos_profile):
 
         # Create the POS Opening Entry only if validation passed
         doc = frappe.get_doc({
-            "doctype": "POS Opening Entry",
+            "doctype": "POS Opening Shift",
+            "name" : name,
             "period_start_date": period_start_dt,
             "company": company,
             "user": user,
@@ -90,7 +92,7 @@ def opening_shift(period_start_date, company, user, pos_profile):
         frappe.log_error(frappe.get_traceback(), "Opening Shift Error")
 
         error_response = {
-            "error": "Failed to create POS Opening Entry.",
+            "error": "Failed to create POS Opening Shift.",
             "details": str(e)
         }
 
@@ -102,7 +104,7 @@ def opening_shift(period_start_date, company, user, pos_profile):
 
 
 @frappe.whitelist(allow_guest=True)
-def closing_shift(period_end_date,company, pos_opening_entry):
+def closing_shift(period_end_date,company, pos_opening_entry,name):
     try:
         payments = parse_json_field(frappe.form_dict.get("payment_reconciliation"))
 
@@ -115,7 +117,7 @@ def closing_shift(period_end_date,company, pos_opening_entry):
                 status=400,
                 mimetype="application/json"
             )
-
+        name = frappe.form_dict.get("name") 
         payment_items = []
         for payment in payments:
             if not payment.get("mode_of_payment"):
@@ -135,7 +137,7 @@ def closing_shift(period_end_date,company, pos_opening_entry):
             })
 
         # Fetch POS Opening Entry
-        pos_opening = frappe.get_doc("POS Opening Entry", pos_opening_entry)
+        pos_opening = frappe.get_doc("POS Opening Shift", pos_opening_entry)
         if pos_opening.status != "Open":
             return Response(
                 json.dumps({
@@ -146,32 +148,30 @@ def closing_shift(period_end_date,company, pos_opening_entry):
             )
 
         period_end_dt = datetime.strptime(period_end_date, "%Y-%m-%d %H:%M:%S")
-        
 
         # Create POS Closing Entry
         doc = frappe.get_doc({
-            "doctype": "POS Closing Entry",
+            "doctype": "POS Closing Shift",
+            "name" : name,
             "period_end_date":period_end_dt ,
-            "pos_opening_entry": pos_opening_entry,
+            "pos_opening_shift": pos_opening_entry,
             "company": company,
             "pos_profile": pos_opening.pos_profile,
             "user": pos_opening.user,
             "period_start_date": pos_opening.period_start_date,
             "payment_reconciliation": payment_items
         })
-
         doc.insert(ignore_permissions=True)
         doc.save(ignore_permissions=True)
         doc.submit()
-
 
         data = {
             "sync_id": doc.name,
             "period_start_date": format_datetime_safe(doc.period_start_date),
             "period_end_date": format_datetime_safe(doc.period_end_date),
             "posting_date": format_datetime_safe(doc.posting_date),
-            "posting_time": str(doc.posting_time),
-            "pos_opening_entry": doc.pos_opening_entry,
+            # "posting_time": str(doc.posting_time),
+            "pos_opening_shift": doc.pos_opening_shift,
             "company": doc.company,
             "pos_profile": doc.pos_profile,
             "user": doc.user,
