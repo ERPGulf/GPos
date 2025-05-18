@@ -1013,8 +1013,9 @@ def create_invoice(
     discount_amount=None,
     unique_id=None,
     custom_offline_creation_time=None,  # ✅ New param
+    offline_invoice_number=None,  # ✅ New param
     pos_profile=None,
-    pos_shift=None 
+    pos_shift=None,
 ):
     try:
 
@@ -1026,13 +1027,10 @@ def create_invoice(
         Customer_Purchase_Order = frappe.form_dict.get("Customer_Purchase_Order")
         unique_id = frappe.form_dict.get("unique_id")
         PIH = frappe.form_dict.get("PIH")
-        custom_offline_creation_time = frappe.form_dict.get(
-            "custom_offline_creation_time"
-        )  # k  ✅
+        offline_invoice_number = frappe.form_dict.get("offline_invoice_number")  # k  ✅
         pos_profile = frappe.form_dict.get("pos_profile")
         pos_shift = frappe.form_dict.get("pos_shift")
-
-
+        custom_offline_invoice_number = frappe.form_dict.get("offline_invoice_number")
         for item in items:
             item["rate"] = float(item.get("rate", 0))
             item["quantity"] = float(item.get("quantity", 0))
@@ -1158,6 +1156,7 @@ def create_invoice(
                 "custom_zatca_pos_name": machine_name,
                 "is_pos": 1,  # ✅ Always set POS flag
                 "custom_offline_creation_time": custom_offline_creation_time,  # ✅
+                "custom_offline_invoice_number": offline_invoice_number,
                 "pos_profile": pos_profile,  # ✅
                 "posa_pos_opening_shift": pos_shift,
             }
