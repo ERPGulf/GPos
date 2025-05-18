@@ -91,6 +91,84 @@ def generate_token_secure(api_key, api_secret, app_key):
 
 
 @frappe.whitelist(allow_guest=True)
+def generate_token_for_offline_user(api_key, api_secret, app_key):
+    try:
+        try:
+            app_key = base64.b64decode(app_key).decode("utf-8")
+        except Exception as e:
+            return Response(
+                json.dumps(
+                    {"message": "Security Parameters are not valid", "user_count": 0}
+                ),
+                status=401,
+                mimetype="application/json",
+            )
+        clientID, clientSecret, clientUser = frappe.db.get_value(
+            "OAuth Client",
+            {"app_name": app_key},
+            ["client_id", "client_secret", "user"],
+        )
+        doc = frappe.db.get_value(
+            "OAuth Client",
+            {"app_name": app_key},
+            ["name", "client_id", "client_secret", "user"],
+        )
+
+        if clientID is None:
+            # return app_key
+            return Response(
+                json.dumps(
+                    {"message": "Security Parameters are not valid", "user_count": 0}
+                ),
+                status=401,
+                mimetype="application/json",
+            )
+
+        client_id = clientID  # Replace with your OAuth client ID
+        client_secret = clientSecret  # Replace with your OAuth client secret
+
+        url = (
+            frappe.local.conf.host_name
+            + "/api/method/frappe.integrations.oauth2.get_token"
+        )
+
+        payload = {
+            "username": api_key,
+            "password": api_secret,
+            "grant_type": "password",
+            "client_id": client_id,
+            "client_secret": client_secret,
+        }
+        files = []
+        headers = {"Content-Type": "application/json"}
+
+        response = requests.request("POST", url, data=payload, files=files)
+
+        if response.status_code == 200:
+
+            result_data = json.loads(response.text)
+
+            return Response(
+                json.dumps({"data": result_data}),
+                status=200,
+                mimetype="application/json",
+            )
+
+        else:
+
+            frappe.local.response.http_status_code = 401
+            return json.loads(response.text)
+
+    except Exception as e:
+
+        return Response(
+            json.dumps({"message": e, "user_count": 0}),
+            status=500,
+            mimetype="application/json",
+        )
+
+
+@frappe.whitelist(allow_guest=True)
 def create_refresh_token(refresh_token):
     url = (
         frappe.local.conf.host_name + "/api/method/frappe.integrations.oauth2.get_token"
@@ -1016,6 +1094,7 @@ def create_invoice(
     offline_invoice_number=None,  # ✅ New param
     pos_profile=None,
     pos_shift=None,
+    cashier=None,
 ):
     try:
 
@@ -1030,7 +1109,7 @@ def create_invoice(
         offline_invoice_number = frappe.form_dict.get("offline_invoice_number")  # k  ✅
         pos_profile = frappe.form_dict.get("pos_profile")
         pos_shift = frappe.form_dict.get("pos_shift")
-        custom_offline_invoice_number = frappe.form_dict.get("offline_invoice_number")
+        cashier = frappe.form_dict.get("cashier")
         for item in items:
             item["rate"] = float(item.get("rate", 0))
             item["quantity"] = float(item.get("quantity", 0))
@@ -1159,6 +1238,7 @@ def create_invoice(
                 "custom_offline_invoice_number": offline_invoice_number,
                 "pos_profile": pos_profile,  # ✅
                 "posa_pos_opening_shift": pos_shift,
+                "custom_cashier": cashier,
             }
         )
 
