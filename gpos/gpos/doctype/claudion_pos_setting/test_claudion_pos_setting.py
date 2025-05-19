@@ -5,5 +5,5 @@
 from frappe.tests.utils import FrappeTestCase
 
 
-class Testpossetting(FrappeTestCase):
+class TestClaudionPOSsetting(FrappeTestCase):
 	pass

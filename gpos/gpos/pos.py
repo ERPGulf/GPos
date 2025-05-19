@@ -609,7 +609,7 @@ def cache2():
 
 @frappe.whitelist(allow_guest=True)
 def pos_setting(machine_name):
-    systemSettings = frappe.get_doc("pos setting")
+    systemSettings = frappe.get_doc("Claudion POS setting")
     var = True if systemSettings.show_item == 1 else False
     Zatca_Multiple_Setting = (
         frappe.get_doc("Zatca Multiple Setting", machine_name) if machine_name else None
@@ -873,7 +873,7 @@ def generate_token_secure_for_users(username, password, app_key):
             fields=["name as id", "Full Name", "mobile_no as phone", "email"],
             filters={"name": ["like", username]},
         )
-        systemSettings = frappe.get_doc("pos setting")
+        systemSettings = frappe.get_doc("Claudion POS setting")
         if response.status_code == 200:
 
             response_data = json.loads(response.text)
@@ -900,6 +900,7 @@ def generate_token_secure_for_users(username, password, app_key):
             status=500,
             mimetype="application/json",
         )
+
 
 # @frappe.whitelist(allow_guest=True)
 # def getOfflinePOSUsers(id=None, offset=0, limit=50):
@@ -942,6 +943,7 @@ def generate_token_secure_for_users(username, password, app_key):
 #         )
 #         doc["pos_profiles"] = [p["pos_profile"] for p in pos_profiles]
 
+
 #     return Response(json.dumps({"data": docs}), status=200, mimetype="application/json")
 @frappe.whitelist(allow_guest=True)
 def getOfflinePOSUsers(id=None, offset=0, limit=50):
@@ -960,7 +962,7 @@ def getOfflinePOSUsers(id=None, offset=0, limit=50):
             "user as actual_user_name",
             "branch_address",
             "printe_template as print_template",  # Text Editor field
-            "custom_print_format"  # Link to Print Format
+            "custom_print_format",  # Link to Print Format
         ],
         order_by="offine_username",
         limit_start=offset,
@@ -969,8 +971,12 @@ def getOfflinePOSUsers(id=None, offset=0, limit=50):
 
     for doc in docs:
         # Decrypt and encode password
-        decrypted_password = get_decrypted_password("POS Offline Users", doc.name, "password")
-        doc["password"] = base64.b64encode(decrypted_password.encode("utf-8")).decode("utf-8")
+        decrypted_password = get_decrypted_password(
+            "POS Offline Users", doc.name, "password"
+        )
+        doc["password"] = base64.b64encode(decrypted_password.encode("utf-8")).decode(
+            "utf-8"
+        )
 
         # Get POS Profiles for the user
         pos_profiles = frappe.db.get_all(
@@ -984,7 +990,9 @@ def getOfflinePOSUsers(id=None, offset=0, limit=50):
         if doc.get("print_template"):
             doc["print_format"] = doc["print_template"]
         elif doc.get("custom_print_format"):
-            html = frappe.db.get_value("Print Format", doc["custom_print_format"], "html")
+            html = frappe.db.get_value(
+                "Print Format", doc["custom_print_format"], "html"
+            )
             doc["print_format"] = html
         else:
             doc["print_format"] = None
@@ -994,7 +1002,6 @@ def getOfflinePOSUsers(id=None, offset=0, limit=50):
         doc.pop("custom_print_format", None)
 
     return Response(json.dumps({"data": docs}), status=200, mimetype="application/json")
-
 
 
 @frappe.whitelist(allow_guest=True)
@@ -1113,7 +1120,7 @@ def create_invoice(
 ):
     try:
 
-        pos_settings = frappe.get_doc("pos setting")
+        pos_settings = frappe.get_doc("Claudion POS setting")
 
         items = parse_json_field(frappe.form_dict.get("items"))
         payments = parse_json_field(frappe.form_dict.get("payments"))
@@ -1372,9 +1379,12 @@ def create_invoice(
         return Response(
             json.dumps({"message": str(e)}), status=500, mimetype="application/json"
         )
+
+
 # your_app/api/pos_offer_api.py
 import frappe
 from frappe.utils import today
+
 
 @frappe.whitelist()
 def get_pos_offers():
@@ -1382,18 +1392,33 @@ def get_pos_offers():
         "docstatus": 0,
         "disable": 0,
         "valid_from": ["<=", today()],
-        "valid_upto": [">=", today()]
+        "valid_upto": [">=", today()],
     }
 
-    offers = frappe.get_all("POS Offer",
+    offers = frappe.get_all(
+        "POS Offer",
         filters=filters,
         fields=[
-            "name", "title", "description", "discount_type",
-            "discount_amount", "discount_percentage", "item",
-            "min_qty", "max_qty", "min_amt", "max_amt",
-            "apply_on", "offer", "company", "warehouse",
-            "pos_profile", "valid_from", "valid_upto", "auto"
-        ]
+            "name",
+            "title",
+            "description",
+            "discount_type",
+            "discount_amount",
+            "discount_percentage",
+            "item",
+            "min_qty",
+            "max_qty",
+            "min_amt",
+            "max_amt",
+            "apply_on",
+            "offer",
+            "company",
+            "warehouse",
+            "pos_profile",
+            "valid_from",
+            "valid_upto",
+            "auto",
+        ],
     )
 
     return offers
