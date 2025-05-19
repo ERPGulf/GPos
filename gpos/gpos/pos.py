@@ -998,8 +998,8 @@ def getOfflinePOSUsers(id=None, offset=0, limit=50):
             doc["print_template"] = None
 
         # Clean up if needed
-        doc.pop("print_template", None)
-        doc.pop("custom_print_format", None)
+        # doc.pop("print_template", None)
+        # doc.pop("custom_print_format", None)
 
     return Response(json.dumps({"data": docs}), status=200, mimetype="application/json")
 
