@@ -993,9 +993,9 @@ def getOfflinePOSUsers(id=None, offset=0, limit=50):
             html = frappe.db.get_value(
                 "Print Format", doc["custom_print_format"], "html"
             )
-            doc["print_format"] = html
+            doc["print_template"] = html
         else:
-            doc["print_format"] = None
+            doc["print_template"] = None
 
         # Clean up if needed
         doc.pop("print_template", None)
