@@ -901,16 +901,14 @@ def generate_token_secure_for_users(username, password, app_key):
             mimetype="application/json",
         )
 
-
 # @frappe.whitelist(allow_guest=True)
 # def getOfflinePOSUsers(id=None, offset=0, limit=50):
 #     from frappe.utils.password import get_decrypted_password
 #     import base64
+#     import json
+#     from werkzeug.wrappers import Response
 
-#     mypass = get_decrypted_password(
-#         "POS Offline Users", "3ff95f9d07", "password", False
-#     )
-
+#     # Fetch the offline users
 #     docs = frappe.db.get_all(
 #         "POS Offline Users",
 #         fields=[
@@ -918,24 +916,31 @@ def generate_token_secure_for_users(username, password, app_key):
 #             "offine_username",
 #             "shop_name",
 #             "password",
-#             "user as actual_user_name,branch_address",
+#             "user as actual_user_name",
+#             "branch_address",
 #             "printe_template as print_template",
 #         ],
-#         # filters=filters,
 #         order_by="offine_username",
 #         limit_start=offset,
 #         limit_page_length=limit,
 #     )
 
 #     for doc in docs:
-#         doc.password = base64.b64encode(
-#             get_decrypted_password("POS Offline Users", doc.name, "password").encode(
-#                 "utf-8"
-#             )
-#         ).decode("utf-8")
-#         # if not client_secret:
-#         #     continue
+#         # Decrypt and encode the password in base64
+#         decrypted_password = get_decrypted_password(
+#             "POS Offline Users", doc.name, "password"
+#         )
+#         doc["password"] = base64.b64encode(decrypted_password.encode("utf-8")).decode(
+#             "utf-8"
+#         )
 
+#         # Fetch POS Profiles where this user is listed in applicable_for_users
+#         pos_profiles = frappe.db.get_all(
+#             "POS Profile User",
+#             filters={"user": doc["actual_user_name"]},
+#             fields=["parent as pos_profile"],
+#         )
+#         doc["pos_profiles"] = [p["pos_profile"] for p in pos_profiles]
 
 #     return Response(json.dumps({"data": docs}), status=200, mimetype="application/json")
 @frappe.whitelist(allow_guest=True)
@@ -945,7 +950,6 @@ def getOfflinePOSUsers(id=None, offset=0, limit=50):
     import json
     from werkzeug.wrappers import Response
 
-    # Fetch the offline users
     docs = frappe.db.get_all(
         "POS Offline Users",
         fields=[
@@ -955,7 +959,8 @@ def getOfflinePOSUsers(id=None, offset=0, limit=50):
             "password",
             "user as actual_user_name",
             "branch_address",
-            "printe_template as print_template",
+            "printe_template as print_template",  # Text Editor field
+            "custom_print_format"  # Link to Print Format
         ],
         order_by="offine_username",
         limit_start=offset,
@@ -963,15 +968,11 @@ def getOfflinePOSUsers(id=None, offset=0, limit=50):
     )
 
     for doc in docs:
-        # Decrypt and encode the password in base64
-        decrypted_password = get_decrypted_password(
-            "POS Offline Users", doc.name, "password"
-        )
-        doc["password"] = base64.b64encode(decrypted_password.encode("utf-8")).decode(
-            "utf-8"
-        )
+        # Decrypt and encode password
+        decrypted_password = get_decrypted_password("POS Offline Users", doc.name, "password")
+        doc["password"] = base64.b64encode(decrypted_password.encode("utf-8")).decode("utf-8")
 
-        # Fetch POS Profiles where this user is listed in applicable_for_users
+        # Get POS Profiles for the user
         pos_profiles = frappe.db.get_all(
             "POS Profile User",
             filters={"user": doc["actual_user_name"]},
@@ -979,7 +980,21 @@ def getOfflinePOSUsers(id=None, offset=0, limit=50):
         )
         doc["pos_profiles"] = [p["pos_profile"] for p in pos_profiles]
 
+        # Determine the correct print_format value
+        if doc.get("print_template"):
+            doc["print_format"] = doc["print_template"]
+        elif doc.get("custom_print_format"):
+            html = frappe.db.get_value("Print Format", doc["custom_print_format"], "html")
+            doc["print_format"] = html
+        else:
+            doc["print_format"] = None
+
+        # Clean up if needed
+        doc.pop("print_template", None)
+        doc.pop("custom_print_format", None)
+
     return Response(json.dumps({"data": docs}), status=200, mimetype="application/json")
+
 
 
 @frappe.whitelist(allow_guest=True)
@@ -1357,3 +1372,28 @@ def create_invoice(
         return Response(
             json.dumps({"message": str(e)}), status=500, mimetype="application/json"
         )
+# your_app/api/pos_offer_api.py
+import frappe
+from frappe.utils import today
+
+@frappe.whitelist()
+def get_pos_offers():
+    filters = {
+        "docstatus": 0,
+        "disable": 0,
+        "valid_from": ["<=", today()],
+        "valid_upto": [">=", today()]
+    }
+
+    offers = frappe.get_all("POS Offer",
+        filters=filters,
+        fields=[
+            "name", "title", "description", "discount_type",
+            "discount_amount", "discount_percentage", "item",
+            "min_qty", "max_qty", "min_amt", "max_amt",
+            "apply_on", "offer", "company", "warehouse",
+            "pos_profile", "valid_from", "valid_upto", "auto"
+        ]
+    )
+
+    return offers

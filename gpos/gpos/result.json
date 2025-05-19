@@ -1,42 +1,24 @@
 {
-    "invoice_number": "INA30005",
-    "invoice_date": "19/11/2024",
+    "invoice_number": "Not Found",
+    "invoice_date": "Not Found",
     "supplier": {
-        "name": "HIKIT TRADING (PRIVATE) LIMITED",
+        "name": "customer1k234 Cust.Vat : None Claudion",
         "address": "Not Found",
         "city": "Not Found",
         "country": "Not Found",
-        "TIN": "2000135779",
-        "VAT": "220120678",
-        "email": "bookings@thehide.com",
-        "phone": "263-242-498835/6"
+        "email": "billing@claudion.com",
+        "phone": "+971-50505050"
     },
     "customer": {
-        "name": "THE HIDE SAFARIS (USD)",
+        "name": "mer1k234",
         "address": "Not Found",
         "city": "Not Found",
         "country": "Not Found",
-        "TIN": "2000061019",
-        "VAT": "220130867",
-        "email": "accounts@thehide.com",
-        "phone": "0242-498835"
+        "VAT": "None Claudion"
     },
-    "taxes": {
-        "account_tax_exempt": "Tax",
-        "tax_reference": "Sales",
-        "sales_code": "THE01U"
-    },
-    "sub_total": "USD20.00",
-    "vat_total": "USD3.00",
-    "invoice_total": "USD23.00",
-    "line_items": [
-        {
-            "Code": "1000/100",
-            "Description": "Sales - Accomodation Foreign",
-            "Quantity": 1.0,
-            "Unit Price": 23.0,
-            "VAT Amount": "USD3.00",
-            "Total Price": 23.0
-        }
-    ]
+    "taxes": {},
+    "sub_total": "Not Found",
+    "vat_total": "Not Found",
+    "invoice_total": "Not Found",
+    "line_items": []
 }
