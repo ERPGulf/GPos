@@ -988,7 +988,7 @@ def getOfflinePOSUsers(id=None, offset=0, limit=50):
 
         # Determine the correct print_format value
         if doc.get("print_template"):
-            doc["print_format"] = doc["print_template"]
+            doc["print_template"] = doc["print_template"]
         elif doc.get("custom_print_format"):
             html = frappe.db.get_value(
                 "Print Format", doc["custom_print_format"], "html"
@@ -998,8 +998,8 @@ def getOfflinePOSUsers(id=None, offset=0, limit=50):
             doc["print_template"] = None
 
         # Clean up if needed
-        # doc.pop("print_template", None)
-        # doc.pop("custom_print_format", None)
+        doc.pop("print_template", None)
+        doc.pop("custom_print_format", None)
 
     return Response(json.dumps({"data": docs}), status=200, mimetype="application/json")
 
