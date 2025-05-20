@@ -1422,3 +1422,21 @@ def get_pos_offers():
     )
 
     return offers
+
+import frappe
+
+@frappe.whitelist(allow_guest=True)  # Remove allow_guest=True if only authenticated users should use it
+def create_gpos_log(details, fatetime, location):
+    try:
+        doc = frappe.get_doc({
+            "doctype": "gpos logs",
+            "details": details,
+            "fatetime": fatetime,
+            "location": location
+        })
+        doc.insert(ignore_permissions=True)  # remove ignore_permissions=True if you want standard permission checks
+        frappe.db.commit()
+        return {"status": "success", "name": doc.name}
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "Error in create_gpos_log")
+        return {"status": "error", "message": str(e)}
