@@ -1425,7 +1425,7 @@ def get_pos_offers():
 
 import frappe
 
-@frappe.whitelist(allow_guest=True)  # Remove allow_guest=True if only authenticated users should use it
+@frappe.whitelist(allow_guest=True)  # Remove allow_guest=True if only authenticat ed users should use it
 def create_gpos_log(details, fatetime, location):
     try:
         doc = frappe.get_doc({
