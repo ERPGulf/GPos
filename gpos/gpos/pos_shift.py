@@ -104,7 +104,7 @@ def opening_shift(period_start_date, company, user, pos_profile,name):
 
 
 @frappe.whitelist(allow_guest=True)
-def closing_shift(period_end_date,company, pos_opening_entry,name):
+def closing_shift(period_end_date,company, pos_opening_entry,name,created_invoice_status):
     try:
         payments = parse_json_field(frappe.form_dict.get("payment_reconciliation"))
 
@@ -159,7 +159,8 @@ def closing_shift(period_end_date,company, pos_opening_entry,name):
             "pos_profile": pos_opening.pos_profile,
             "user": pos_opening.user,
             "period_start_date": pos_opening.period_start_date,
-            "payment_reconciliation": payment_items
+            "payment_reconciliation": payment_items,
+            "custom_created_invoice_status": created_invoice_status
         })
         doc.insert(ignore_permissions=True)
         doc.save(ignore_permissions=True)
