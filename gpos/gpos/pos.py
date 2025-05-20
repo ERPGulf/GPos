@@ -1427,7 +1427,7 @@ import frappe
 from frappe import _
 
 @frappe.whitelist(allow_guest=True)
-def sync_gpos_log(details, fatetime, location, sync_id):
+def sync_gpos_log(details, datetime, location, sync_id):
     try:
         # Check for existing record with the same sync_id
         existing = frappe.db.exists("gpos logs", {"sync_id": sync_id})
@@ -1443,7 +1443,7 @@ def sync_gpos_log(details, fatetime, location, sync_id):
         doc = frappe.get_doc({
             "doctype": "gpos logs",
             "details": details,
-            "fatetime": fatetime,
+            "fatetime": datetime,
             "location": location,
             "sync_id": sync_id
         })

@@ -13,8 +13,8 @@
  "fields": [
   {
    "fieldname": "fatetime",
-   "fieldtype": "Time",
-   "label": "Fatetime"
+   "fieldtype": "Datetime",
+   "label": "Datetime"
   },
   {
    "fieldname": "location",
@@ -34,7 +34,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-05-20 13:37:38.403636",
+ "modified": "2025-05-20 17:55:42.613768",
  "modified_by": "Administrator",
  "module": "Gpos",
  "name": "gpos logs",
