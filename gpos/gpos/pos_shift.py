@@ -108,7 +108,7 @@ def closing_shift(period_end_date,company, pos_opening_entry,name,created_invoic
     try:
         payments = parse_json_field(frappe.form_dict.get("payment_reconciliation"))
 
-        # Validate: ensure payment_reconciliation exists and is a non-empty list
+        # Validate: ensure payment_reconciliation exists and is a non-empty lis t
         if not payments or not isinstance(payments, list):
             return Response(
                 json.dumps({
