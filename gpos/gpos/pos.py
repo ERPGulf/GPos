@@ -1424,19 +1424,41 @@ def get_pos_offers():
     return offers
 
 import frappe
+from frappe import _
 
-@frappe.whitelist(allow_guest=True)  # Remove allow_guest=True if only authenticat ed users should use it
-def create_gpos_log(details, fatetime, location):
+@frappe.whitelist(allow_guest=True)
+def sync_gpos_log(details, fatetime, location, sync_id):
     try:
+        # Check for existing record with the same sync_id
+        existing = frappe.db.exists("gpos logs", {"sync_id": sync_id})
+        if existing:
+            frappe.local.response.http_status_code = 409  # Conflict
+            return {
+                "status": "conflict",
+                "message": f"Log with sync_id '{sync_id}' already exists.",
+                "name": existing
+            }
+
+        # Insert new log
         doc = frappe.get_doc({
             "doctype": "gpos logs",
             "details": details,
             "fatetime": fatetime,
-            "location": location
+            "location": location,
+            "sync_id": sync_id
         })
-        doc.insert(ignore_permissions=True)  # remove ignore_permissions=True if you want standard permission checks
+        doc.insert(ignore_permissions=True)
         frappe.db.commit()
-        return {"status": "success", "name": doc.name}
+
+        return {
+            "status": "success",
+            "name": doc.name
+        }
+
     except Exception as e:
-        frappe.log_error(frappe.get_traceback(), "Error in create_gpos_log")
-        return {"status": "error", "message": str(e)}
+        frappe.log_error(frappe.get_traceback(), "sync_gpos_log Error")
+        frappe.local.response.http_status_code = 500
+        return {
+            "status": "error",
+            "message": str(e)
+        }
