@@ -23,7 +23,7 @@
   },
   {
    "fieldname": "details",
-   "fieldtype": "Data",
+   "fieldtype": "Long Text",
    "label": "details"
   },
   {
@@ -34,7 +34,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-05-20 17:55:42.613768",
+ "modified": "2025-05-21 16:57:25.563493",
  "modified_by": "Administrator",
  "module": "Gpos",
  "name": "gpos logs",

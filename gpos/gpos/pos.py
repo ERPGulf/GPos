@@ -1472,7 +1472,7 @@ def sync_gpos_log(details, datetime, location, sync_id):
         # Check for existing record with the same sync_id
         existing = frappe.db.exists("gpos logs", {"sync_id": sync_id})
         if existing:
-            frappe.local.response.http_status_code = 409  # Conflict
+            frappe.local.response.http_status_code = 409  # Confl ict
             response_data = {
                 "status": "conflict",
                 "message": f"Log with sync_id '{sync_id}' already exists.",
