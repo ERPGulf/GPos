@@ -37,8 +37,8 @@ def opening_shift(period_start_date, company, user, pos_profile,name):
                 mimetype="application/json")
             payment_items.append({
                 "mode_of_payment": payment["mode_of_payment"],
-                "opening_amount": float(payment.get("opening_amount", 0))
-            })
+                "amount": float(payment.get("opening_amount", 0))
+            })   
         name = frappe.form_dict.get("name")    
         period_start_dt = datetime.strptime(period_start_date, "%Y-%m-%d %H:%M:%S")
         offline_user_record = frappe.get_all(
@@ -76,7 +76,7 @@ def opening_shift(period_start_date, company, user, pos_profile,name):
                 {
                     "sync_id": p.name,
                     "mode_of_payment": p.mode_of_payment,
-                    "opening_amount": p.opening_amount
+                    "opening_amount": p.amount
                 }
                 for p in doc.balance_details
             ]

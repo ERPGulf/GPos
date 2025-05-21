@@ -1426,6 +1426,46 @@ def get_pos_offers():
 import frappe
 from frappe import _
 
+# @frappe.whitelist(allow_guest=True)
+# def sync_gpos_log(details, datetime, location, sync_id):
+#     try:
+#         # Check for existing record with the same sync_id
+#         existing = frappe.db.exists("gpos logs", {"sync_id": sync_id})
+#         if existing:
+#             frappe.local.response.http_status_code = 409  # Conflict
+#             return {
+#                 "status": "conflict",
+#                 "message": f"Log with sync_id '{sync_id}' already exists.",
+#                 "name": existing
+#             }
+
+#         # Insert new log
+#         doc = frappe.get_doc({
+#             "doctype": "gpos logs",
+#             "details": details,
+#             "fatetime": datetime,
+#             "location": location,
+#             "sync_id": sync_id
+#         })
+#         doc.insert(ignore_permissions=True)
+#         frappe.db.commit()
+
+#         return {
+#             "status": "success",
+#             "name": doc.name
+#         }
+
+#     except Exception as e:
+#         frappe.log_error(frappe.get_traceback(), "sync_gpos_log Error")
+#         frappe.local.response.http_status_code = 500
+#         return {
+#             "status": "error",
+#             "message": str(e)
+#         }
+from frappe import _
+from werkzeug.wrappers import Response
+import json
+
 @frappe.whitelist(allow_guest=True)
 def sync_gpos_log(details, datetime, location, sync_id):
     try:
@@ -1433,11 +1473,17 @@ def sync_gpos_log(details, datetime, location, sync_id):
         existing = frappe.db.exists("gpos logs", {"sync_id": sync_id})
         if existing:
             frappe.local.response.http_status_code = 409  # Conflict
-            return {
+            response_data = {
                 "status": "conflict",
                 "message": f"Log with sync_id '{sync_id}' already exists.",
-                "name": existing
+                "name": existing,
+                "sync_id": sync_id
             }
+            return Response(
+                json.dumps({"data": response_data}),
+                status=409,
+                mimetype="application/json"
+            )
 
         # Insert new log
         doc = frappe.get_doc({
@@ -1450,15 +1496,27 @@ def sync_gpos_log(details, datetime, location, sync_id):
         doc.insert(ignore_permissions=True)
         frappe.db.commit()
 
-        return {
+        response_data = {
             "status": "success",
-            "name": doc.name
+            "name": doc.name,
+            "sync_id": sync_id
         }
+        return Response(
+            json.dumps({"data": response_data}),
+            status=200,
+            mimetype="application/json"
+        )
 
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "sync_gpos_log Error")
         frappe.local.response.http_status_code = 500
-        return {
+        error_data = {
             "status": "error",
-            "message": str(e)
+            "message": str(e),
+            "sync_id": sync_id
         }
+        return Response(
+            json.dumps({"data": error_data}),
+            status=500,
+            mimetype="application/json"
+        )
