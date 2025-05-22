@@ -1487,38 +1487,53 @@ def sync_gpos_log(details, datetime, location, sync_id):
 
 import frappe
 import json
+from werkzeug.wrappers import Response
 
 @frappe.whitelist(allow_guest=True)
-def get_shift_status(sync_id):
+def get_shift_status(shift_id):
     """
-    API to fetch the status of a POS Opening or Closing Shift by its Sync ID.
+    API to fetch the status of a POS Opening or Closing Shift by its shift ID.
     """
     try:
-        if not sync_id:
-            return {
-                "error": "Missing sync_id parameter."
-            }
+        if not shift_id:
+            return Response(
+                json.dumps({"error": "Missing shift_id parameter."}),
+                status=400,
+                mimetype="application/json"
+            )
 
-        # Try fetching POS Opening Shift
-        if frappe.db.exists("POS Opening Shift", sync_id):
-            doc = frappe.get_doc("POS Opening Shift", sync_id)
-        elif frappe.db.exists("POS Closing Shift", sync_id):
-            doc = frappe.get_doc("POS Closing Shift", sync_id)
+        # Try fetching POS Opening or Closing Shift
+        if frappe.db.exists("POS Opening Shift", shift_id):
+            doc = frappe.get_doc("POS Opening Shift", shift_id)
+        elif frappe.db.exists("POS Closing Shift", shift_id):
+            doc = frappe.get_doc("POS Closing Shift", shift_id)
         else:
-            return {
-                "error": f"No POS Shift found with ID: {sync_id}"
-            }
+            return Response(
+                json.dumps({"error": f"No POS Shift found with ID: {shift_id}"}),
+                status=404,
+                mimetype="application/json"
+            )
 
-        return {
-            "data": {
-                "sync_id": doc.name,
-                "status": doc.get("status", "Unknown")
-            }
+        response_data = {
+            "shift_id": doc.name,
+            "status": doc.get("status", "Unknown")
         }
+
+        return Response(
+            json.dumps({"data": response_data}),
+            status=200,
+            mimetype="application/json"
+        )
 
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Get Shift Status Error")
-        return {
-            "error": "Failed to retrieve shift status.",
-            "details": str(e)
-        }
+
+        return Response(
+            json.dumps({
+                "error": "Failed to retrieve shift status.",
+                "details": str(e)
+            }),
+            status=500,
+            mimetype="application/json"
+        )
+
