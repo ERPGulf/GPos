@@ -1424,44 +1424,7 @@ def get_pos_offers():
     return offers
 
 import frappe
-from frappe import _
-
-# @frappe.whitelist(allow_guest=True)
-# def sync_gpos_log(details, datetime, location, sync_id):
-#     try:
-#         # Check for existing record with the same sync_id
-#         existing = frappe.db.exists("gpos logs", {"sync_id": sync_id})
-#         if existing:
-#             frappe.local.response.http_status_code = 409  # Conflict
-#             return {
-#                 "status": "conflict",
-#                 "message": f"Log with sync_id '{sync_id}' already exists.",
-#                 "name": existing
-#             }
-
-#         # Insert new log
-#         doc = frappe.get_doc({
-#             "doctype": "gpos logs",
-#             "details": details,
-#             "fatetime": datetime,
-#             "location": location,
-#             "sync_id": sync_id
-#         })
-#         doc.insert(ignore_permissions=True)
-#         frappe.db.commit()
-
-#         return {
-#             "status": "success",
-#             "name": doc.name
-#         }
-
-#     except Exception as e:
-#         frappe.log_error(frappe.get_traceback(), "sync_gpos_log Error")
-#         frappe.local.response.http_status_code = 500
-#         return {
-#             "status": "error",
-#             "message": str(e)
-#         }
+from frappe import _  
 from frappe import _
 from werkzeug.wrappers import Response
 import json
@@ -1520,3 +1483,42 @@ def sync_gpos_log(details, datetime, location, sync_id):
             status=500,
             mimetype="application/json"
         )
+
+
+import frappe
+import json
+
+@frappe.whitelist(allow_guest=True)
+def get_shift_status(sync_id):
+    """
+    API to fetch the status of a POS Opening or Closing Shift by its Sync ID.
+    """
+    try:
+        if not sync_id:
+            return {
+                "error": "Missing sync_id parameter."
+            }
+
+        # Try fetching POS Opening Shift
+        if frappe.db.exists("POS Opening Shift", sync_id):
+            doc = frappe.get_doc("POS Opening Shift", sync_id)
+        elif frappe.db.exists("POS Closing Shift", sync_id):
+            doc = frappe.get_doc("POS Closing Shift", sync_id)
+        else:
+            return {
+                "error": f"No POS Shift found with ID: {sync_id}"
+            }
+
+        return {
+            "data": {
+                "sync_id": doc.name,
+                "status": doc.get("status", "Unknown")
+            }
+        }
+
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "Get Shift Status Error")
+        return {
+            "error": "Failed to retrieve shift status.",
+            "details": str(e)
+        }
