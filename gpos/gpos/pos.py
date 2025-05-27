@@ -962,7 +962,8 @@ def getOfflinePOSUsers(id=None, offset=0, limit=50):
             "user as actual_user_name",
             "branch_address",
             "printe_template as print_template",  # Text Editor field
-            "custom_print_format",  # Link to Print Format
+            "custom_print_format", 
+            "custom_is_admin", # Link to Print Format
         ],
         order_by="offine_username",
         limit_start=offset,
@@ -1000,8 +1001,35 @@ def getOfflinePOSUsers(id=None, offset=0, limit=50):
         # Clean up if needed
         # doc.pop("print_template", None)
         # doc.pop("custom_print_format", None)
+        doc["custom_is_admin"] = bool(doc.get("custom_is_admin", 0))
 
     return Response(json.dumps({"data": docs}), status=200, mimetype="application/json")
+import frappe
+from frappe import _
+
+@frappe.whitelist(allow_guest=True)
+def create_invoice_unsynced(date_time, invoice_number, clearing_status):
+    try:
+        doc = frappe.get_doc({
+            "doctype": "Invoice Unsynced",
+            "date_time": date_time,
+            "invoice_number": invoice_number,
+            "clearing_status": clearing_status
+        })
+        doc.insert()
+        frappe.db.commit()
+        return {
+            "status": "success",
+            "message": "Invoice Unsynced created",
+            "name": doc.name
+        }
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "API: create_invoice_unsynced")
+        return {
+            "status": "error",
+            "message": str(e)
+        }
+
 
 
 @frappe.whitelist(allow_guest=True)
