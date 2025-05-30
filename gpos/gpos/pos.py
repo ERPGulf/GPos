@@ -959,6 +959,7 @@ def getOfflinePOSUsers(id=None, offset=0, limit=50):
             "offine_username",
             "shop_name",
             "password",
+            "custom_cashier_name",
             "user as actual_user_name",
             "branch_address",
             "printe_template as print_template",  # Text Editor field
