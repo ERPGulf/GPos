@@ -1566,3 +1566,206 @@ def get_shift_status(shift_id):
             mimetype="application/json"
         )
 
+@frappe.whitelist(allow_guest=False)
+def create_credit_note(
+    customer_name,
+    items,
+    PIH,
+    machine_name,
+    return_against,  # ✅ Required: Invoice to return
+    Customer_Purchase_Order=None,
+    payments=None,
+    discount_amount=None,
+    unique_id=None,
+    custom_offline_creation_time=None,
+    offline_invoice_number=None,
+    pos_profile=None,
+    pos_shift=None,
+    cashier=None,
+):
+    from frappe import ValidationError
+    from frappe.utils import now
+    import json
+
+    try:
+        pos_settings = frappe.get_doc("Claudion POS setting")
+
+        items = parse_json_field(frappe.form_dict.get("items"))
+        payments = parse_json_field(frappe.form_dict.get("payments"))
+        discount_amount = float(frappe.form_dict.get("discount_amount", 0))
+        Customer_Purchase_Order = frappe.form_dict.get("Customer_Purchase_Order")
+        unique_id = frappe.form_dict.get("unique_id")
+        PIH = frappe.form_dict.get("PIH")
+        offline_invoice_number = frappe.form_dict.get("offline_invoice_number")
+        pos_profile = frappe.form_dict.get("pos_profile")
+        pos_shift = frappe.form_dict.get("pos_shift")
+        cashier = frappe.form_dict.get("cashier")
+        return_against = frappe.form_dict.get("return_against")
+
+        if not return_against:
+            frappe.throw("Parameter 'return_against' (original invoice) is required for credit note.")
+
+        for item in items:
+            item["rate"] = float(item.get("rate", 0))
+            item["quantity"] = -abs(float(item.get("quantity", 0)))  # Negative quantity for return
+
+        for payment in payments or []:
+            payment["amount"] = float(payment.get("amount", 0))
+
+        customer_details = frappe.get_all(
+            "Customer",
+            fields=["name"],
+            filters={"name": ["like", customer_name]},
+        )
+        if not customer_details:
+            return Response(
+                json.dumps({"data": "Customer name not found"}),
+                status=404,
+                mimetype="application/json",
+            )
+
+        taxes_list = [
+            {
+                "charge_type": charge.get("charge_type"),
+                "account_head": charge.get("account_head"),
+                "rate": charge.get("rate"),
+                "description": charge.get("description"),
+                "included_in_paid_amount": 1,
+                "included_in_print_rate": 1,
+            }
+            for charge in pos_settings.get("sales_taxes_and_charges")
+        ]
+
+        invoice_items = [
+            {
+                "item_code": (
+                    item["item_code"]
+                    if frappe.get_value("Item", {"name": item["item_code"]}, "name")
+                    else None
+                ),
+                "qty": item.get("quantity", 0),
+                "rate": item.get("rate", 0),
+                "uom": item.get("uom", "Nos"),
+                "income_account": pos_settings.income_account,
+                "item_tax_template": pos_settings.item_tax_template,
+            }
+            for item in items
+        ]
+
+        payment_items = [
+            {
+                "mode_of_payment": payment.get("mode_of_payment", "Cash"),
+                "amount": float(payment.get("amount", 0)),
+            }
+            for payment in payments or []
+        ]
+
+        if pos_settings.post_to_pos_invoice:
+            doctype = "POS Invoice"
+        elif pos_settings.post_to_sales_invoice:
+            doctype = "Sales Invoice"
+        else:
+            return Response(
+                json.dumps(
+                    {
+                        "data": "Neither POS Invoice nor Sales Invoice creation is enabled in settings."
+                    }
+                ),
+                status=400,
+                mimetype="application/json",
+            )
+
+        new_invoice = frappe.get_doc(
+            {
+                "doctype": doctype,
+                "customer": customer_name,
+                "custom_unique_id": unique_id,
+                "discount_amount": discount_amount,
+                "items": invoice_items,
+                "payments": payment_items,
+                "taxes": taxes_list,
+                "po_no": Customer_Purchase_Order,
+                "custom_zatca_pos_name": machine_name,
+                "is_pos": 1,
+                "is_return": 1,  # ✅ Important: marks it as credit note
+                "return_against": return_against,  # ✅ Link to original invoice
+                "custom_offline_creation_time": custom_offline_creation_time,
+                "custom_offline_invoice_number": offline_invoice_number,
+                "pos_profile": pos_profile,
+                "posa_pos_opening_shift": pos_shift,
+                "custom_cashier": cashier,
+            }
+        )
+
+        new_invoice.insert(ignore_permissions=True)
+        new_invoice.save()
+
+        uploaded_files = frappe.request.files
+        if "xml" in uploaded_files:
+            new_invoice.custom_xml = process_file_upload(
+                uploaded_files["xml"], ignore_permissions=True, is_private=True
+            )
+        if "qr_code" in uploaded_files:
+            new_invoice.custom_qr_code = process_file_upload(
+                uploaded_files["qr_code"], ignore_permissions=True, is_private=True
+            )
+
+        new_invoice.save(ignore_permissions=True)
+        new_invoice.submit()
+
+        frappe.db.set_value("Zatca Multiple Setting", pos_settings.zatca_multiple_setting, "custom_pih", PIH)
+
+        doc = frappe.get_doc("Zatca Multiple Setting", pos_settings.zatca_multiple_setting)
+        doc.save()
+
+        response_data = {
+            "id": new_invoice.name,
+            "customer_id": new_invoice.customer,
+            "unique_id": new_invoice.custom_unique_id,
+            "customer_name": new_invoice.customer_name,
+            "total_quantity": new_invoice.total_qty,
+            "total": new_invoice.total,
+            "grand_total": new_invoice.grand_total,
+            "Customer's Purchase Order": int(new_invoice.po_no) if new_invoice.po_no else None,
+            "discount_amount": new_invoice.discount_amount,
+            "xml": getattr(new_invoice, "custom_xml", None),
+            "qr_code": getattr(new_invoice, "custom_qr_code", None),
+            "pih": doc.custom_pih,
+            "items": [
+                {
+                    "item_name": item.item_name,
+                    "item_code": item.item_code,
+                    "quantity": item.qty,
+                    "rate": item.rate,
+                    "uom": item.uom,
+                    "income_account": item.income_account,
+                    "item_tax_template": item.item_tax_template,
+                }
+                for item in new_invoice.items
+            ],
+            "taxes": [
+                {
+                    "charge_type": tax.charge_type,
+                    "account_head": tax.account_head,
+                    "tax_rate": tax.rate,
+                    "total": tax.total,
+                    "description": tax.description,
+                    "included_in_paid_amount": 1,
+                    "included_in_print_rate": 1,
+                }
+                for tax in new_invoice.taxes
+            ],
+        }
+
+        return Response(json.dumps({"data": response_data}), status=200, mimetype="application/json")
+
+    except ValidationError as ve:
+        error_message = str(ve)
+        return Response(
+            json.dumps({"message": error_message}),
+            status=400 if "Status code: 400" in error_message else 500,
+            mimetype="application/json",
+        )
+
+    except Exception as e:
+        return Response(json.dumps({"message": str(e)}), status=500, mimetype="application/json")
