@@ -1765,3 +1765,102 @@ def create_credit_note(
         return Response(
             json.dumps({"message": str(e)}), status=500, mimetype="application/json"
         )
+import frappe
+import json
+from frappe import _
+
+from werkzeug.wrappers import Response
+
+
+@frappe.whitelist(allow_guest=False)
+def get_invoice_details(invoice_number):
+    try:
+        if not invoice_number:
+            return Response(
+                json.dumps({"message": "Invoice number is required."}),
+                status=400,
+                mimetype="application/json",
+            )
+
+        # Fetch the Sales Invoice
+        invoice = frappe.get_doc("Sales Invoice", invoice_number)
+
+        if not invoice:
+            return Response(
+                json.dumps({"message": "Invoice not found."}),
+                status=404,
+                mimetype="application/json",
+            )
+
+        # Get tax rate from first item's tax template
+        item_tax_rate = None
+        if invoice.items and invoice.items[0].item_tax_template:
+            template = frappe.get_doc(
+                "Item Tax Template", invoice.items[0].item_tax_template
+            )
+            if template.taxes:
+                item_tax_rate = template.taxes[0].tax_rate
+
+        # Prepare response
+        response_data = {
+            "id": invoice.name,
+            "customer_id": invoice.customer,
+            "customer_name": invoice.customer_name,
+            "posting_date": str(invoice.posting_date),
+            "total_quantity": invoice.total_qty,
+            "total": invoice.total,
+            "grand_total": invoice.grand_total,
+            "discount_amount": invoice.discount_amount,
+            "po_no": invoice.po_no,
+            "items": [
+                {
+                    "item_name": item.item_name,
+                    "item_code": item.item_code,
+                    "quantity": item.qty,
+                    "rate": item.rate,
+                    "uom": item.uom,
+                    "income_account": item.income_account,
+                    "item_tax_template": item.item_tax_template,
+                    "tax_rate": item_tax_rate,
+                }
+                for item in invoice.items
+            ],
+            "taxes": [
+                {
+                    "charge_type": tax.charge_type,
+                    "account_head": tax.account_head,
+                    "tax_rate": tax.rate,
+                    "total": tax.total,
+                    "description": tax.description,
+                    "included_in_paid_amount": tax.included_in_paid_amount,
+                    "included_in_print_rate": tax.included_in_print_rate,
+                }
+                for tax in invoice.taxes
+            ],
+            "payments": [
+                {
+                    "mode_of_payment": p.mode_of_payment,
+                    "amount": p.amount,
+                }
+                for p in invoice.payments
+            ],
+            "offline_invoice_number": invoice.custom_offline_invoice_number,
+            "offline_creation_time": str(invoice.custom_offline_creation_time) if invoice.custom_offline_creation_time else None,
+            "xml": invoice.custom_xml if hasattr(invoice, "custom_xml") else None,
+            "qr_code": invoice.custom_qr_code if hasattr(invoice, "custom_qr_code") else None,
+        }
+
+        return Response(
+            json.dumps({"data": response_data}), status=200, mimetype="application/json"
+        )
+
+    except frappe.DoesNotExistError:
+        return Response(
+            json.dumps({"message": "Invoice not found."}),
+            status=404,
+            mimetype="application/json",
+        )
+    except Exception as e:
+        return Response(
+            json.dumps({"message": str(e)}), status=500, mimetype="application/json"
+        )
