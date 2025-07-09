@@ -1,0 +1,107 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-07-08 12:22:50.942781",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "item_code",
+  "item_name",
+  "discount_type",
+  "min_qty",
+  "max_qty",
+  "column_break_dvpi",
+  "discount_rate",
+  "discount_price",
+  "discount_percentage",
+  "item_price_id",
+  "price"
+ ],
+ "fields": [
+  {
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "item code",
+   "options": "Item"
+  },
+  {
+   "fetch_from": "item_code.item_name",
+   "fieldname": "item_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "item name"
+  },
+  {
+   "fieldname": "min_qty",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "min qty"
+  },
+  {
+   "fieldname": "max_qty",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "max qty"
+  },
+  {
+   "depends_on": "eval:doc.discount_type == 'Discount Amount'",
+   "fieldname": "discount_price",
+   "fieldtype": "Currency",
+   "label": "Discount  Amount"
+  },
+  {
+   "fieldname": "discount_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Discount type",
+   "options": "Discount Percentage\nDiscount Amount\nRate"
+  },
+  {
+   "depends_on": "eval:doc.discount_type == 'Discount Percentage'",
+   "fieldname": "discount_percentage",
+   "fieldtype": "Float",
+   "label": "Discount Percentage"
+  },
+  {
+   "depends_on": "eval:doc.discount_type == 'Rate'",
+   "fieldname": "discount_rate",
+   "fieldtype": "Currency",
+   "label": "Rate"
+  },
+  {
+   "fieldname": "column_break_dvpi",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fetch_from": "item_code.custom_item_id",
+   "fieldname": "item_price_id",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "item price id",
+   "options": "Item Price"
+  },
+  {
+   "fetch_from": "item_price_id.price_list_rate",
+   "fieldname": "price",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "price"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2025-07-09 11:41:51.512491",
+ "modified_by": "Administrator",
+ "module": "Gpos",
+ "name": "pos item",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
