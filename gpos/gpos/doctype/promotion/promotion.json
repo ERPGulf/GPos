@@ -1,0 +1,89 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:name1",
+ "creation": "2025-07-09 18:16:18.938351",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "name1",
+  "pos_profile_table",
+  "company",
+  "column_break_apua",
+  "valid_from",
+  "valid_upto",
+  "section_break_qfdy",
+  "item_table"
+ ],
+ "fields": [
+  {
+   "fieldname": "name1",
+   "fieldtype": "Data",
+   "label": "name",
+   "unique": 1
+  },
+  {
+   "fieldname": "pos_profile_table",
+   "fieldtype": "Table",
+   "label": "pos profile table",
+   "options": "pos profile child table"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "company",
+   "options": "Company"
+  },
+  {
+   "fieldname": "column_break_apua",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "valid_from",
+   "fieldtype": "Date",
+   "label": "valid from"
+  },
+  {
+   "fieldname": "valid_upto",
+   "fieldtype": "Date",
+   "label": "valid upto"
+  },
+  {
+   "fieldname": "section_break_qfdy",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "item_table",
+   "fieldtype": "Table",
+   "label": "item table",
+   "options": "Item child table"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-07-10 14:01:32.409616",
+ "modified_by": "Administrator",
+ "module": "Gpos",
+ "name": "promotion",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
