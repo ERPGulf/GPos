@@ -1,0 +1,93 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-07-09 18:22:32.795109",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "item_code",
+  "item_name",
+  "discount_type",
+  "min_qty",
+  "max_qty",
+  "column_break_dtuj",
+  "discount__amount",
+  "discount_percentage",
+  "rate"
+ ],
+ "fields": [
+  {
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Item Code",
+   "options": "Item"
+  },
+  {
+   "fetch_from": "item_code.item_name",
+   "fieldname": "item_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Item Name"
+  },
+  {
+   "fieldname": "discount_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Discount Type",
+   "options": "Discount Percentage\nDiscount Amount\nRate"
+  },
+  {
+   "fieldname": "min_qty",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "min qty"
+  },
+  {
+   "fieldname": "max_qty",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "max qty"
+  },
+  {
+   "fieldname": "column_break_dtuj",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.discount_type == 'Discount Amount'",
+   "fieldname": "discount__amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Discount  Amount"
+  },
+  {
+   "depends_on": "eval:doc.discount_type == 'Discount Percentage'",
+   "fieldname": "discount_percentage",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Discount Percentage"
+  },
+  {
+   "depends_on": "eval:doc.discount_type == 'Rate'",
+   "fieldname": "rate",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Rate"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2025-07-10 14:03:20.277375",
+ "modified_by": "Administrator",
+ "module": "Gpos",
+ "name": "Item child table",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
