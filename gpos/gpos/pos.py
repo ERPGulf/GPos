@@ -763,14 +763,13 @@ def warehouse_details(id=None):
             filters={"parent": invoice["name"]},
         )
 
-        # Iterate over items of the current invoice
         for item in items:
-            # Check if warehouse is not None before fetching details
+
             if item["warehouse"]:
                 try:
-                    # Fetch warehouse details
+
                     warehouse_details = frappe.get_doc("Warehouse", item["warehouse"])
-                    # Create dictionary with item, warehouse, and POS Invoice details
+
                     item_with_details = {
                         "id": invoice["name"],
                         "item_code": item["item_code"],
@@ -780,7 +779,7 @@ def warehouse_details(id=None):
                             warehouse_details, "address_line_1", None
                         ),
                     }
-                    # Append item details to the list
+
                     all_items_with_warehouse_details.append(item_with_details)
                 except frappe.DoesNotExistError:
                     print(f"Warehouse {item['warehouse']} not found")
@@ -850,8 +849,8 @@ def generate_token_secure_for_users(username, password, app_key):
                 mimetype="application/json",
             )
 
-        client_id = clientID  # Replace with your OAuth client ID
-        client_secret = clientSecret  # Replace with your OAuth client secret
+        client_id = clientID
+        client_secret = clientSecret
         url = (
             frappe.local.conf.host_name
             + "/api/method/frappe.integrations.oauth2.get_token"
@@ -963,8 +962,8 @@ def getOfflinePOSUsers(id=None, offset=0, limit=50):
             "user as actual_user_name",
             "branch_address",
             "printe_template as print_template",  # Text Editor field
-            "custom_print_format", 
-            "custom_is_admin", # Link to Print Format
+            "custom_print_format",
+            "custom_is_admin",  # Link to Print Format
         ],
         order_by="offine_username",
         limit_start=offset,
@@ -1005,32 +1004,33 @@ def getOfflinePOSUsers(id=None, offset=0, limit=50):
         doc["custom_is_admin"] = bool(doc.get("custom_is_admin", 0))
 
     return Response(json.dumps({"data": docs}), status=200, mimetype="application/json")
+
+
 import frappe
 from frappe import _
+
 
 @frappe.whitelist(allow_guest=True)
 def create_invoice_unsynced(date_time, invoice_number, clearing_status):
     try:
-        doc = frappe.get_doc({
-            "doctype": "Invoice Unsynced",
-            "date_time": date_time,
-            "invoice_number": invoice_number,
-            "clearing_status": clearing_status
-        })
+        doc = frappe.get_doc(
+            {
+                "doctype": "Invoice Unsynced",
+                "date_time": date_time,
+                "invoice_number": invoice_number,
+                "clearing_status": clearing_status,
+            }
+        )
         doc.insert()
         frappe.db.commit()
         return {
             "status": "success",
             "message": "Invoice Unsynced created",
-            "name": doc.name
+            "name": doc.name,
         }
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "API: create_invoice_unsynced")
-        return {
-            "status": "error",
-            "message": str(e)
-        }
-
+        return {"status": "error", "message": str(e)}
 
 
 @frappe.whitelist(allow_guest=True)
@@ -1452,11 +1452,13 @@ def get_pos_offers():
 
     return offers
 
+
 import frappe
-from frappe import _  
+from frappe import _
 from frappe import _
 from werkzeug.wrappers import Response
 import json
+
 
 @frappe.whitelist(allow_guest=True)
 def sync_gpos_log(details, datetime, location, sync_id):
@@ -1469,54 +1471,45 @@ def sync_gpos_log(details, datetime, location, sync_id):
                 "status": "conflict",
                 "message": f"Log with sync_id '{sync_id}' already exists.",
                 "name": existing,
-                "sync_id": sync_id
+                "sync_id": sync_id,
             }
             return Response(
                 json.dumps({"data": response_data}),
                 status=409,
-                mimetype="application/json"
+                mimetype="application/json",
             )
 
         # Insert new log
-        doc = frappe.get_doc({
-            "doctype": "gpos logs",
-            "details": details,
-            "fatetime": datetime,
-            "location": location,
-            "sync_id": sync_id
-        })
+        doc = frappe.get_doc(
+            {
+                "doctype": "gpos logs",
+                "details": details,
+                "fatetime": datetime,
+                "location": location,
+                "sync_id": sync_id,
+            }
+        )
         doc.insert(ignore_permissions=True)
         frappe.db.commit()
 
-        response_data = {
-            "status": "success",
-            "name": doc.name,
-            "sync_id": sync_id
-        }
+        response_data = {"status": "success", "name": doc.name, "sync_id": sync_id}
         return Response(
-            json.dumps({"data": response_data}),
-            status=200,
-            mimetype="application/json"
+            json.dumps({"data": response_data}), status=200, mimetype="application/json"
         )
 
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "sync_gpos_log Error")
         frappe.local.response.http_status_code = 500
-        error_data = {
-            "status": "error",
-            "message": str(e),
-            "sync_id": sync_id
-        }
+        error_data = {"status": "error", "message": str(e), "sync_id": sync_id}
         return Response(
-            json.dumps({"data": error_data}),
-            status=500,
-            mimetype="application/json"
+            json.dumps({"data": error_data}), status=500, mimetype="application/json"
         )
 
 
 import frappe
 import json
 from werkzeug.wrappers import Response
+
 
 @frappe.whitelist(allow_guest=True)
 def get_shift_status(shift_id):
@@ -1528,7 +1521,7 @@ def get_shift_status(shift_id):
             return Response(
                 json.dumps({"error": "Missing shift_id parameter."}),
                 status=400,
-                mimetype="application/json"
+                mimetype="application/json",
             )
 
         # Try fetching POS Opening or Closing Shift
@@ -1540,31 +1533,26 @@ def get_shift_status(shift_id):
             return Response(
                 json.dumps({"error": f"No POS Shift found with ID: {shift_id}"}),
                 status=404,
-                mimetype="application/json"
+                mimetype="application/json",
             )
 
-        response_data = {
-            "shift_id": doc.name,
-            "status": doc.get("status", "Unknown")
-        }
+        response_data = {"shift_id": doc.name, "status": doc.get("status", "Unknown")}
 
         return Response(
-            json.dumps({"data": response_data}),
-            status=200,
-            mimetype="application/json"
+            json.dumps({"data": response_data}), status=200, mimetype="application/json"
         )
 
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Get Shift Status Error")
 
         return Response(
-            json.dumps({
-                "error": "Failed to retrieve shift status.",
-                "details": str(e)
-            }),
+            json.dumps(
+                {"error": "Failed to retrieve shift status.", "details": str(e)}
+            ),
             status=500,
-            mimetype="application/json"
+            mimetype="application/json",
         )
+
 
 @frappe.whitelist(allow_guest=False)
 def create_credit_note(
@@ -1579,14 +1567,13 @@ def create_credit_note(
     pos_profile=None,
     pos_shift=None,
     cashier=None,
-    return_against=None
+    return_against=None,
 ):
     from frappe import _
     from frappe.utils import today
     from werkzeug.wrappers import Response
     import json
     from frappe import ValidationError
-
 
     try:
         pos_settings = frappe.get_doc("Claudion POS setting")
@@ -1623,7 +1610,9 @@ def create_credit_note(
 
         if not return_against:
             return Response(
-                json.dumps({"data": "Missing 'return_against' parameter for credit note."}),
+                json.dumps(
+                    {"data": "Missing 'return_against' parameter for credit note."}
+                ),
                 status=400,
                 mimetype="application/json",
             )
@@ -1639,17 +1628,17 @@ def create_credit_note(
         if unique_id:
             existing_return = frappe.db.exists(
                 "Sales Invoice",
-                {
-                    "custom_unique_id": unique_id,
-                    "is_return": 1,
-                    "docstatus": 1
-                }
+                {"custom_unique_id": unique_id, "is_return": 1, "docstatus": 1},
             )
             if existing_return:
                 return Response(
-                    json.dumps({"data": f"Credit note already created with unique_id {unique_id}"}),
+                    json.dumps(
+                        {
+                            "data": f"Credit note already created with unique_id {unique_id}"
+                        }
+                    ),
                     status=409,
-                    mimetype="application/json"
+                    mimetype="application/json",
                 )
 
         invoice_items = [
@@ -1676,22 +1665,24 @@ def create_credit_note(
             for payment in payments or []
         ]
 
-        new_invoice = frappe.get_doc({
-            "doctype": "Sales Invoice",
-            "customer": customer_name,
-            "custom_unique_id": unique_id,
-            "discount_amount": discount_amount,
-            "items": invoice_items,
-            "payments": payment_items,
-            "custom_zatca_pos_name": machine_name,
-            "is_pos": 1,
-            "is_return": 1,
-            "return_against": return_against,
-            "custom_offline_invoice_number": offline_invoice_number,
-            "pos_profile": pos_profile,
-            "posa_pos_opening_shift": pos_shift,
-            "custom_cashier": cashier,
-        })
+        new_invoice = frappe.get_doc(
+            {
+                "doctype": "Sales Invoice",
+                "customer": customer_name,
+                "custom_unique_id": unique_id,
+                "discount_amount": discount_amount,
+                "items": invoice_items,
+                "payments": payment_items,
+                "custom_zatca_pos_name": machine_name,
+                "is_pos": 1,
+                "is_return": 1,
+                "return_against": return_against,
+                "custom_offline_invoice_number": offline_invoice_number,
+                "pos_profile": pos_profile,
+                "posa_pos_opening_shift": pos_shift,
+                "custom_cashier": cashier,
+            }
+        )
 
         new_invoice.insert(ignore_permissions=True)
         new_invoice.save()
@@ -1711,13 +1702,17 @@ def create_credit_note(
 
         # Update PIH value
         zatca_setting_name = pos_settings.zatca_multiple_setting
-        frappe.db.set_value("Zatca Multiple Setting", zatca_setting_name, "custom_pih", PIH)
+        frappe.db.set_value(
+            "Zatca Multiple Setting", zatca_setting_name, "custom_pih", PIH
+        )
 
         doc = frappe.get_doc("Zatca Multiple Setting", zatca_setting_name)
         doc.save()
 
         # Get item tax rate
-        template = frappe.get_doc("Item Tax Template", new_invoice.items[0].item_tax_template)
+        template = frappe.get_doc(
+            "Item Tax Template", new_invoice.items[0].item_tax_template
+        )
         item_tax_rate = template.taxes[0].tax_rate if template.taxes else None
 
         response_data = {
@@ -1746,7 +1741,7 @@ def create_credit_note(
                     "tax_rate": item_tax_rate,
                 }
                 for item in new_invoice.items
-            ]
+            ],
         }
 
         return Response(
@@ -1765,6 +1760,8 @@ def create_credit_note(
         return Response(
             json.dumps({"message": str(e)}), status=500, mimetype="application/json"
         )
+
+
 import frappe
 import json
 from frappe import _
@@ -1845,9 +1842,15 @@ def get_invoice_details(invoice_number):
                 for p in invoice.payments
             ],
             "offline_invoice_number": invoice.custom_offline_invoice_number,
-            "offline_creation_time": str(invoice.custom_offline_creation_time) if invoice.custom_offline_creation_time else None,
+            "offline_creation_time": (
+                str(invoice.custom_offline_creation_time)
+                if invoice.custom_offline_creation_time
+                else None
+            ),
             "xml": invoice.custom_xml if hasattr(invoice, "custom_xml") else None,
-            "qr_code": invoice.custom_qr_code if hasattr(invoice, "custom_qr_code") else None,
+            "qr_code": (
+                invoice.custom_qr_code if hasattr(invoice, "custom_qr_code") else None
+            ),
         }
 
         return Response(
