@@ -16,7 +16,16 @@ from datetime import datetime, timedelta
 @frappe.whitelist(allow_guest=True)
 def get_promotion_list(pos_profile):
     try:
+
+        if not frappe.db.exists("POS Profile", pos_profile):
+            return Response(
+                json.dumps({"error": "POS Profile not found"}),
+                status=404,
+                mimetype="application/json",
+            )
+
         today = datetime.today().date()
+
         promotions = frappe.get_all(
             "promotion",
             filters={"valid_upto": (">=", today)},
@@ -24,13 +33,16 @@ def get_promotion_list(pos_profile):
         )
 
         result = []
+        linked_to_any_promotion = False
+
         for promo in promotions:
-
             doc = frappe.get_doc("promotion", promo.name)
-
             pos_profiles = [row.pos_profile for row in doc.pos_profile_table]
+
             if pos_profile not in pos_profiles:
                 continue
+
+            linked_to_any_promotion = True
 
             item_table = [
                 {
@@ -58,14 +70,26 @@ def get_promotion_list(pos_profile):
                 for item in doc.item_table
             ]
 
+            profile_doc = frappe.get_doc("POS Profile", pos_profile)
+
             result.append(
                 {
                     "id": doc.name,
                     "company": doc.company,
+                    "disabled": profile_doc.disabled,
                     "valid_from": str(doc.valid_from),
                     "valid_upto": str(doc.valid_upto),
                     "items": item_table,
                 }
+            )
+
+        if not linked_to_any_promotion:
+            return Response(
+                json.dumps(
+                    {"error": "This POS Profile is not linked to any promotions"}
+                ),
+                status=404,
+                mimetype="application/json",
             )
 
         return Response(
@@ -73,7 +97,10 @@ def get_promotion_list(pos_profile):
             status=200,
             mimetype="application/json",
         )
+
     except Exception as e:
         return Response(
-            json.dumps({"error": str(e)}), status=500, mimetype="application/json"
+            json.dumps({"error": str(e)}),
+            status=500,
+            mimetype="application/json",
         )
