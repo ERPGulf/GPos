@@ -14,6 +14,7 @@ from frappe.utils import now_datetime, cint
 
 @frappe.whitelist(allow_guest=True)
 def generate_token_secure(api_key, api_secret, app_key):
+
     try:
         try:
             app_key = base64.b64decode(app_key).decode("utf-8")
