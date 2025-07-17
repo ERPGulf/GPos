@@ -15,6 +15,7 @@ from datetime import datetime, timedelta
 
 @frappe.whitelist(allow_guest=True)
 def get_promotion_list(pos_profile):
+
     try:
 
         if not frappe.db.exists("POS Profile", pos_profile):
@@ -46,6 +47,7 @@ def get_promotion_list(pos_profile):
 
             item_table = [
                 {
+                    "id": item.name,
                     "item_code": item.item_code,
                     "item_name": item.item_name,
                     "discount_type": (
