@@ -208,7 +208,7 @@
    "fieldname": "zatca_multiple_setting",
    "fieldtype": "Link",
    "label": "Zatca Multiple Setting",
-   "options": "Zatca Multiple Setting"
+   "options": "ZATCA Multiple Setting"
   }
  ],
  "index_web_pages_for_search": 1,
