@@ -614,7 +614,7 @@ def pos_setting(machine_name):
     systemSettings = frappe.get_doc("Claudion POS setting")
     var = True if systemSettings.show_item == 1 else False
     Zatca_Multiple_Setting = (
-        frappe.get_doc("Zatca Multiple Setting", machine_name) if machine_name else None
+        frappe.get_doc("ZATCA Multiple Setting", machine_name) if machine_name else None
     )
     # return Zatca_Multiple_Setting
     linked_doctype = (
@@ -1313,10 +1313,10 @@ def create_invoice(
         new_invoice.submit()
         zatca_setting_name = pos_settings.zatca_multiple_setting
         frappe.db.set_value(
-            "Zatca Multiple Setting", zatca_setting_name, "custom_pih", PIH
+            "ZATCA Multiple Setting", zatca_setting_name, "custom_pih", PIH
         )
 
-        doc = frappe.get_doc("Zatca Multiple Setting", zatca_setting_name)
+        doc = frappe.get_doc("ZATCA Multiple Setting", zatca_setting_name)
 
         doc.save()
         template = frappe.get_doc(
@@ -1570,6 +1570,7 @@ def create_credit_note(
     pos_shift=None,
     cashier=None,
     return_against=None,
+    reason=None,
 ):
     from frappe import _
     from frappe.utils import today
@@ -1590,6 +1591,7 @@ def create_credit_note(
         pos_shift = frappe.form_dict.get("pos_shift")
         cashier = frappe.form_dict.get("cashier")
         return_against = frappe.form_dict.get("return_against")
+        reason = frappe.form_dict.get("reason")
 
         for item in items:
             item["rate"] = float(item.get("rate", 0))
@@ -1683,6 +1685,7 @@ def create_credit_note(
                 "pos_profile": pos_profile,
                 "posa_pos_opening_shift": pos_shift,
                 "custom_cashier": cashier,
+                "custom_reason": reason,
             }
         )
 
@@ -1705,10 +1708,10 @@ def create_credit_note(
         # Update PIH value
         zatca_setting_name = pos_settings.zatca_multiple_setting
         frappe.db.set_value(
-            "Zatca Multiple Setting", zatca_setting_name, "custom_pih", PIH
+            "ZATCA Multiple Setting", zatca_setting_name, "custom_pih", PIH
         )
 
-        doc = frappe.get_doc("Zatca Multiple Setting", zatca_setting_name)
+        doc = frappe.get_doc("ZATCA Multiple Setting", zatca_setting_name)
         doc.save()
 
         # Get item tax rate
