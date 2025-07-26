@@ -292,7 +292,8 @@ def get_items(item_group=None, last_updated_time=None):
             filters={
                 "item_code": item.name,
                 "price_list": "Standard Selling",
-            },  # fix item.item_code to item.name
+            },
+            order_by="creation desc"# fix item.item_code to item.name
         )
 
         # Build a mapping of UOM -> price
@@ -326,6 +327,7 @@ def get_items(item_group=None, last_updated_time=None):
                 ],
                 "uom": [
                     {
+                        "id": item.name,  # assuming 'name' is the item_code here
                         "uom": uom.uom,
                         "conversion_factor": uom.conversion_factor,
                         "price": price_map.get(uom.uom, 0.0),
