@@ -287,7 +287,7 @@ def get_items(item_group=None, last_updated_time=None):
         barcodes = frappe.get_all(
             "Item Barcode",
             filters={"parent": item.name},
-            fields=["barcode", "posa_uom"],
+            fields=["name", "barcode", "posa_uom"],
         )
         item_prices = frappe.get_all(
             "Item Price",
