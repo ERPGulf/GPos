@@ -210,7 +210,8 @@ def create_refresh_token(refresh_token):
 
 
 @frappe.whitelist(allow_guest=True)
-def get_items(item_group=None, last_updated_time=None):
+def get_items(name, item_group=None, last_updated_time=None):
+
     from datetime import datetime
 
     fields = ["name", "stock_uom", "item_name", "item_group", "description", "modified"]
@@ -281,7 +282,7 @@ def get_items(item_group=None, last_updated_time=None):
         uoms = frappe.get_all(
             "UOM Conversion Detail",
             filters={"parent": item.name},
-            fields=["uom", "conversion_factor"],
+            fields=["name", "uom", "conversion_factor"],
         )
         barcodes = frappe.get_all(
             "Item Barcode", filters={"parent": item.name}, fields=["barcode", "uom"]
@@ -293,7 +294,7 @@ def get_items(item_group=None, last_updated_time=None):
                 "item_code": item.name,
                 "price_list": "Standard Selling",
             },
-            order_by="creation desc",  # fix item.item_code to item.name
+            order_by="creation",  # fix item.item_code to item.name
         )
 
         # Build a mapping of UOM -> price
@@ -327,7 +328,7 @@ def get_items(item_group=None, last_updated_time=None):
                 ],
                 "uom": [
                     {
-                        "id": item.name,  # assuming 'name' is the item_code here
+                        "id": uom.name,  # assuming 'name' is the item_code here
                         "uom": uom.uom,
                         "conversion_factor": uom.conversion_factor,
                         "price": price_map.get(uom.uom, 0.0),
