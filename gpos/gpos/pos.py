@@ -288,7 +288,7 @@ def get_items(item_group=None, last_updated_time=None):
         )
         item_prices = frappe.get_all(
             "Item Price",
-            fields=["price_list_rate", "uom"],
+            fields=["price_list_rate", "uom"," creation"],
             filters={
                 "item_code": item.name,
                 "price_list": "Standard Selling",
