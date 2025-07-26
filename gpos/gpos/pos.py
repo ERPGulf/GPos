@@ -281,18 +281,19 @@ def get_items(item_group=None, last_updated_time=None):
         uoms = frappe.get_all(
             "UOM Conversion Detail",
             filters={"parent": item.name},
-            fields=["uom", "conversion_factor"],
+            fields=["name", "uom", "conversion_factor"],
         )
         barcodes = frappe.get_all(
             "Item Barcode", filters={"parent": item.name}, fields=["barcode", "uom"]
         )
         item_prices = frappe.get_all(
             "Item Price",
-            fields=["price_list_rate", "uom"],
+            fields=["price_list_rate", "uom", "creation"],
             filters={
                 "item_code": item.name,
                 "price_list": "Standard Selling",
-            },  # fix item.item_code to item.name
+            },
+            order_by="creation",
         )
 
         # Build a mapping of UOM -> price
@@ -326,6 +327,7 @@ def get_items(item_group=None, last_updated_time=None):
                 ],
                 "uom": [
                     {
+                        "id": uom.name,
                         "uom": uom.uom,
                         "conversion_factor": uom.conversion_factor,
                         "price": price_map.get(uom.uom, 0.0),
