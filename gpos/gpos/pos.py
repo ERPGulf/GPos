@@ -210,7 +210,7 @@ def create_refresh_token(refresh_token):
 
 
 @frappe.whitelist(allow_guest=True)
-def get_items(name, item_group=None, last_updated_time=None):
+def get_items(item_group=None, last_updated_time=None):
 
     from datetime import datetime
 
