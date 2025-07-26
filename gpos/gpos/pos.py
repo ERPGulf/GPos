@@ -333,7 +333,7 @@ def get_items(item_group=None, last_updated_time=None):
                         "id": uom.name,  # assuming 'name' is the item_code here
                         "uom": uom.uom,
                         "conversion_factor": uom.conversion_factor,
-                        "price": price_map.get(uom.uom, 0.0),
+                        "price": round(price_map.get(uom.uom, 0.0), 2),
                         "barcode": ", ".join(
                             barcode_map.get(uom.uom, [])
                         ),  # fetch price for this uom
