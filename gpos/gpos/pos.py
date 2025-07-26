@@ -325,7 +325,11 @@ def get_items(item_group=None, last_updated_time=None):
                 "tax_percentage": (item.get("custom_tax_percentage") or 0.0),
                 "description": item.description,
                 "barcodes": [
-                    {"barcode": barcode.barcode, "uom": barcode.posa_uom}
+                    {
+                        "id": barcode.name,
+                        "barcode": barcode.barcode,
+                        "uom": barcode.posa_uom,
+                    }
                     for barcode in barcodes
                 ],
                 "uom": [
