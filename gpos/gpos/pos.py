@@ -1940,6 +1940,7 @@ def get_promotion_list(pos_profile):
                     "discount_percentage": item.discount_percentage,
                     "discount_price": item.discount__amount,
                     "rate": item.rate,
+                    "uom": item.uom,
                 }
                 for item in doc.item_table
             ]

@@ -14,7 +14,8 @@
   "column_break_dtuj",
   "discount__amount",
   "discount_percentage",
-  "rate"
+  "rate",
+  "uom"
  ],
  "fields": [
   {
@@ -74,13 +75,19 @@
    "fieldtype": "Currency",
    "in_list_view": 1,
    "label": "Rate"
+  },
+  {
+   "fetch_from": "item_code.stock_uom",
+   "fieldname": "uom",
+   "fieldtype": "Data",
+   "label": "UOM"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-07-10 14:03:20.277375",
+ "modified": "2025-07-28 09:30:32.245735",
  "modified_by": "Administrator",
  "module": "Gpos",
  "name": "Item child table",
