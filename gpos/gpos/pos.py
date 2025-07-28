@@ -1,7 +1,6 @@
 import requests
 import json
 import frappe
-import json
 import urllib.parse
 import base64
 from werkzeug.wrappers import Response
@@ -11,6 +10,9 @@ from frappe.utils.image import optimize_image
 from mimetypes import guess_type
 from frappe.utils import now_datetime, cint
 from datetime import datetime, timedelta
+from frappe.utils import today
+from frappe import _
+from frappe import ValidationError
 
 
 @frappe.whitelist(allow_guest=True)
@@ -959,10 +961,6 @@ def generate_token_secure_for_users(username, password, app_key):
 #     return Response(json.dumps({"data": docs}), status=200, mimetype="application/json")
 @frappe.whitelist(allow_guest=True)
 def getOfflinePOSUsers(id=None, offset=0, limit=50):
-    from frappe.utils.password import get_decrypted_password
-    import base64
-    import json
-    from werkzeug.wrappers import Response
 
     docs = frappe.db.get_all(
         "POS Offline Users",
@@ -1017,10 +1015,6 @@ def getOfflinePOSUsers(id=None, offset=0, limit=50):
         doc["custom_is_admin"] = bool(doc.get("custom_is_admin", 0))
 
     return Response(json.dumps({"data": docs}), status=200, mimetype="application/json")
-
-
-import frappe
-from frappe import _
 
 
 @frappe.whitelist(allow_guest=True)
@@ -1139,9 +1133,6 @@ def get_number_of_files(file_storage):
         return file_storage.get_num_files()
     else:
         return 0
-
-
-from frappe import ValidationError
 
 
 @frappe.whitelist(allow_guest=False)
@@ -1381,7 +1372,7 @@ def create_invoice(
                     "total": tax.total,
                     "description": tax.description,
                     "included_in_paid_amount": 1,
-                    "included_in_print_rate": 1,
+                    "included_in_print_rate": 0,
                 }
                 for tax in new_invoice.taxes
             ],
@@ -1424,8 +1415,6 @@ def create_invoice(
 
 
 # your_app/api/pos_offer_api.py
-import frappe
-from frappe.utils import today
 
 
 @frappe.whitelist()
@@ -1464,13 +1453,6 @@ def get_pos_offers():
     )
 
     return offers
-
-
-import frappe
-from frappe import _
-from frappe import _
-from werkzeug.wrappers import Response
-import json
 
 
 @frappe.whitelist(allow_guest=True)
@@ -1517,11 +1499,6 @@ def sync_gpos_log(details, datetime, location, sync_id):
         return Response(
             json.dumps({"data": error_data}), status=500, mimetype="application/json"
         )
-
-
-import frappe
-import json
-from werkzeug.wrappers import Response
 
 
 @frappe.whitelist(allow_guest=True)
@@ -1583,11 +1560,6 @@ def create_credit_note(
     return_against=None,
     reason=None,
 ):
-    from frappe import _
-    from frappe.utils import today
-    from werkzeug.wrappers import Response
-    import json
-    from frappe import ValidationError
 
     try:
         pos_settings = frappe.get_doc("Claudion POS setting")
@@ -1778,13 +1750,6 @@ def create_credit_note(
         )
 
 
-import frappe
-import json
-from frappe import _
-
-from werkzeug.wrappers import Response
-
-
 @frappe.whitelist(allow_guest=False)
 def get_invoice_details(invoice_number):
     try:
@@ -1885,11 +1850,9 @@ def get_invoice_details(invoice_number):
         )
 
 
-@frappe.whitelist(allow_guest=False)
+@frappe.whitelist(allow_guest=True)
 def get_promotion_list(pos_profile):
-
     try:
-
         if not frappe.db.exists("POS Profile", pos_profile):
             return Response(
                 json.dumps({"error": "POS Profile not found"}),
@@ -1917,33 +1880,43 @@ def get_promotion_list(pos_profile):
 
             linked_to_any_promotion = True
 
-            item_table = [
-                {
-                    "id": item.name,
-                    "item_code": item.item_code,
-                    "item_name": item.item_name,
-                    "discount_type": (
-                        "PERCENTAGE"
-                        if item.discount_type == "Discount Percentage"
-                        else (
-                            "AMOUNT"
-                            if item.discount_type == "Discount Amount"
+            item_table = []
+            for item in doc.item_table:
+                item_doc = frappe.get_doc("Item", item.item_code)
+
+                # Find the child UOM row where uom == item.uom
+                matched_uom_row = None
+                for uom_row in item_doc.uoms:
+                    if uom_row.uom == item.uom:
+                        matched_uom_row = uom_row
+                        break
+
+                item_table.append(
+                    {
+                        "id": item.name,
+                        "item_code": item.item_code,
+                        "item_name": item.item_name,
+                        "discount_type": (
+                            "PERCENTAGE"
+                            if item.discount_type == "Discount Percentage"
                             else (
-                                "RATE"
-                                if item.discount_type == "Rate"
-                                else item.discount_type
+                                "AMOUNT"
+                                if item.discount_type == "Discount Amount"
+                                else (
+                                    "RATE"
+                                    if item.discount_type == "Rate"
+                                    else item.discount_type
+                                )
                             )
-                        )
-                    ),
-                    "min_qty": item.min_qty,
-                    "max_qty": item.max_qty,
-                    "discount_percentage": item.discount_percentage,
-                    "discount_price": item.discount__amount,
-                    "rate": item.rate,
-                    "uom": item.uom,
-                }
-                for item in doc.item_table
-            ]
+                        ),
+                        "min_qty": item.min_qty,
+                        "max_qty": item.max_qty,
+                        "discount_percentage": item.discount_percentage,
+                        "discount_price": item.discount__amount,
+                        "uom_id": matched_uom_row.name if matched_uom_row else None,
+                        "uom": item.uom,
+                    }
+                )
 
             profile_doc = frappe.get_doc("POS Profile", pos_profile)
 
@@ -1974,6 +1947,7 @@ def get_promotion_list(pos_profile):
         )
 
     except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "get_promotion_list error")
         return Response(
             json.dumps({"error": str(e)}),
             status=500,
