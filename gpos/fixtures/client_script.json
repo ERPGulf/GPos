@@ -1,0 +1,13 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "Client Script",
+  "dt": "promotion",
+  "enabled": 1,
+  "modified": "2025-07-28 13:50:39.610719",
+  "module": "Gpos",
+  "name": "promotion uom",
+  "script": "frappe.ui.form.on('Item child table', {\r\n    item_code: function(frm, cdt, cdn) {\r\n        \r\n\r\n        let row = locals[cdt][cdn];\r\n        \r\n\r\n        if (row.item_code) {\r\n           \r\n\r\n            frappe.call({\r\n                method: \"frappe.client.get\",\r\n                args: {\r\n                    doctype: \"Item\",\r\n                    name: row.item_code\r\n                },\r\n                callback: function(response) {\r\n                    \r\n\r\n                    if (response.message) {\r\n                        let item = response.message;\r\n                        \r\n\r\n                        let uoms = item.uoms || [];\r\n                        \r\n\r\n                        let uom_names = uoms.map(u => u.uom);\r\n                        \r\n                        \r\n                        frappe.model.set_value(cdt, cdn, \"uom\", \"\");\r\n\r\n                        frm.fields_dict.item_table.grid.update_docfield_property('uom', 'options', uom_names.join(\"\\n\"));\r\n\r\n                    \r\n                        if (uom_names.length > 0) {\r\n                           \r\n                            frappe.model.set_value(cdt, cdn, \"uom\", uom_names[0]);\r\n                        } else {\r\n                            console.warn(\"⚠️ No UOMs found to set default.\");\r\n                        }\r\n                    } else {\r\n                        console.warn(\"❌ Item not found for item_code:\", row.item_code);\r\n                    }\r\n                }\r\n            });\r\n        } else {\r\n            console.log(\"🚫 No item_code selected.\");\r\n        }\r\n    }\r\n});\r\n",
+  "view": "Form"
+ }
+]
