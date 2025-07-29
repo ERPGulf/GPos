@@ -1279,7 +1279,7 @@ def create_invoice(
         cost_center = None
         if pos_profile:
             pos_doc = frappe.get_doc("POS Profile", pos_profile)
-            cost_center = pos_doc.cost_center    
+            cost_center = pos_doc.cost_center
 
         new_invoice = frappe.get_doc(
             {
