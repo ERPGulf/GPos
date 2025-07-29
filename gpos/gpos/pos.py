@@ -1276,6 +1276,10 @@ def create_invoice(
                 status=400,
                 mimetype="application/json",
             )
+        cost_center = None
+        if pos_profile:
+            pos_doc = frappe.get_doc("POS Profile", pos_profile)
+            cost_center = pos_doc.cost_center    
 
         new_invoice = frappe.get_doc(
             {
@@ -1294,6 +1298,7 @@ def create_invoice(
                 "pos_profile": pos_profile,
                 "posa_pos_opening_shift": pos_shift,
                 "custom_cashier": cashier,
+                "cost_center": cost_center,
             }
         )
 
@@ -1651,6 +1656,10 @@ def create_credit_note(
             }
             for payment in payments or []
         ]
+        cost_center = None
+        if pos_profile:
+            pos_doc = frappe.get_doc("POS Profile", pos_profile)
+            cost_center = pos_doc.cost_center
 
         new_invoice = frappe.get_doc(
             {
@@ -1669,6 +1678,7 @@ def create_credit_note(
                 "posa_pos_opening_shift": pos_shift,
                 "custom_cashier": cashier,
                 "custom_reason": reason,
+                "cost_center": cost_center,
             }
         )
 
