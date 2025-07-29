@@ -37,7 +37,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Discount Type",
-   "options": "Discount Percentage\nDiscount Amount\nRate"
+   "options": "Discount Percentage\nDiscount Amount"
   },
   {
    "fieldname": "min_qty",
@@ -73,7 +73,7 @@
    "depends_on": "eval:doc.discount_type == 'Rate'",
    "fieldname": "rate",
    "fieldtype": "Currency",
-   "in_list_view": 1,
+   "hidden": 1,
    "label": "Rate"
   },
   {
@@ -86,7 +86,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-07-28 11:54:53.085678",
+ "modified": "2025-07-29 15:42:55.752843",
  "modified_by": "Administrator",
  "module": "Gpos",
  "name": "Item child table",
