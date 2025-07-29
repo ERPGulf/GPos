@@ -1191,7 +1191,7 @@ def create_invoice(
                 "rate": charge.get("rate"),
                 "description": charge.get("description"),
                 "included_in_paid_amount": 1,
-                "included_in_print_rate": 1,
+                "included_in_print_rate": 0,
             }
             for charge in pos_settings.get("sales_taxes_and_charges")
         ]
@@ -1288,10 +1288,10 @@ def create_invoice(
                 "taxes": taxes_list,
                 "po_no": Customer_Purchase_Order,
                 "custom_zatca_pos_name": machine_name,
-                "is_pos": 1,  # ✅ Always set POS flag
-                "custom_offline_creation_time": custom_offline_creation_time,  # ✅
+                "is_pos": 1,
+                "custom_offline_creation_time": custom_offline_creation_time,
                 "custom_offline_invoice_number": offline_invoice_number,
-                "pos_profile": pos_profile,  # ✅
+                "pos_profile": pos_profile,
                 "posa_pos_opening_shift": pos_shift,
                 "custom_cashier": cashier,
             }
@@ -1371,8 +1371,8 @@ def create_invoice(
                     "tax_rate": tax.rate,
                     "total": tax.total,
                     "description": tax.description,
-                    "included_in_paid_amount": 1,
-                    "included_in_print_rate": 0,
+                    "included_in_paid_amount": tax.get("included_in_paid_amount", 1),
+                    "included_in_print_rate": tax.get("included_in_print_rate", 1),
                 }
                 for tax in new_invoice.taxes
             ],
