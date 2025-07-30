@@ -289,7 +289,7 @@ def get_items(item_group=None, last_updated_time=None):
         barcodes = frappe.get_all(
             "Item Barcode",
             filters={"parent": item.name},
-            fields=["name", "barcode", "posa_uom"],
+            fields=["name", "barcode", "uom"],
         )
         item_prices = frappe.get_all(
             "Item Price",
@@ -306,9 +306,9 @@ def get_items(item_group=None, last_updated_time=None):
         barcode_map = {}
         for barcode in barcodes:
             if barcode.uom in barcode_map:
-                barcode_map[barcode.posa_uom].append(barcode.barcode)
+                barcode_map[barcode.uom].append(barcode.barcode)
             else:
-                barcode_map[barcode.posa_uom] = [barcode.barcode]
+                barcode_map[barcode.uom] = [barcode.barcode]
 
         if item.item_group not in grouped_items:
             grouped_items[item.item_group] = {
@@ -330,7 +330,7 @@ def get_items(item_group=None, last_updated_time=None):
                     {
                         "id": barcode.name,
                         "barcode": barcode.barcode,
-                        "uom": barcode.posa_uom,
+                        "uom": barcode.uom,
                     }
                     for barcode in barcodes
                 ],
@@ -452,7 +452,7 @@ def get_items_page(item_group=None, last_updated_time=None, limit=50, offset=0):
         barcodes = frappe.get_all(
             "Item Barcode",
             filters={"parent": item.name},
-            fields=["barcode", "posa_uom"],
+            fields=["barcode", "uom"],
         )
         item_prices = frappe.get_all(
             "Item Price",
