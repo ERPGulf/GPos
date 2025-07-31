@@ -726,7 +726,7 @@ def pos_setting(machine_name):
                     if Zatca_Multiple_Setting
                     else zatca.custom_pih
                 )
-                if zatca.custom_phase_1_or_2 == "phase-2"
+                if zatca.custom_phase_1_or_2 == "Phase-2"
                 else None
             ),
             "Abbr": zatca.abbr,
