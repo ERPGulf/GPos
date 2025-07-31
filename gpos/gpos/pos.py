@@ -1314,14 +1314,12 @@ def create_invoice(
 
         uploaded_files = frappe.request.files
         xml_url, qr_code_url = None, None
-        if phase == 2:
-            if "xml" in uploaded_files:
-                new_invoice.custom_xml = process_file_upload(
-                    uploaded_files["xml"], ignore_permissions=True, is_private=True
-                )
-        else:
-            if "xml" in uploaded_files:
-                frappe.logger().info("XML file ignored because phase != 2")
+
+        if "xml" in uploaded_files:
+            new_invoice.custom_xml = process_file_upload(
+                uploaded_files["xml"], ignore_permissions=True, is_private=True
+            )
+
         if "qr_code" in uploaded_files:
             new_invoice.custom_qr_code = process_file_upload(
                 uploaded_files["qr_code"], ignore_permissions=True, is_private=True
