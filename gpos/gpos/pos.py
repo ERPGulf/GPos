@@ -1,3 +1,4 @@
+from cmath import phase
 import requests
 import json
 import frappe
@@ -716,6 +717,7 @@ def pos_setting(machine_name):
         ],
         "zatca": {
             "company_name": zatca.name,
+            "phase": zatca.custom_phase_1_or_2,
             "company_taxid": zatca.tax_id,
             "certificate": encoded_certificate,
             "pih": (
@@ -1139,7 +1141,6 @@ def get_number_of_files(file_storage):
 def create_invoice(
     customer_name,
     items,
-    PIH,
     machine_name,
     Customer_Purchase_Order=None,
     payments=None,
@@ -1150,6 +1151,8 @@ def create_invoice(
     pos_profile=None,
     pos_shift=None,
     cashier=None,
+    PIH=None,
+    phase=2,
 ):
     try:
 
@@ -1307,10 +1310,11 @@ def create_invoice(
 
         uploaded_files = frappe.request.files
         xml_url, qr_code_url = None, None
-        if "xml" in uploaded_files:
-            new_invoice.custom_xml = process_file_upload(
-                uploaded_files["xml"], ignore_permissions=True, is_private=True
-            )
+        if phase == 2:
+            if "xml" in uploaded_files:
+                new_invoice.custom_xml = process_file_upload(
+                    uploaded_files["xml"], ignore_permissions=True, is_private=True
+                )
         if "qr_code" in uploaded_files:
             new_invoice.custom_qr_code = process_file_upload(
                 uploaded_files["qr_code"], ignore_permissions=True, is_private=True
@@ -1319,9 +1323,10 @@ def create_invoice(
         new_invoice.save(ignore_permissions=True)
         new_invoice.submit()
         zatca_setting_name = pos_settings.zatca_multiple_setting
-        frappe.db.set_value(
-            "ZATCA Multiple Setting", zatca_setting_name, "custom_pih", PIH
-        )
+        if PIH:
+            frappe.db.set_value(
+                "ZATCA Multiple Setting", zatca_setting_name, "custom_pih", PIH
+            )
 
         doc = frappe.get_doc("ZATCA Multiple Setting", zatca_setting_name)
 
@@ -1355,7 +1360,7 @@ def create_invoice(
                 if hasattr(new_invoice, "custom_qr_code")
                 else None
             ),
-            "pih": doc.custom_pih,
+            "pih": doc.custom_pih if PIH else None,
             "items": [
                 {
                     "item_name": item.item_name,
