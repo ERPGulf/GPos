@@ -721,9 +721,13 @@ def pos_setting(machine_name):
             "company_taxid": zatca.tax_id,
             "certificate": encoded_certificate,
             "pih": (
-                Zatca_Multiple_Setting.custom_pih
-                if Zatca_Multiple_Setting
-                else zatca.custom_pih
+                (
+                    Zatca_Multiple_Setting.custom_pih
+                    if Zatca_Multiple_Setting
+                    else zatca.custom_pih
+                )
+                if zatca.custom_phase_1_or_2 == "phase-2"
+                else None
             ),
             "Abbr": zatca.abbr,
             "tax_id": zatca.tax_id,
