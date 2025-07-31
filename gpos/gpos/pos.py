@@ -716,6 +716,7 @@ def pos_setting(machine_name):
         ],
         "zatca": {
             "company_name": zatca.name,
+            "phase": zatca.custom_phase_1_or_2,
             "company_taxid": zatca.tax_id,
             "certificate": encoded_certificate,
             "pih": (
@@ -1139,7 +1140,6 @@ def get_number_of_files(file_storage):
 def create_invoice(
     customer_name,
     items,
-    PIH,
     machine_name,
     Customer_Purchase_Order=None,
     payments=None,
@@ -1150,6 +1150,8 @@ def create_invoice(
     pos_profile=None,
     pos_shift=None,
     cashier=None,
+    PIH=None,
+    phase=2,
 ):
     try:
 
@@ -1279,7 +1281,7 @@ def create_invoice(
         cost_center = None
         if pos_profile:
             pos_doc = frappe.get_doc("POS Profile", pos_profile)
-            cost_center = pos_doc.cost_center    
+            cost_center = pos_doc.cost_center
 
         new_invoice = frappe.get_doc(
             {
@@ -1307,10 +1309,11 @@ def create_invoice(
 
         uploaded_files = frappe.request.files
         xml_url, qr_code_url = None, None
-        if "xml" in uploaded_files:
-            new_invoice.custom_xml = process_file_upload(
-                uploaded_files["xml"], ignore_permissions=True, is_private=True
-            )
+        if phase == 2:
+            if "xml" in uploaded_files:
+                new_invoice.custom_xml = process_file_upload(
+                    uploaded_files["xml"], ignore_permissions=True, is_private=True
+                )
         if "qr_code" in uploaded_files:
             new_invoice.custom_qr_code = process_file_upload(
                 uploaded_files["qr_code"], ignore_permissions=True, is_private=True
