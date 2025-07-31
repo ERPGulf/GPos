@@ -677,6 +677,7 @@ def pos_setting(machine_name):
     address_record = address[0] if address else None
 
     data = {
+        "phase": zatca.custom_phase_1_or_2,
         "discount_field": systemSettings.discount_field,
         "prefix_included_or_not": systemSettings.prefix_included_or_not,
         "no_of_prefix_character": int(systemSettings.no_of_prefix_character),
@@ -684,7 +685,7 @@ def pos_setting(machine_name):
         "item_code_total_digits": int(systemSettings.item_code_total_digits),
         "item_code_starting_position": int(systemSettings.item_code_starting_position),
         "weight_starting_position": int(systemSettings.weight_starting_position),
-        "weight_total_digitsexcluding_decimal": int(
+        "weight_total_digits_excluding_decimal": int(
             systemSettings.weight_total_digitsexcluding_decimal
         ),
         "no_of_decimal_in_weights": int(systemSettings.no_of_decimal_in_weights),
@@ -692,7 +693,7 @@ def pos_setting(machine_name):
             systemSettings.price_included_in_barcode_or_not
         ),
         "price_starting_position": int(systemSettings.price_starting_position),
-        "price_total_digitsexcluding_decimals": int(
+        "price_total_digits_excluding_decimals": int(
             systemSettings.price_total_digitsexcluding_decimals
         ),
         "no_of_decimal_in_price": int(systemSettings.no_of_decimal_in_price),
@@ -717,7 +718,6 @@ def pos_setting(machine_name):
         ],
         "zatca": {
             "company_name": zatca.name,
-            "phase": zatca.custom_phase_1_or_2,
             "company_taxid": zatca.tax_id,
             "certificate": encoded_certificate,
             "pih": (
