@@ -922,49 +922,6 @@ def generate_token_secure_for_users(username, password, app_key):
         )
 
 
-# @frappe.whitelist(allow_guest=True)
-# def getOfflinePOSUsers(id=None, offset=0, limit=50):
-#     from frappe.utils.password import get_decrypted_password
-#     import base64
-#     import json
-#     from werkzeug.wrappers import Response
-
-#     # Fetch the offline users
-#     docs = frappe.db.get_all(
-#         "POS Offline Users",
-#         fields=[
-#             "name",
-#             "offine_username",
-#             "shop_name",
-#             "password",
-#             "user as actual_user_name",
-#             "branch_address",
-#             "printe_template as print_template",
-#         ],
-#         order_by="offine_username",
-#         limit_start=offset,
-#         limit_page_length=limit,
-#     )
-
-#     for doc in docs:
-#         # Decrypt and encode the password in base64
-#         decrypted_password = get_decrypted_password(
-#             "POS Offline Users", doc.name, "password"
-#         )
-#         doc["password"] = base64.b64encode(decrypted_password.encode("utf-8")).decode(
-#             "utf-8"
-#         )
-
-#         # Fetch POS Profiles where this user is listed in applicable_for_users
-#         pos_profiles = frappe.db.get_all(
-#             "POS Profile User",
-#             filters={"user": doc["actual_user_name"]},
-#             fields=["parent as pos_profile"],
-#         )
-#         doc["pos_profiles"] = [p["pos_profile"] for p in pos_profiles]
-
-
-#     return Response(json.dumps({"data": docs}), status=200, mimetype="application/json")
 @frappe.whitelist(allow_guest=True)
 def getOfflinePOSUsers(id=None, offset=0, limit=50):
 
@@ -1930,9 +1887,17 @@ def get_promotion_list(pos_profile):
                             )
                         ),
                         "min_qty": item.min_qty,
-                        "max_qty": item.max_qty,
-                        "discount_percentage": item.discount_percentage,
-                        "discount_price": item.discount__amount,
+                        "max_qty": item.max_qty if item.max_qty else 1000,
+                        "discount_percentage": (
+                            round(item.discount_percentage, 2)
+                            if item.discount_percentage
+                            else None
+                        ),
+                        "discount_price": (
+                            round(item.discount__amount, 2)
+                            if item.discount__amount
+                            else None
+                        ),
                         "uom_id": matched_uom_row.name if matched_uom_row else None,
                         "uom": item.uom,
                     }
