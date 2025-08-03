@@ -1887,17 +1887,9 @@ def get_promotion_list(pos_profile):
                             )
                         ),
                         "min_qty": item.min_qty,
-                        "max_qty": item.max_qty if item.max_qty else 1000,
-                        "discount_percentage": (
-                            round(item.discount_percentage, 2)
-                            if item.discount_percentage
-                            else None
-                        ),
-                        "discount_price": (
-                            round(item.discount__amount, 2)
-                            if item.discount__amount
-                            else None
-                        ),
+                        "max_qty": item.max_qty,
+                        "discount_percentage": item.discount_percentage,
+                        "discount_price": item.discount__amount,
                         "uom_id": matched_uom_row.name if matched_uom_row else None,
                         "uom": item.uom,
                     }

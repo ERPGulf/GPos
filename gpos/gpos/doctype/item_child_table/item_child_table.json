@@ -45,6 +45,7 @@
    "label": "min qty"
   },
   {
+   "default": "1000",
    "fieldname": "max_qty",
    "fieldtype": "Int",
    "in_list_view": 1,
@@ -59,14 +60,16 @@
    "fieldname": "discount__amount",
    "fieldtype": "Currency",
    "in_list_view": 1,
-   "label": "Discount  Amount"
+   "label": "Discount  Amount",
+   "precision": "2"
   },
   {
    "depends_on": "eval:doc.discount_type == 'Discount Percentage'",
    "fieldname": "discount_percentage",
    "fieldtype": "Float",
    "in_list_view": 1,
-   "label": "Discount Percentage"
+   "label": "Discount Percentage",
+   "precision": "2"
   },
   {
    "fieldname": "uom",
@@ -78,7 +81,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-07-30 18:21:48.252883",
+ "modified": "2025-08-03 11:19:17.905500",
  "modified_by": "Administrator",
  "module": "Gpos",
  "name": "Item child table",
