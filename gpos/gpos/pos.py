@@ -289,8 +289,6 @@ def get_items(item_group=None, last_updated_time=None):
                 "name",
                 "uom",
                 "conversion_factor",
-                "custom_editable_price",
-                "custom_editable_quantity",
             ],
         )
         barcodes = frappe.get_all(
@@ -351,19 +349,15 @@ def get_items(item_group=None, last_updated_time=None):
                     {
                         "id": uom.name,  # assuming 'name' is the item_code here
                         "uom": uom.uom,
-                        "editable_price": (
-                            True
-                            if getattr(uom, "custom_editable_price", False)
-                            else False
-                        ),
-                        "editable_quantity": (
-                            True
-                            if getattr(uom, "custom_editable_quantity", False)
-                            else False
-                        ),
                         "conversion_factor": uom.conversion_factor,
                         "price": round(price_map.get(uom.uom, 0.0), 2),
                         "barcode": ", ".join(barcode_map.get(uom.uom, [])),
+                        "editable_price": bool(
+                            frappe.get_value("UOM", uom.uom, "custom_editable_price")
+                        ),
+                        "editable_quantity": bool(
+                            frappe.get_value("UOM", uom.uom, "custom_editable_quantity")
+                        ),
                         # fetch price for this uom
                     }
                     for uom in uoms
