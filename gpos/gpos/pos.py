@@ -285,7 +285,13 @@ def get_items(item_group=None, last_updated_time=None):
         uoms = frappe.get_all(
             "UOM Conversion Detail",
             filters={"parent": item.name},
-            fields=["name", "uom", "conversion_factor"],
+            fields=[
+                "name",
+                "uom",
+                "conversion_factor",
+                "custom_editable_price",
+                "custom_editable_quantity",
+            ],
         )
         barcodes = frappe.get_all(
             "Item Barcode",
@@ -338,8 +344,6 @@ def get_items(item_group=None, last_updated_time=None):
                         "id": barcode.name,
                         "barcode": barcode.barcode,
                         "uom": barcode.uom,
-                        "editable_price": barcode.custom_editable_price,
-                        "editable_quantity": barcode.custom_editable_quantity,
                     }
                     for barcode in barcodes
                 ],
@@ -347,11 +351,20 @@ def get_items(item_group=None, last_updated_time=None):
                     {
                         "id": uom.name,  # assuming 'name' is the item_code here
                         "uom": uom.uom,
+                        "editable_price": (
+                            True
+                            if getattr(uom, "custom_editable_price", False)
+                            else False
+                        ),
+                        "editable_quantity": (
+                            True
+                            if getattr(uom, "custom_editable_quantity", False)
+                            else False
+                        ),
                         "conversion_factor": uom.conversion_factor,
                         "price": round(price_map.get(uom.uom, 0.0), 2),
-                        "barcode": ", ".join(
-                            barcode_map.get(uom.uom, [])
-                        ),  # fetch price for this uom
+                        "barcode": ", ".join(barcode_map.get(uom.uom, [])),
+                        # fetch price for this uom
                     }
                     for uom in uoms
                 ],
