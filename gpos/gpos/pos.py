@@ -601,14 +601,6 @@ def create_customer(
         pass
 
 
-# @frappe.whitelist(allow_guest=True)
-# def customer_list(id=None):
-#     doc = frappe.get_list(
-#         "Customer",
-#         fields=["name as id", "mobile_no as phone_no", "customer_name"],
-#         filters={"name": ["like", f"{id}"]} if id else None,
-#     )
-#     return Response(json.dumps({"data": doc}), status=200, mimetype="application/json")
 @frappe.whitelist(allow_guest=True)
 def customer_list(id=None):
     doc = frappe.get_list(
@@ -719,6 +711,7 @@ def pos_setting(machine_name):
         "post_to_pos_invoice": systemSettings.post_to_pos_invoice,
         "is_tax_included_in_price": systemSettings.is_tax_included_in_price,
         "tax_percentage": systemSettings.tax_percentage,
+        "company_name_in_Arabic": systemSettings.company_name_in_Arabic,
         "taxes": [
             {
                 "charge_type": tax.charge_type,
@@ -783,17 +776,15 @@ def pos_setting(machine_name):
 
 @frappe.whitelist(allow_guest=True)
 def warehouse_details(id=None):
-    # Define the filter
+
     filters = {"name": ["like", f"%{id}%"]} if id else {}
 
     pos_invoices = frappe.get_list("POS Invoice", fields=["name"], filters=filters)
 
-    # Initialize list to store all items with warehouse details including POS Invoice name
     all_items_with_warehouse_details = []
 
-    # Iterate over each POS Invoice
     for invoice in pos_invoices:
-        # Fetch items for the current invoice
+
         items = frappe.get_all(
             "POS Invoice Item",
             fields=["item_code", "warehouse"],
@@ -929,8 +920,7 @@ def generate_token_secure_for_users(username, password, app_key):
             return json.loads(response.text)
 
     except Exception as e:
-        # frappe.local.response.http_status_code = 401
-        # return json.loads(response.text)
+
         return Response(
             json.dumps({"message": e, "user_count": 0}),
             status=500,
@@ -1130,9 +1120,7 @@ def create_invoice(
     cashier=None,
     PIH=None,
     phase=2,
-    PIH=None,
-    phase=2,
-):
+):  # Default to phase 1
     try:
 
         pos_settings = frappe.get_doc("Claudion POS setting")
@@ -1463,7 +1451,6 @@ def sync_gpos_log(details, datetime, location, sync_id):
                 mimetype="application/json",
             )
 
-        # Insert new log
         doc = frappe.get_doc(
             {
                 "doctype": "gpos logs",
