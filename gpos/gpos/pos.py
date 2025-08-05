@@ -1198,7 +1198,7 @@ def create_invoice(
                 mimetype="application/json",
             )
 
-        if pos_settings.post_to_pos_invoice:
+        if pos_settings.post_to_sales_invoice == 0:
             doctype = "POS Invoice"
             pos_sync_id = frappe.get_all(
                 "POS Invoice",

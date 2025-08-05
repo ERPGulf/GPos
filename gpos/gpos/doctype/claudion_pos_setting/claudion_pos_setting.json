@@ -174,6 +174,7 @@
    "default": "0",
    "fieldname": "post_to_pos_invoice",
    "fieldtype": "Check",
+   "hidden": 1,
    "label": "Post To POS Invoice "
   },
   {
@@ -217,7 +218,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-08-05 15:04:28.794625",
+ "modified": "2025-08-05 15:35:26.504413",
  "modified_by": "Administrator",
  "module": "Gpos",
  "name": "Claudion POS setting",
