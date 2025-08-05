@@ -1119,7 +1119,8 @@ def create_invoice(
     pos_shift=None,
     cashier=None,
     PIH=None,
-    phase=2,
+    phase=1,
+
 ):  # Default to phase 1
     try:
 
