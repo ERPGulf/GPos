@@ -1160,8 +1160,6 @@ def create_invoice(
                 "account_head": charge.get("account_head"),
                 "rate": charge.get("rate"),
                 "description": charge.get("description"),
-                "included_in_paid_amount": 1,
-                "included_in_print_rate": 1,
             }
             for charge in pos_settings.get("sales_taxes_and_charges")
         ]
@@ -1347,8 +1345,8 @@ def create_invoice(
                     "tax_rate": tax.rate,
                     "total": tax.total,
                     "description": tax.description,
-                    "included_in_paid_amount": tax.get("included_in_paid_amount", 1),
-                    "included_in_print_rate": tax.get("included_in_print_rate", 1),
+                    "included_in_paid_amount": tax.get("included_in_paid_amount"),
+                    "included_in_print_rate": tax.get("included_in_print_rate"),
                 }
                 for tax in new_invoice.taxes
             ],
