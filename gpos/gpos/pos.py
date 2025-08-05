@@ -706,7 +706,7 @@ def pos_setting(machine_name):
         "no_of_decimal_in_price": int(systemSettings.no_of_decimal_in_price),
         "show_item_pictures": var,
         "inclusive": systemSettings.inclusive,
-        "exclusive": systemSettings.exclusive,
+        # "exclusive": systemSettings.exclusive,
         "post_to_sales_invoice": systemSettings.post_to_sales_invoice,
         "post_to_pos_invoice": systemSettings.post_to_pos_invoice,
         "is_tax_included_in_price": systemSettings.is_tax_included_in_price,
