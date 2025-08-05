@@ -160,6 +160,7 @@
   {
    "fieldname": "sales_taxes_and_charges",
    "fieldtype": "Table",
+   "hidden": 1,
    "label": "Sales Taxes and Charges(Leave this blank if tax template given in each pos-profile for better control)",
    "options": "Sales Taxes and Charges"
   },
@@ -189,12 +190,14 @@
   {
    "fieldname": "item_tax_template",
    "fieldtype": "Link",
+   "hidden": 1,
    "label": "Item Tax Template(If tax included in the selling price, leave this field blank)",
    "options": "Item Tax Template"
   },
   {
    "fieldname": "income_account",
    "fieldtype": "Link",
+   "hidden": 1,
    "label": "Income Account",
    "options": "Account"
   },
@@ -213,7 +216,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-08-05 13:40:31.318660",
+ "modified": "2025-08-05 14:30:05.951912",
  "modified_by": "Administrator",
  "module": "Gpos",
  "name": "Claudion POS setting",

@@ -1274,15 +1274,36 @@ def create_invoice(
 
         uploaded_files = frappe.request.files
         xml_url, qr_code_url = None, None
+
         if phase == 2:
+            # Enforce that XML and QR code are both present
+            if "xml" not in uploaded_files or "qr_code" not in uploaded_files:
+                return Response(
+                    json.dumps(
+                        {
+                            "message": "Both XML and QR code files are required in phase 2."
+                        }
+                    ),
+                    status=400,
+                    mimetype="application/json",
+                )
+
+            new_invoice.custom_xml = process_file_upload(
+                uploaded_files["xml"], ignore_permissions=True, is_private=True
+            )
+            new_invoice.custom_qr_code = process_file_upload(
+                uploaded_files["qr_code"], ignore_permissions=True, is_private=True
+            )
+        else:
+
             if "xml" in uploaded_files:
                 new_invoice.custom_xml = process_file_upload(
                     uploaded_files["xml"], ignore_permissions=True, is_private=True
                 )
-        if "qr_code" in uploaded_files:
-            new_invoice.custom_qr_code = process_file_upload(
-                uploaded_files["qr_code"], ignore_permissions=True, is_private=True
-            )
+            if "qr_code" in uploaded_files:
+                new_invoice.custom_qr_code = process_file_upload(
+                    uploaded_files["qr_code"], ignore_permissions=True, is_private=True
+                )
 
         new_invoice.save(ignore_permissions=True)
         new_invoice.submit()
