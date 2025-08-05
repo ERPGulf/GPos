@@ -1297,14 +1297,14 @@ def create_invoice(
         doc = frappe.get_doc("ZATCA Multiple Setting", zatca_setting_name)
 
         doc.save()
-        template = frappe.get_doc(
-            "Item Tax Template", new_invoice.items[0].item_tax_template
-        )
+        # template = frappe.get_doc(
+        #     "Item Tax Template", new_invoice.items[0].item_tax_template
+        # )
         item_tax_rate = None
 
-        if template.taxes:
-            # Assuming you want the first tax entry's rate
-            item_tax_rate = template.taxes[0].tax_rate
+        # if template.taxes:
+        #     # Assuming you want the first tax entry's rate
+        #     item_tax_rate = template.taxes[0].tax_rate
 
         response_data = {
             "id": new_invoice.name,
