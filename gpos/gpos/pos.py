@@ -711,7 +711,7 @@ def pos_setting(machine_name):
         "post_to_pos_invoice": systemSettings.post_to_pos_invoice,
         "is_tax_included_in_price": systemSettings.is_tax_included_in_price,
         "tax_percentage": systemSettings.tax_percentage,
-        "company_name_in_Arabic": systemSettings.company_name_in_Arabic,
+        "company_name_in_arabic": systemSettings.company_name_in_arabic,
         "taxes": [
             {
                 "charge_type": tax.charge_type,
