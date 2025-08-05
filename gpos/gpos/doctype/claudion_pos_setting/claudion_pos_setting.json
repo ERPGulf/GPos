@@ -180,6 +180,7 @@
    "default": "0",
    "fieldname": "is_tax_included_in_price",
    "fieldtype": "Check",
+   "hidden": 1,
    "label": "Is Tax Included In Price"
   },
   {
@@ -216,7 +217,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-08-05 14:30:05.951912",
+ "modified": "2025-08-05 15:04:28.794625",
  "modified_by": "Administrator",
  "module": "Gpos",
  "name": "Claudion POS setting",
