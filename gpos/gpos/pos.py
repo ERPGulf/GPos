@@ -1,3 +1,4 @@
+from cmath import phase
 import requests
 import json
 import frappe
@@ -284,12 +285,22 @@ def get_items(item_group=None, last_updated_time=None):
         uoms = frappe.get_all(
             "UOM Conversion Detail",
             filters={"parent": item.name},
-            fields=["name", "uom", "conversion_factor"],
+            fields=[
+                "name",
+                "uom",
+                "conversion_factor",
+            ],
         )
         barcodes = frappe.get_all(
             "Item Barcode",
             filters={"parent": item.name},
-            fields=["name", "barcode", "posa_uom"],
+            fields=[
+                "name",
+                "barcode",
+                "uom",
+                "custom_editable_price",
+                "custom_editable_quantity",
+            ],
         )
         item_prices = frappe.get_all(
             "Item Price",
@@ -306,9 +317,9 @@ def get_items(item_group=None, last_updated_time=None):
         barcode_map = {}
         for barcode in barcodes:
             if barcode.uom in barcode_map:
-                barcode_map[barcode.posa_uom].append(barcode.barcode)
+                barcode_map[barcode.uom].append(barcode.barcode)
             else:
-                barcode_map[barcode.posa_uom] = [barcode.barcode]
+                barcode_map[barcode.uom] = [barcode.barcode]
 
         if item.item_group not in grouped_items:
             grouped_items[item.item_group] = {
@@ -330,7 +341,7 @@ def get_items(item_group=None, last_updated_time=None):
                     {
                         "id": barcode.name,
                         "barcode": barcode.barcode,
-                        "uom": barcode.posa_uom,
+                        "uom": barcode.uom,
                     }
                     for barcode in barcodes
                 ],
@@ -340,9 +351,14 @@ def get_items(item_group=None, last_updated_time=None):
                         "uom": uom.uom,
                         "conversion_factor": uom.conversion_factor,
                         "price": round(price_map.get(uom.uom, 0.0), 2),
-                        "barcode": ", ".join(
-                            barcode_map.get(uom.uom, [])
-                        ),  # fetch price for this uom
+                        "barcode": ", ".join(barcode_map.get(uom.uom, [])),
+                        "editable_price": bool(
+                            frappe.get_value("UOM", uom.uom, "custom_editable_price")
+                        ),
+                        "editable_quantity": bool(
+                            frappe.get_value("UOM", uom.uom, "custom_editable_quantity")
+                        ),
+                        # fetch price for this uom
                     }
                     for uom in uoms
                 ],
@@ -452,7 +468,7 @@ def get_items_page(item_group=None, last_updated_time=None, limit=50, offset=0):
         barcodes = frappe.get_all(
             "Item Barcode",
             filters={"parent": item.name},
-            fields=["barcode", "posa_uom"],
+            fields=["barcode", "uom"],
         )
         item_prices = frappe.get_all(
             "Item Price",
@@ -676,6 +692,7 @@ def pos_setting(machine_name):
     address_record = address[0] if address else None
 
     data = {
+        "phase": zatca.custom_phase_1_or_2,
         "discount_field": systemSettings.discount_field,
         "prefix_included_or_not": systemSettings.prefix_included_or_not,
         "no_of_prefix_character": int(systemSettings.no_of_prefix_character),
@@ -683,7 +700,7 @@ def pos_setting(machine_name):
         "item_code_total_digits": int(systemSettings.item_code_total_digits),
         "item_code_starting_position": int(systemSettings.item_code_starting_position),
         "weight_starting_position": int(systemSettings.weight_starting_position),
-        "weight_total_digitsexcluding_decimal": int(
+        "weight_total_digits_excluding_decimal": int(
             systemSettings.weight_total_digitsexcluding_decimal
         ),
         "no_of_decimal_in_weights": int(systemSettings.no_of_decimal_in_weights),
@@ -691,7 +708,7 @@ def pos_setting(machine_name):
             systemSettings.price_included_in_barcode_or_not
         ),
         "price_starting_position": int(systemSettings.price_starting_position),
-        "price_total_digitsexcluding_decimals": int(
+        "price_total_digits_excluding_decimals": int(
             systemSettings.price_total_digitsexcluding_decimals
         ),
         "no_of_decimal_in_price": int(systemSettings.no_of_decimal_in_price),
@@ -720,9 +737,13 @@ def pos_setting(machine_name):
             "company_taxid": zatca.tax_id,
             "certificate": encoded_certificate,
             "pih": (
-                Zatca_Multiple_Setting.custom_pih
-                if Zatca_Multiple_Setting
-                else zatca.custom_pih
+                (
+                    Zatca_Multiple_Setting.custom_pih
+                    if Zatca_Multiple_Setting
+                    else zatca.custom_pih
+                )
+                if zatca.custom_phase_1_or_2 == "Phase-2"
+                else None
             ),
             "Abbr": zatca.abbr,
             "tax_id": zatca.tax_id,
@@ -917,49 +938,6 @@ def generate_token_secure_for_users(username, password, app_key):
         )
 
 
-# @frappe.whitelist(allow_guest=True)
-# def getOfflinePOSUsers(id=None, offset=0, limit=50):
-#     from frappe.utils.password import get_decrypted_password
-#     import base64
-#     import json
-#     from werkzeug.wrappers import Response
-
-#     # Fetch the offline users
-#     docs = frappe.db.get_all(
-#         "POS Offline Users",
-#         fields=[
-#             "name",
-#             "offine_username",
-#             "shop_name",
-#             "password",
-#             "user as actual_user_name",
-#             "branch_address",
-#             "printe_template as print_template",
-#         ],
-#         order_by="offine_username",
-#         limit_start=offset,
-#         limit_page_length=limit,
-#     )
-
-#     for doc in docs:
-#         # Decrypt and encode the password in base64
-#         decrypted_password = get_decrypted_password(
-#             "POS Offline Users", doc.name, "password"
-#         )
-#         doc["password"] = base64.b64encode(decrypted_password.encode("utf-8")).decode(
-#             "utf-8"
-#         )
-
-#         # Fetch POS Profiles where this user is listed in applicable_for_users
-#         pos_profiles = frappe.db.get_all(
-#             "POS Profile User",
-#             filters={"user": doc["actual_user_name"]},
-#             fields=["parent as pos_profile"],
-#         )
-#         doc["pos_profiles"] = [p["pos_profile"] for p in pos_profiles]
-
-
-#     return Response(json.dumps({"data": docs}), status=200, mimetype="application/json")
 @frappe.whitelist(allow_guest=True)
 def getOfflinePOSUsers(id=None, offset=0, limit=50):
 
@@ -1152,6 +1130,8 @@ def create_invoice(
     cashier=None,
     PIH=None,
     phase=2,
+    PIH=None,
+    phase=2,
 ):
     try:
 
@@ -1322,9 +1302,10 @@ def create_invoice(
         new_invoice.save(ignore_permissions=True)
         new_invoice.submit()
         zatca_setting_name = pos_settings.zatca_multiple_setting
-        frappe.db.set_value(
-            "ZATCA Multiple Setting", zatca_setting_name, "custom_pih", PIH
-        )
+        if PIH:
+            frappe.db.set_value(
+                "ZATCA Multiple Setting", zatca_setting_name, "custom_pih", PIH
+            )
 
         doc = frappe.get_doc("ZATCA Multiple Setting", zatca_setting_name)
 
@@ -1358,7 +1339,7 @@ def create_invoice(
                 if hasattr(new_invoice, "custom_qr_code")
                 else None
             ),
-            "pih": doc.custom_pih,
+            "pih": doc.custom_pih if PIH else None,
             "items": [
                 {
                     "item_name": item.item_name,
