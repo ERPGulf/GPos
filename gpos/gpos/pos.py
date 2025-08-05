@@ -1157,16 +1157,24 @@ def create_invoice(
             frappe.get_doc("POS Profile", pos_profile) if pos_profile else None
         )
 
-        if not pos_profile_doc.get("sales_taxes_and_charges"):
-            taxes_list = [
-                {
-                    "charge_type": charge.get("charge_type"),
-                    "account_head": charge.get("account_head"),
-                    "rate": charge.get("rate"),
-                    "description": charge.get("description"),
-                }
-                for charge in pos_settings.get("sales_taxes_and_charges")
-            ]
+        taxes_list = None
+
+        if pos_profile:
+            pos_profile_doc = frappe.get_doc("POS Profile", pos_profile)
+            if not pos_profile_doc.get("taxes_and_charges") and pos_settings.get(
+                "sales_taxes_and_charges"
+            ):
+
+                taxes_list = [
+                    {
+                        "charge_type": tax.charge_type,
+                        "account_head": tax.account_head,
+                        "rate": tax.rate,
+                        "description": tax.description,
+                    }
+                    for tax in pos_settings.get("sales_taxes_and_charges")
+                ]
+
         invoice_items = [
             {
                 "item_code": (
@@ -1259,7 +1267,6 @@ def create_invoice(
                 "discount_amount": discount_amount,
                 "items": invoice_items,
                 "payments": payment_items,
-                "taxes": taxes_list,
                 "po_no": Customer_Purchase_Order,
                 "custom_zatca_pos_name": machine_name,
                 "is_pos": 1,
@@ -1271,6 +1278,8 @@ def create_invoice(
                 "cost_center": cost_center,
             }
         )
+        if taxes_list:
+            new_invoice["taxes"] = taxes_list
 
         new_invoice.insert(ignore_permissions=True)
         new_invoice.save()
