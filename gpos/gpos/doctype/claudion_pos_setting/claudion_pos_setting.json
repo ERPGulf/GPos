@@ -9,7 +9,6 @@
  "field_order": [
   "discount_field",
   "inclusive",
-  "exclusive",
   "item_tax_template",
   "income_account",
   "column_break_avqx",
@@ -46,7 +45,7 @@
    "default": "0",
    "fieldname": "discount_field",
    "fieldtype": "Check",
-   "label": "discount field"
+   "label": "Discount Field"
   },
   {
    "fieldname": "column_break_avqx",
@@ -56,7 +55,7 @@
    "default": "0",
    "fieldname": "show_item",
    "fieldtype": "Check",
-   "label": "Show Item pictures"
+   "label": "Show Item Pictures"
   },
   {
    "fieldname": "barcode_setting_section",
@@ -72,12 +71,12 @@
   {
    "fieldname": "no_of_prefix_character",
    "fieldtype": "Data",
-   "label": "no of prefix character"
+   "label": "No Of Prefix Character"
   },
   {
    "fieldname": "prefix",
    "fieldtype": "Data",
-   "label": "prefix"
+   "label": "Prefix"
   },
   {
    "fieldname": "column_break_lbzy",
@@ -86,17 +85,17 @@
   {
    "fieldname": "item_code_total_digits",
    "fieldtype": "Data",
-   "label": "item code total digits"
+   "label": "Item Code Total Digits"
   },
   {
    "fieldname": "branch",
    "fieldtype": "Data",
-   "label": "branch"
+   "label": "Branch"
   },
   {
    "fieldname": "item_code_starting_position",
    "fieldtype": "Data",
-   "label": "item code starting position"
+   "label": "Item Code Starting Position"
   },
   {
    "fieldname": "price_and_weight_section",
@@ -106,17 +105,17 @@
   {
    "fieldname": "weight_starting_position",
    "fieldtype": "Data",
-   "label": "weight starting position"
+   "label": "Weight Starting Position"
   },
   {
    "fieldname": "weight_total_digitsexcluding_decimal",
    "fieldtype": "Data",
-   "label": "Weight total digits(excluding decimal)"
+   "label": "Weight Total Digits(excluding decimal)"
   },
   {
    "fieldname": "no_of_decimal_in_weights",
    "fieldtype": "Data",
-   "label": "No of decimal in weights"
+   "label": "No Of Decimal In Weights"
   },
   {
    "fieldname": "column_break_avtn",
@@ -126,22 +125,22 @@
    "default": "0",
    "fieldname": "price_included_in_barcode_or_not",
    "fieldtype": "Check",
-   "label": "price included in barcode or not"
+   "label": "Price Included In Barcode or Not"
   },
   {
    "fieldname": "price_starting_position",
    "fieldtype": "Data",
-   "label": "price starting position"
+   "label": "Price Starting Position"
   },
   {
    "fieldname": "price_total_digitsexcluding_decimals",
    "fieldtype": "Data",
-   "label": "price total digits(excluding decimals)"
+   "label": "Price Total Digits(excluding decimals)"
   },
   {
    "fieldname": "no_of_decimal_in_price",
    "fieldtype": "Data",
-   "label": "No of decimal in price"
+   "label": "No Of Decimal In Price"
   },
   {
    "fieldname": "tab_2_tab",
@@ -155,54 +154,48 @@
    "label": " Inclusive"
   },
   {
-   "default": "0",
-   "fieldname": "exclusive",
-   "fieldtype": "Check",
-   "label": "exclusive "
-  },
-  {
    "fieldname": "section_break_udxx",
    "fieldtype": "Section Break"
   },
   {
    "fieldname": "sales_taxes_and_charges",
    "fieldtype": "Table",
-   "label": "Sales Taxes and Charges",
+   "label": "Sales Taxes and Charges(Leave this blank if tax template given in each pos-profile for better control)",
    "options": "Sales Taxes and Charges"
   },
   {
    "default": "0",
    "fieldname": "post_to_sales_invoice",
    "fieldtype": "Check",
-   "label": "post_to_sales_invoice"
+   "label": "Post To Sales Invoice"
   },
   {
    "default": "0",
    "fieldname": "post_to_pos_invoice",
    "fieldtype": "Check",
-   "label": "post to POS invoice "
+   "label": "Post To POS Invoice "
   },
   {
    "default": "0",
    "fieldname": "is_tax_included_in_price",
    "fieldtype": "Check",
-   "label": "is_tax_included_in_price"
+   "label": "Is Tax Included In Price"
   },
   {
    "fieldname": "tax_percentage",
    "fieldtype": "Percent",
-   "label": "tax_percentage"
+   "label": "Tax_Percentage"
   },
   {
    "fieldname": "item_tax_template",
    "fieldtype": "Link",
-   "label": "item_tax_template",
+   "label": "Item Tax Template(If tax included in the selling price, leave this field blank)",
    "options": "Item Tax Template"
   },
   {
    "fieldname": "income_account",
    "fieldtype": "Link",
-   "label": "income_account",
+   "label": "Income Account",
    "options": "Account"
   },
   {
@@ -220,7 +213,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-08-05 11:03:25.165411",
+ "modified": "2025-08-05 13:40:31.318660",
  "modified_by": "Administrator",
  "module": "Gpos",
  "name": "Claudion POS setting",

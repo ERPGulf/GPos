@@ -1176,8 +1176,7 @@ def create_invoice(
                 "qty": item.get("quantity", 0),
                 "rate": item.get("rate", 0),
                 "uom": item.get("uom", "Nos"),
-                "income_account": pos_settings.income_account,
-                "item_tax_template": pos_settings.item_tax_template,
+                # "income_account": pos_settings.income_account,
             }
             for item in items
         ]
