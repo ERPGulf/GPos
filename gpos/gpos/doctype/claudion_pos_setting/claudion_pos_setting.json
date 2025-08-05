@@ -18,6 +18,7 @@
   "post_to_pos_invoice",
   "is_tax_included_in_price",
   "zatca_multiple_setting",
+  "company_name_in_arabic",
   "section_break_udxx",
   "sales_taxes_and_charges",
   "barcode_setting_section",
@@ -209,12 +210,17 @@
    "fieldtype": "Link",
    "label": "Zatca Multiple Setting",
    "options": "ZATCA Multiple Setting"
+  },
+  {
+   "fieldname": "company_name_in_arabic",
+   "fieldtype": "Data",
+   "label": "Company Name In Arabic"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-05-01 16:07:59.428651",
+ "modified": "2025-08-05 11:03:25.165411",
  "modified_by": "Administrator",
  "module": "Gpos",
  "name": "Claudion POS setting",
@@ -231,6 +237,7 @@
    "write": 1
   }
  ],
+ "row_format": "Dynamic",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": []
