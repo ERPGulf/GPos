@@ -1113,8 +1113,8 @@ def create_invoice(
     payments=None,
     discount_amount=None,
     unique_id=None,
-    custom_offline_creation_time=None,  # ✅ New param
-    offline_invoice_number=None,  # ✅ New param
+    custom_offline_creation_time=None,
+    offline_invoice_number=None,
     pos_profile=None,
     pos_shift=None,
     cashier=None,
@@ -1153,17 +1153,20 @@ def create_invoice(
                 status=404,
                 mimetype="application/json",
             )
+        pos_profile_doc = (
+            frappe.get_doc("POS Profile", pos_profile) if pos_profile else None
+        )
 
-        taxes_list = [
-            {
-                "charge_type": charge.get("charge_type"),
-                "account_head": charge.get("account_head"),
-                "rate": charge.get("rate"),
-                "description": charge.get("description"),
-            }
-            for charge in pos_settings.get("sales_taxes_and_charges")
-        ]
-
+        if not pos_profile_doc.get("sales_taxes_and_charges"):
+            taxes_list = [
+                {
+                    "charge_type": charge.get("charge_type"),
+                    "account_head": charge.get("account_head"),
+                    "rate": charge.get("rate"),
+                    "description": charge.get("description"),
+                }
+                for charge in pos_settings.get("sales_taxes_and_charges")
+            ]
         invoice_items = [
             {
                 "item_code": (
