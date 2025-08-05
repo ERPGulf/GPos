@@ -1161,7 +1161,7 @@ def create_invoice(
                 "rate": charge.get("rate"),
                 "description": charge.get("description"),
                 "included_in_paid_amount": 1,
-                "included_in_print_rate": 0,
+                "included_in_print_rate": 1,
             }
             for charge in pos_settings.get("sales_taxes_and_charges")
         ]
@@ -1335,6 +1335,8 @@ def create_invoice(
                     "rate": item.rate,
                     "uom": item.uom,
                     "income_account": item.income_account,
+                    "item_tax_template": item.item_tax_template,
+                    "tax_rate": item_tax_rate,
                 }
                 for item in new_invoice.items
             ],
