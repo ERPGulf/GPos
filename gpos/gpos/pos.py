@@ -1335,8 +1335,6 @@ def create_invoice(
                     "rate": item.rate,
                     "uom": item.uom,
                     "income_account": item.income_account,
-                    "item_tax_template": item.item_tax_template,
-                    "tax_rate": item_tax_rate,
                 }
                 for item in new_invoice.items
             ],
