@@ -1125,6 +1125,7 @@ def create_invoice(
     PIH=None,
     phase=1,
 
+
 ):  # Default to phase 1
     try:
 
@@ -1269,6 +1270,7 @@ def create_invoice(
                 "doctype": doctype,
                 "customer": customer_name,
                 "custom_unique_id": unique_id,
+                "apply_discount_on": "Net Total",
                 "discount_amount": discount_amount,
                 "items": invoice_items,
                 "payments": payment_items,

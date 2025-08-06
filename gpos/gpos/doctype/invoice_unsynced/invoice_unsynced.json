@@ -18,7 +18,7 @@
   {
    "fieldname": "invoice_number",
    "fieldtype": "Data",
-   "label": "invoice_number"
+   "label": "Invoice Number"
   },
   {
    "default": "0",
@@ -29,7 +29,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-05-27 16:08:19.174390",
+ "modified": "2025-08-06 11:49:26.008596",
  "modified_by": "Administrator",
  "module": "Gpos",
  "name": "Invoice Unsynced",
@@ -60,6 +60,7 @@
    "write": 1
   }
  ],
+ "row_format": "Dynamic",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": []
