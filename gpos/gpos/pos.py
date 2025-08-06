@@ -987,7 +987,7 @@ def getOfflinePOSUsers(id=None, offset=0, limit=50):
 
 
 @frappe.whitelist(allow_guest=True)
-def create_invoice_unsynced(date_time, invoice_number, clearing_status,manually_submitted=None,json_dump=None):
+def create_invoice_unsynced(date_time, invoice_number, clearing_status,manually_submitted=None,json_dump=None,api_response=None):
     try:
         doc = frappe.get_doc(
             {
@@ -997,6 +997,7 @@ def create_invoice_unsynced(date_time, invoice_number, clearing_status,manually_
                 "clearing_status": clearing_status,
                 "custom_json_dump": json_dump if json_dump else None,
                 "custom_manually_submitted": manually_submitted if manually_submitted else 0,
+                "custom_api_response": api_response if api_response else None,
             }
         )
         doc.insert()
@@ -1006,7 +1007,8 @@ def create_invoice_unsynced(date_time, invoice_number, clearing_status,manually_
             "message": "Invoice Unsynced created",
             "name": doc.name,
             "json_dump": doc.custom_json_dump,
-            "manually_submitted": doc.custom_manually_submitted
+            "manually_submitted": doc.custom_manually_submitted,
+            "api_response": doc.custom_api_response,
         }
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "API: create_invoice_unsynced")
@@ -1351,6 +1353,7 @@ def create_invoice(
             "customer_name": new_invoice.customer_name,
             "total_quantity": new_invoice.total_qty,
             "total": new_invoice.total,
+            "net_total": new_invoice.net_total,
             "grand_total": new_invoice.grand_total,
             "Customer's Purchase Order": (
                 int(new_invoice.po_no) if new_invoice.po_no else None
