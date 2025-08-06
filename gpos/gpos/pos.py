@@ -987,7 +987,7 @@ def getOfflinePOSUsers(id=None, offset=0, limit=50):
 
 
 @frappe.whitelist(allow_guest=True)
-def create_invoice_unsynced(date_time, invoice_number, clearing_status):
+def create_invoice_unsynced(date_time, invoice_number, clearing_status,manually_submitted=None,json_dump=None):
     try:
         doc = frappe.get_doc(
             {
@@ -995,6 +995,8 @@ def create_invoice_unsynced(date_time, invoice_number, clearing_status):
                 "date_time": date_time,
                 "invoice_number": invoice_number,
                 "clearing_status": clearing_status,
+                "custom_json_dump": json_dump if json_dump else None,
+                "custom_manually_submitted": manually_submitted if manually_submitted else 0,
             }
         )
         doc.insert()
@@ -1003,6 +1005,8 @@ def create_invoice_unsynced(date_time, invoice_number, clearing_status):
             "status": "success",
             "message": "Invoice Unsynced created",
             "name": doc.name,
+            "json_dump": doc.custom_json_dump,
+            "manually_submitted": doc.custom_manually_submitted
         }
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "API: create_invoice_unsynced")
