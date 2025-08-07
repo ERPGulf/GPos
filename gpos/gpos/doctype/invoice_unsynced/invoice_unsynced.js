@@ -38,6 +38,7 @@ frappe.ui.form.on('Invoice Unsynced', {
                             method: "gpos.gpos.pos.create_invoice",
                             args: invoice_data,
                             callback: (res) => {
+                                console.log("Invoice response:", res);
                                 let invoice_id = res.message?.data?.id;
 
                                 if (invoice_id) {
