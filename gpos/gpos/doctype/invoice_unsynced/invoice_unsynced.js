@@ -68,7 +68,7 @@ frappe.ui.form.on('Invoice Unsynced', {
                                 } else if (err.message) {
                                     message += "<br>" + err.message;
                                 }
-                                frappe.msgprint(message);
+                                frappe.msgprint(err.message);
                                 console.error(err);
                             }
                         });
