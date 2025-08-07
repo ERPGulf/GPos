@@ -29,8 +29,8 @@ frappe.ui.form.on('Invoice Unsynced', {
                     fieldname: "name"
                 },
                 callback: function(r) {
-                    if (r.message && r.message.name) {
-                        frappe.msgprint("Invoice already exists with this Offline Invoice Number: " + r.message.name);
+                    if (res.message && res.message.data && res.message.data.id) {
+                        frappe.msgprint("Invoice submitted successfully: " + res.message.data.id);
                     } else {
                         frappe.call({
                             method: "gpos.gpos.pos.create_invoice",
