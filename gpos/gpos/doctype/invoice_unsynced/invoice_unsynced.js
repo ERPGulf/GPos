@@ -29,16 +29,16 @@ frappe.ui.form.on('Invoice Unsynced', {
                     fieldname: "name"
                 },
                 callback: function(r) {
-                    if (res.message && res.message.data && res.message.data.id) {
-                        frappe.msgprint("Invoice submitted successfully: " + res.message.data.id);
+                    if (r.message && r.message.name) {
+                        frappe.msgprint("Invoice already exists with this Offline Invoice Number: " + r.message.name);
                     } else {
                         frappe.call({
                             method: "gpos.gpos.pos.create_invoice",
                             args: invoice_data,
-                            callback: function(res) {
-                                frappe.msgprint("Invoice submitted successfully: " + res.message.name);
-
-
+                            callback: (res) => {
+                                if (res.message && res.message.data && res.message.data.id) {
+                                    frappe.msgprint("Invoice submitted successfully: " + res.message.data.id);
+                                }
                                 frappe.call({
                                     method: "frappe.client.set_value",
                                     args: {
