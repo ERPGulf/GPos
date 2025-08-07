@@ -38,15 +38,13 @@ frappe.ui.form.on('Invoice Unsynced', {
                             method: "gpos.gpos.pos.create_invoice",
                             args: invoice_data,
                             callback: (res) => {
-                                console.log("Invoice response:", res);
-                                let invoice_id = res.message?.data?.id;
+                                const invoice_id = res.message?.data?.id;
 
                                 if (invoice_id) {
                                     frappe.msgprint(`
                                         <b>Invoice submitted successfully!</b><br>
                                         ID: <a href="/app/sales-invoice/${invoice_id}" target="_blank">${invoice_id}</a>
                                     `);
-
 
                                     frappe.call({
                                         method: "frappe.client.set_value",
