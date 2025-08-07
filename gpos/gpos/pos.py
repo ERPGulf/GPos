@@ -1241,7 +1241,21 @@ def create_invoice(
                 ["name"],
                 filters={"custom_unique_id": ["like", unique_id]},
             )
-
+            offline_invoice_no = frappe.get_all(
+                "Sales Invoice",
+                ["name"],
+                filters={"custom_offline_invoice_number": ["like", offline_invoice_number]},
+            )
+            if offline_invoice_no:
+                return Response(
+                    json.dumps(
+                        {
+                            "data": "A duplicate entry was detected, offline invoice number already exists."
+                        }
+                    ),
+                    status=409,
+                    mimetype="application/json",
+                )
             if sales_sync_id:
                 return Response(
                     json.dumps(
