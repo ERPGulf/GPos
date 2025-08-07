@@ -53,24 +53,25 @@ frappe.ui.form.on('Invoice Unsynced', {
                                 });
                             },
                             error: function(err) {
+                            let message = "Failed to submit invoice.";
 
-                                let message = "Failed to submit invoice.";
-                                if (err && err.message && err.message._server_messages) {
-                                    try {
-                                        const serverMessages = JSON.parse(err.message._server_messages);
-                                        if (serverMessages.length > 0) {
-                                            message += "<br>" + serverMessages.join("<br>");
-                                        }
-                                    } catch (parseErr) {
-
-                                        message += " Unknown server error.";
-                                    }
-                                } else if (err.message) {
-                                    message += "<br>" + err.message;
+                            if (err && err.responseJSON && err.responseJSON.message) {
+                                message += "<br>" + err.responseJSON.message;
+                            } else if (err && err.responseJSON && err.responseJSON._server_messages) {
+                                try {
+                                    const serverMessages = JSON.parse(err.responseJSON._server_messages);
+                                    message += "<br>" + serverMessages.join("<br>");
+                                } catch (e) {
+                                    message += "<br>Unknown error parsing server messages.";
                                 }
-                                frappe.msgprint(err.message);
-                                console.error(err);
+                            } else if (err && err.responseText) {
+                                message += "<br>" + err.responseText;
                             }
+
+                            frappe.msgprint(message);
+                            console.error(err);
+                        }
+
                         });
                     }
                 }
