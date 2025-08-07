@@ -1139,7 +1139,7 @@ def create_invoice(
         Customer_Purchase_Order = frappe.form_dict.get("Customer_Purchase_Order")
         unique_id = frappe.form_dict.get("unique_id")
         PIH = frappe.form_dict.get("PIH")
-        offline_invoice_number = frappe.form_dict.get("offline_invoice_number")  # k  ✅
+        offline_invoice_number = frappe.form_dict.get("offline_invoice_number")
         pos_profile = frappe.form_dict.get("pos_profile")
         pos_shift = frappe.form_dict.get("pos_shift")
         cashier = frappe.form_dict.get("cashier")
@@ -1297,7 +1297,7 @@ def create_invoice(
         xml_url, qr_code_url = None, None
 
         if phase == 2:
-            # Enforce that XML and QR code are both present
+
             if "xml" not in uploaded_files or "qr_code" not in uploaded_files:
                 return Response(
                     json.dumps(
