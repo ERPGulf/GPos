@@ -36,7 +36,7 @@ frappe.ui.form.on('Invoice Unsynced', {
                             method: "gpos.gpos.pos.create_invoice",
                             args: invoice_data,
                             callback: function(res) {
-                                frappe.msgprint("Invoice submitted successfully: " + res.message.name);
+                                frappe.msgprint("Invoice submitted successfully");
 
 
                                 frappe.call({
