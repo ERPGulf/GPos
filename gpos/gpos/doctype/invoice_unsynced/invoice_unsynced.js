@@ -1,11 +1,3 @@
-// Copyright (c) 2025, ERPGulf and contributors
-// For license information, please see license.txt
-
-// frappe.ui.form.on("Invoice Unsynced", {
-// 	refresh(frm) {
-
-// 	},
-// });
 frappe.ui.form.on('Invoice Unsynced', {
     refresh: function(frm) {
         frm.add_custom_button('Submit to Sales Invoice', async function() {
@@ -27,7 +19,6 @@ frappe.ui.form.on('Invoice Unsynced', {
                 return;
             }
 
-            // Check if invoice already exists
             frappe.call({
                 method: "frappe.client.get_value",
                 args: {
@@ -41,21 +32,48 @@ frappe.ui.form.on('Invoice Unsynced', {
                     if (r.message && r.message.name) {
                         frappe.msgprint("Invoice already exists with this Offline Invoice Number: " + r.message.name);
                     } else {
-
                         frappe.call({
                             method: "gpos.gpos.pos.create_invoice",
                             args: invoice_data,
                             callback: function(res) {
                                 frappe.msgprint("Invoice submitted successfully: " + res.message);
+
+
+                                frappe.call({
+                                    method: "frappe.client.set_value",
+                                    args: {
+                                        doctype: "Invoice Unsynced",
+                                        name: frm.doc.name,
+                                        fieldname: "custom_manually_submitted",
+                                        value: 1
+                                    },
+                                    callback: function() {
+                                        frm.reload_doc();
+                                    }
+                                });
                             },
                             error: function(err) {
-                                frappe.msgprint("Failed to submit invoice. Check console for errors.");
+
+                                let message = "Failed to submit invoice.";
+                                if (err && err.message && err.message._server_messages) {
+                                    try {
+                                        const serverMessages = JSON.parse(err.message._server_messages);
+                                        if (serverMessages.length > 0) {
+                                            message += "<br>" + serverMessages.join("<br>");
+                                        }
+                                    } catch (parseErr) {
+
+                                        message += " Unknown server error.";
+                                    }
+                                } else if (err.message) {
+                                    message += "<br>" + err.message;
+                                }
+                                frappe.msgprint(message);
                                 console.error(err);
                             }
                         });
                     }
                 }
-
             });
         });
     }
