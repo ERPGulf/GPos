@@ -303,9 +303,9 @@ def get_items(item_group=None, last_updated_time=None, pos_profile = None):
             ],
         )
         # price_list = frappe.db.get_value("POS Profile", pos_profile, "selling_price_list")
-        price_list = "Standard Selling3"
+        price_list = "Standard Selling"
         if pos_profile:
-            price_list = frappe.db.get_value("POS Profile", pos_profile, "selling_price_list") or "Standard Selling3"
+            price_list = frappe.db.get_value("POS Profile", pos_profile, "selling_price_list") or "Standard Selling"
         frappe.log_error(pos_profile)
         frappe.log_error(price_list)
         item_prices = frappe.get_all(
