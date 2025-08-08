@@ -213,7 +213,7 @@ def create_refresh_token(refresh_token):
 
 
 @frappe.whitelist(allow_guest=True)
-def get_items(item_group=None, last_updated_time=None):
+def get_items(item_group=None, last_updated_time=None, pos_profile = "Standard Selling"):
 
     from datetime import datetime
 
@@ -302,12 +302,13 @@ def get_items(item_group=None, last_updated_time=None):
                 "custom_editable_quantity",
             ],
         )
+        price_list = frappe.db.get_value("POS Profile", pos_profile, "selling_price_list")
         item_prices = frappe.get_all(
             "Item Price",
             fields=["price_list_rate", "uom", "creation"],
             filters={
                 "item_code": item.name,
-                "price_list": "Standard Selling",
+                "price_list": item_prices,
             },
             order_by="creation",  # fix item.item_code to item.name
         )
@@ -1006,6 +1007,7 @@ def create_invoice_unsynced(date_time, invoice_number, clearing_status,manually_
             "status": "success",
             "message": "Invoice Unsynced created",
             "name": doc.name,
+            "invoice_number": doc.invoice_number,
             "json_dump": doc.custom_json_dump,
             "manually_submitted": doc.custom_manually_submitted,
             "api_response": doc.custom_api_response,
