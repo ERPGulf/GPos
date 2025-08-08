@@ -213,7 +213,7 @@ def create_refresh_token(refresh_token):
 
 
 @frappe.whitelist(allow_guest=True)
-def get_items(item_group=None, last_updated_time=None, pos_profile = "Standard Selling"):
+def get_items(item_group=None, last_updated_time=None, pos_profile = None):
 
     from datetime import datetime
 
@@ -302,13 +302,19 @@ def get_items(item_group=None, last_updated_time=None, pos_profile = "Standard S
                 "custom_editable_quantity",
             ],
         )
-        price_list = frappe.db.get_value("POS Profile", pos_profile, "selling_price_list")
+        # price_list = frappe.db.get_value("POS Profile", pos_profile, "selling_price_list")
+        price_list = (
+            frappe.db.get_value("POS Profile", pos_profile, "selling_price_list")
+            if pos_profile
+            else "Standard Selling"
+        )
+
         item_prices = frappe.get_all(
             "Item Price",
             fields=["price_list_rate", "uom", "creation"],
             filters={
                 "item_code": item.name,
-                "price_list": item_prices,
+                "price_list": price_list,
             },
             order_by="creation",  # fix item.item_code to item.name
         )
