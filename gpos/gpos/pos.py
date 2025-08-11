@@ -1180,7 +1180,7 @@ def create_invoice(
 
                 if mode.lower() in ["cash", "card"] and pos_profile:
                     for row in pos_profile_doc.get("payments") or []:
-                        if row.offline_mode_of_payment and row.offline_mode_of_payment.lower() == mode.lower():
+                        if row.custom_offline_mode_of_payment and row.custom_offline_mode_of_payment.lower() == mode.lower():
                             mode = row.mode_of_payment
                             break
 
