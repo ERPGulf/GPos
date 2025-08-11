@@ -237,7 +237,7 @@ def get_items(item_group=None, last_updated_time=None, pos_profile = None):
                 mimetype="application/json",
             )
 
-        # Get items modified after last_updated_time
+
         modified_item_filters = item_filters.copy()
         modified_item_filters["modified"] = [">", last_updated_dt]
         modified_items = frappe.get_all(
@@ -245,7 +245,7 @@ def get_items(item_group=None, last_updated_time=None, pos_profile = None):
         )
         item_codes_set.update([item["name"] for item in modified_items])
 
-        # Get item codes from modified Item Price
+
         price_items = frappe.get_all(
             "Item Price",
             fields=["item_code"],
@@ -1152,8 +1152,7 @@ def create_invoice(
             item["rate"] = float(item.get("rate", 0))
             item["quantity"] = float(item.get("quantity", 0))
 
-        for payment in payments or []:
-            payment["amount"] = float(payment.get("amount", 0))
+
 
         customer_details = frappe.get_all(
             "Customer",
@@ -1169,7 +1168,26 @@ def create_invoice(
         pos_profile_doc = (
             frappe.get_doc("POS Profile", pos_profile) if pos_profile else None
         )
+        payment_items = []
+        if payments:
+            if pos_profile:
+                pos_profile_doc = frappe.get_doc("POS Profile", pos_profile)
 
+            for payment in payments:
+                mode = payment.get("mode_of_payment", "").strip()
+                amount = float(payment.get("amount", 0))
+
+
+                if mode.lower() in ["cash", "card"] and pos_profile:
+                    for row in pos_profile_doc.get("payments") or []:
+                        if row.offline_mode_of_payment and row.offline_mode_of_payment.lower() == mode.lower():
+                            mode = row.mode_of_payment
+                            break
+
+                payment_items.append({
+                    "mode_of_payment": mode,
+                    "amount": amount
+                })
         taxes_list = None
 
         if pos_profile:
@@ -1203,13 +1221,7 @@ def create_invoice(
             for item in items
         ]
 
-        payment_items = [
-            {
-                "mode_of_payment": payment.get("mode_of_payment", "Cash"),
-                "amount": float(payment.get("amount", 0)),
-            }
-            for payment in payments or []
-        ]
+
 
         if pos_settings.post_to_pos_invoice and pos_settings.post_to_sales_invoice:
             return Response(
@@ -1358,14 +1370,9 @@ def create_invoice(
         doc = frappe.get_doc("ZATCA Multiple Setting", zatca_setting_name)
 
         doc.save()
-        # template = frappe.get_doc(
-        #     "Item Tax Template", new_invoice.items[0].item_tax_template
-        # )
+
         item_tax_rate = None
 
-        # if template.taxes:
-        #     # Assuming you want the first tax entry's rate
-        #     item_tax_rate = template.taxes[0].tax_rate
 
         response_data = {
             "id": new_invoice.name,
