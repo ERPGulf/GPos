@@ -993,6 +993,16 @@ def getOfflinePOSUsers(id=None, offset=0, limit=50):
 @frappe.whitelist(allow_guest=True)
 def create_invoice_unsynced(date_time, invoice_number, clearing_status,manually_submitted=None,json_dump=None,api_response=None):
     try:
+        sales_invoice = frappe.get_list(
+            "Sales Invoice",
+            fields=["name"],
+            filters={"custom_offline_invoice_number": invoice_number},
+            limit=1
+        )
+
+        if sales_invoice:
+            clearing_status = 1
+
         doc = frappe.get_doc(
             {
                 "doctype": "Invoice Unsynced",

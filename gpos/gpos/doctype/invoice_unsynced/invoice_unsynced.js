@@ -39,13 +39,15 @@ frappe.ui.form.on('Invoice Unsynced', {
                                 frappe.msgprint("Invoice submitted successfully");
 
 
-                                frappe.call({
+                                 frappe.call({
                                     method: "frappe.client.set_value",
                                     args: {
                                         doctype: "Invoice Unsynced",
                                         name: frm.doc.name,
-                                        fieldname: "custom_manually_submitted",
-                                        value: 1
+                                        fieldname: {
+                                            "custom_manually_submitted": 1,
+                                            "clearing_status": 1
+                                        }
                                     },
                                     callback: function() {
                                         frm.reload_doc();
