@@ -1126,7 +1126,6 @@ def get_number_of_files(file_storage):
     else:
         return 0
 
-
 @frappe.whitelist(allow_guest=False)
 def create_invoice(
     customer_name,
@@ -1335,8 +1334,7 @@ def create_invoice(
         if taxes_list:
             new_invoice["taxes"] = taxes_list
 
-        new_invoice.insert(ignore_permissions=True)
-        new_invoice.save()
+
 
         uploaded_files = frappe.request.files
         xml_url, qr_code_url = None, None
@@ -1371,7 +1369,8 @@ def create_invoice(
                     uploaded_files["qr_code"], ignore_permissions=True, is_private=True
                 )
 
-        new_invoice.save(ignore_permissions=True)
+        # new_invoice.flags.ignore_version = True
+        new_invoice.insert(ignore_permissions=True)
         new_invoice.submit()
         zatca_setting_name = pos_settings.zatca_multiple_setting
         if PIH:
@@ -1470,8 +1469,6 @@ def create_invoice(
             json.dumps({"message": str(e)}), status=500, mimetype="application/json"
         )
 
-
-# your_app/api/pos_offer_api.py
 
 
 @frappe.whitelist()
