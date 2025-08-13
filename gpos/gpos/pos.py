@@ -216,165 +216,187 @@ def create_refresh_token(refresh_token):
 def get_items(item_group=None, last_updated_time=None, pos_profile = None):
 
     from datetime import datetime
+    try:
+        fields = ["name", "stock_uom", "item_name", "item_group", "description", "modified","disabled"]
+        # filters = {"item_group": ["like", f"%{item_group}%"]} if item_group else {}
+        item_filters = {}
+        if item_group:
+            item_filters["item_group"] = ["like", f"%{item_group}%"]
 
-    fields = ["name", "stock_uom", "item_name", "item_group", "description", "modified","disabled"]
-    # filters = {"item_group": ["like", f"%{item_group}%"]} if item_group else {}
-    item_filters = {}
-    if item_group:
-        item_filters["item_group"] = ["like", f"%{item_group}%"]
-    item_codes_set = set()
+        item_codes_set = set()
 
-    if last_updated_time:
-        try:
-            last_updated_dt = datetime.strptime(last_updated_time, "%Y-%m-%d %H:%M:%S")
-        except ValueError:
-            return Response(
-                json.dumps(
-                    {"error": "Invalid datetime format. Use YYYY-MM-DD HH:MM:SS"}
-                ),
-                status=400,
-                mimetype="application/json",
+        if last_updated_time:
+            try:
+                last_updated_dt = datetime.strptime(last_updated_time, "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                return Response(
+                    json.dumps(
+                        {"error": "Invalid datetime format. Use YYYY-MM-DD HH:MM:SS"}
+                    ),
+                    status=400,
+                    mimetype="application/json",
+                )
+
+
+            modified_item_filters = item_filters.copy()
+            modified_item_filters["modified"] = [">", last_updated_dt]
+
+            modified_items = frappe.get_all(
+                "Item", fields=["name"], filters=modified_item_filters
+            )
+            item_codes_set.update([item["name"] for item in modified_items])
+
+
+            price_items = frappe.get_all(
+                "Item Price",
+                fields=["item_code"],
+                filters={"modified": [">", last_updated_dt]},
+            )
+            item_codes_set.update([p["item_code"] for p in price_items])
+
+            if not item_codes_set:
+                return Response(
+                    json.dumps({"data": []}), status=200, mimetype="application/json"
+                )
+
+            item_filters["name"] = ["in", list(item_codes_set)]
+
+        items = frappe.get_all("Item", fields=fields, filters=item_filters)
+        item_meta = frappe.get_meta("Item")
+        has_arabic = "custom_item_name_arabic" in [df.fieldname for df in item_meta.fields]
+        has_english = "custom_item_name_in_english" in [
+            df.fieldname for df in item_meta.fields
+        ]
+
+        grouped_items = {}
+
+        for item in items:
+            if item.disabled == 1:
+                continue
+            item_group_disabled = frappe.db.get_value("Item Group", item.item_group, "custom_disabled")
+            if item_group_disabled == 1:
+                continue
+            item_doc = frappe.get_doc("Item", item.name)
+
+            # Determine English and Arabic names
+            item_name_arabic = ""
+            item_name_english = ""
+
+            if has_arabic and item_doc.get("custom_item_name_arabic"):
+                item_name_arabic = item_doc.custom_item_name_arabic
+                item_name_english = item.item_name
+            elif has_english and item_doc.get("custom_item_name_in_english"):
+                item_name_arabic = item.item_name
+                item_name_english = item_doc.custom_item_name_in_english
+
+            uoms = frappe.get_all(
+                "UOM Conversion Detail",
+                filters={"parent": item.name},
+                fields=[
+                    "name",
+                    "uom",
+                    "conversion_factor",
+                ],
+            )
+            barcodes = frappe.get_all(
+                "Item Barcode",
+                filters={"parent": item.name},
+                fields=[
+                    "name",
+                    "barcode",
+                    "uom",
+                    "custom_editable_price",
+                    "custom_editable_quantity",
+                ],
+            )
+            # price_list = frappe.db.get_value("POS Profile", pos_profile, "selling_price_list")
+            price_list = "Standard Selling"
+            if pos_profile:
+                price_list = frappe.db.get_value("POS Profile", pos_profile, "selling_price_list") or "Standard Selling"
+            item_prices = frappe.get_all(
+                "Item Price",
+                fields=["price_list_rate", "uom", "creation"],
+                filters={
+                    "item_code": item.name,
+                    "price_list": price_list,
+                },
+                order_by="creation",
             )
 
 
-        modified_item_filters = item_filters.copy()
-        modified_item_filters["modified"] = [">", last_updated_dt]
+            price_map = {price.uom: price.price_list_rate for price in item_prices}
+            barcode_map = {}
+            for barcode in barcodes:
+                if barcode.uom in barcode_map:
+                    barcode_map[barcode.uom].append(barcode.barcode)
+                else:
+                    barcode_map[barcode.uom] = [barcode.barcode]
 
-        modified_items = frappe.get_all(
-            "Item", fields=["name"], filters=modified_item_filters
-        )
-        item_codes_set.update([item["name"] for item in modified_items])
+            if item.item_group not in grouped_items:
+                grouped_items[item.item_group] = {
+                    "item_group_id": item.item_group,
+                    "item_group": item.item_group,
+                    "items": [],
+                }
 
+            grouped_items[item.item_group]["items"].append(
+                {
+                    "item_id": item.name,
+                    "item_code": item.name,
+                    "item_name": item.item_name,
+                    "item_name_english": item_name_english,
+                    "item_name_arabic": item_name_arabic,
+                    "tax_percentage": (item.get("custom_tax_percentage") or 0.0),
+                    "description": item.description,
+                    "barcodes": [
+                        {
+                            "id": barcode.name,
+                            "barcode": barcode.barcode,
+                            "uom": barcode.uom,
+                        }
+                        for barcode in barcodes
+                    ],
+                    "uom": [
+                        {
+                            "id": uom.name,
+                            "uom": uom.uom,
+                            "conversion_factor": uom.conversion_factor,
+                            "price": round(price_map.get(uom.uom, 0.0), 2),
+                            "barcode": ", ".join(barcode_map.get(uom.uom, [])),
+                            "editable_price": bool(
+                                frappe.get_value("UOM", uom.uom, "custom_editable_price")
+                            ),
+                            "editable_quantity": bool(
+                                frappe.get_value("UOM", uom.uom, "custom_editable_quantity")
+                            ),
 
-        price_items = frappe.get_all(
-            "Item Price",
-            fields=["item_code"],
-            filters={"modified": [">", last_updated_dt]},
-        )
-        item_codes_set.update([p["item_code"] for p in price_items])
-
-        if not item_codes_set:
-            return Response(
-                json.dumps({"data": []}), status=200, mimetype="application/json"
+                        }
+                        for uom in uoms
+                    ],
+                }
             )
 
-        item_filters["name"] = ["in", list(item_codes_set)]
+        result = list(grouped_items.values())
 
-    items = frappe.get_all("Item", fields=fields, filters=item_filters)
-    item_meta = frappe.get_meta("Item")
-    has_arabic = "custom_item_name_arabic" in [df.fieldname for df in item_meta.fields]
-    has_english = "custom_item_name_in_english" in [
-        df.fieldname for df in item_meta.fields
-    ]
 
-    grouped_items = {}
-
-    for item in items:
-        item_doc = frappe.get_doc("Item", item.name)
-
-        # Determine English and Arabic names
-        item_name_arabic = ""
-        item_name_english = ""
-
-        if has_arabic and item_doc.get("custom_item_name_arabic"):
-            item_name_arabic = item_doc.custom_item_name_arabic
-            item_name_english = item.item_name
-        elif has_english and item_doc.get("custom_item_name_in_english"):
-            item_name_arabic = item.item_name
-            item_name_english = item_doc.custom_item_name_in_english
-
-        uoms = frappe.get_all(
-            "UOM Conversion Detail",
-            filters={"parent": item.name},
-            fields=[
-                "name",
-                "uom",
-                "conversion_factor",
-            ],
-        )
-        barcodes = frappe.get_all(
-            "Item Barcode",
-            filters={"parent": item.name},
-            fields=[
-                "name",
-                "barcode",
-                "uom",
-                "custom_editable_price",
-                "custom_editable_quantity",
-            ],
-        )
-        # price_list = frappe.db.get_value("POS Profile", pos_profile, "selling_price_list")
-        price_list = "Standard Selling"
-        if pos_profile:
-            price_list = frappe.db.get_value("POS Profile", pos_profile, "selling_price_list") or "Standard Selling"
-        item_prices = frappe.get_all(
-            "Item Price",
-            fields=["price_list_rate", "uom", "creation"],
-            filters={
-                "item_code": item.name,
-                "price_list": price_list,
-            },
-            order_by="creation",  # fix item.item_code to item.name
+        if not result:
+            return Response(
+            json.dumps({"error": "No items found"}),
+            status=404,
+            mimetype="application/json"
         )
 
-        # Build a mapping of UOM -> price
-        price_map = {price.uom: price.price_list_rate for price in item_prices}
-        barcode_map = {}
-        for barcode in barcodes:
-            if barcode.uom in barcode_map:
-                barcode_map[barcode.uom].append(barcode.barcode)
-            else:
-                barcode_map[barcode.uom] = [barcode.barcode]
-
-        if item.item_group not in grouped_items:
-            grouped_items[item.item_group] = {
-                "item_group_id": item.item_group,
-                "item_group": item.item_group,
-                "items": [],
-            }
-
-        grouped_items[item.item_group]["items"].append(
-            {
-                "item_id": item.name,
-                "item_code": item.name,  # assuming 'name' is the item_code here
-                "item_name": item.item_name,
-                "item_name_english": item_name_english,
-                "item_name_arabic": item_name_arabic,
-                "tax_percentage": (item.get("custom_tax_percentage") or 0.0),
-                "description": item.description,
-                "disabled":item.disabled,
-                "barcodes": [
-                    {
-                        "id": barcode.name,
-                        "barcode": barcode.barcode,
-                        "uom": barcode.uom,
-                    }
-                    for barcode in barcodes
-                ],
-                "uom": [
-                    {
-                        "id": uom.name,  # assuming 'name' is the item_code here
-                        "uom": uom.uom,
-                        "conversion_factor": uom.conversion_factor,
-                        "price": round(price_map.get(uom.uom, 0.0), 2),
-                        "barcode": ", ".join(barcode_map.get(uom.uom, [])),
-                        "editable_price": bool(
-                            frappe.get_value("UOM", uom.uom, "custom_editable_price")
-                        ),
-                        "editable_quantity": bool(
-                            frappe.get_value("UOM", uom.uom, "custom_editable_quantity")
-                        ),
-                        # fetch price for this uom
-                    }
-                    for uom in uoms
-                ],
-            }
+        return Response(
+            json.dumps({"data": result}),
+            status=200,
+            mimetype="application/json"
         )
-
-    result = list(grouped_items.values())
-    return Response(
-        json.dumps({"data": result}), status=200, mimetype="application/json"
-    )
+    except Exception as e:
+        return Response(
+            json.dumps({"error":e}),
+            status=404,
+            mimetype="application/json"
+        )
 
 
 @frappe.whitelist(allow_guest=True)
