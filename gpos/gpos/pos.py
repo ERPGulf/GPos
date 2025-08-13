@@ -217,12 +217,11 @@ def get_items(item_group=None, last_updated_time=None, pos_profile = None):
 
     from datetime import datetime
 
-    fields = ["name", "stock_uom", "item_name", "item_group", "description", "modified"]
+    fields = ["name", "stock_uom", "item_name", "item_group", "description", "modified","disabled"]
     # filters = {"item_group": ["like", f"%{item_group}%"]} if item_group else {}
     item_filters = {}
     if item_group:
         item_filters["item_group"] = ["like", f"%{item_group}%"]
-
     item_codes_set = set()
 
     if last_updated_time:
@@ -240,6 +239,7 @@ def get_items(item_group=None, last_updated_time=None, pos_profile = None):
 
         modified_item_filters = item_filters.copy()
         modified_item_filters["modified"] = [">", last_updated_dt]
+
         modified_items = frappe.get_all(
             "Item", fields=["name"], filters=modified_item_filters
         )
@@ -259,6 +259,7 @@ def get_items(item_group=None, last_updated_time=None, pos_profile = None):
             )
 
         item_filters["name"] = ["in", list(item_codes_set)]
+
     items = frappe.get_all("Item", fields=fields, filters=item_filters)
     item_meta = frappe.get_meta("Item")
     has_arabic = "custom_item_name_arabic" in [df.fieldname for df in item_meta.fields]
@@ -341,6 +342,7 @@ def get_items(item_group=None, last_updated_time=None, pos_profile = None):
                 "item_name_arabic": item_name_arabic,
                 "tax_percentage": (item.get("custom_tax_percentage") or 0.0),
                 "description": item.description,
+                "disabled":item.disabled,
                 "barcodes": [
                     {
                         "id": barcode.name,
@@ -1436,7 +1438,7 @@ def create_invoice(
             #     {
             #         "mode_of_payment": payment.mode_of_payment,
             #         "amount": payment.amount,
-            #     }
+            #     }F
             #     for payment in new_invoice.payments
             # ],
         }
