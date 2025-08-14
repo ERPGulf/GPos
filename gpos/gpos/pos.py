@@ -15,7 +15,7 @@ from frappe.utils import today
 from frappe import _
 from frappe import ValidationError
 
-
+from datetime import datetime
 @frappe.whitelist(allow_guest=True)
 def generate_token_secure(api_key, api_secret, app_key):
 
@@ -215,7 +215,7 @@ def create_refresh_token(refresh_token):
 @frappe.whitelist(allow_guest=True)
 def get_items(item_group=None, last_updated_time=None, pos_profile = None):
 
-    from datetime import datetime
+
     try:
         fields = ["name", "stock_uom", "item_name", "item_group", "description", "modified","disabled"]
         # filters = {"item_group": ["like", f"%{item_group}%"]} if item_group else {}
@@ -271,111 +271,105 @@ def get_items(item_group=None, last_updated_time=None, pos_profile = None):
         grouped_items = {}
 
         for item in items:
+
             if item.disabled == 1:
                 continue
-            item_group_disabled = frappe.db.get_value("Item Group", item.item_group, "custom_disabled")
-            if item_group_disabled == 1:
-                continue
-            item_doc = frappe.get_doc("Item", item.name)
 
-            # Determine English and Arabic names
-            item_name_arabic = ""
-            item_name_english = ""
-
-            if has_arabic and item_doc.get("custom_item_name_arabic"):
-                item_name_arabic = item_doc.custom_item_name_arabic
-                item_name_english = item.item_name
-            elif has_english and item_doc.get("custom_item_name_in_english"):
-                item_name_arabic = item.item_name
-                item_name_english = item_doc.custom_item_name_in_english
-
-            uoms = frappe.get_all(
-                "UOM Conversion Detail",
-                filters={"parent": item.name},
-                fields=[
-                    "name",
-                    "uom",
-                    "conversion_factor",
-                ],
-            )
-            barcodes = frappe.get_all(
-                "Item Barcode",
-                filters={"parent": item.name},
-                fields=[
-                    "name",
-                    "barcode",
-                    "uom",
-                    "custom_editable_price",
-                    "custom_editable_quantity",
-                ],
-            )
-            # price_list = frappe.db.get_value("POS Profile", pos_profile, "selling_price_list")
-            price_list = "Standard Selling"
-            if pos_profile:
-                price_list = frappe.db.get_value("POS Profile", pos_profile, "selling_price_list") or "Standard Selling"
-            item_prices = frappe.get_all(
-                "Item Price",
-                fields=["price_list_rate", "uom", "creation"],
-                filters={
-                    "item_code": item.name,
-                    "price_list": price_list,
-                },
-                order_by="creation",
+            item_group_disabled = frappe.db.get_value(
+                "Item Group", item.item_group, "custom_disabled"
             )
 
-
-            price_map = {price.uom: price.price_list_rate for price in item_prices}
-            barcode_map = {}
-            for barcode in barcodes:
-                if barcode.uom in barcode_map:
-                    barcode_map[barcode.uom].append(barcode.barcode)
-                else:
-                    barcode_map[barcode.uom] = [barcode.barcode]
 
             if item.item_group not in grouped_items:
                 grouped_items[item.item_group] = {
                     "item_group_id": item.item_group,
                     "item_group": item.item_group,
-                    "items": [],
+                    "disabled": bool(item_group_disabled),
+                    "items": [] if not item_group_disabled else [],
                 }
 
-            grouped_items[item.item_group]["items"].append(
-                {
-                    "item_id": item.name,
-                    "item_code": item.name,
-                    "item_name": item.item_name,
-                    "item_name_english": item_name_english,
-                    "item_name_arabic": item_name_arabic,
-                    "tax_percentage": (item.get("custom_tax_percentage") or 0.0),
-                    "description": item.description,
-                    "barcodes": [
-                        {
-                            "id": barcode.name,
-                            "barcode": barcode.barcode,
-                            "uom": barcode.uom,
-                        }
-                        for barcode in barcodes
-                    ],
-                    "uom": [
-                        {
-                            "id": uom.name,
-                            "uom": uom.uom,
-                            "conversion_factor": uom.conversion_factor,
-                            "price": round(price_map.get(uom.uom, 0.0), 2),
-                            "barcode": ", ".join(barcode_map.get(uom.uom, [])),
-                            "editable_price": bool(
-                                frappe.get_value("UOM", uom.uom, "custom_editable_price")
-                            ),
-                            "editable_quantity": bool(
-                                frappe.get_value("UOM", uom.uom, "custom_editable_quantity")
-                            ),
+            if not item_group_disabled:
+                item_doc = frappe.get_doc("Item", item.name)
 
-                        }
-                        for uom in uoms
-                    ],
-                }
-            )
 
+                item_name_arabic = ""
+                item_name_english = ""
+
+                if has_arabic and item_doc.get("custom_item_name_arabic"):
+                    item_name_arabic = item_doc.custom_item_name_arabic
+                    item_name_english = item.item_name
+                elif has_english and item_doc.get("custom_item_name_in_english"):
+                    item_name_arabic = item.item_name
+                    item_name_english = item_doc.custom_item_name_in_english
+
+                uoms = frappe.get_all(
+                    "UOM Conversion Detail",
+                    filters={"parent": item.name},
+                    fields=["name", "uom", "conversion_factor"],
+                )
+
+                barcodes = frappe.get_all(
+                    "Item Barcode",
+                    filters={"parent": item.name},
+                    fields=["name", "barcode", "uom", "custom_editable_price", "custom_editable_quantity"],
+                )
+
+                price_list = "Standard Selling"
+                if pos_profile:
+                    price_list = frappe.db.get_value(
+                        "POS Profile", pos_profile, "selling_price_list"
+                    ) or "Standard Selling"
+
+                item_prices = frappe.get_all(
+                    "Item Price",
+                    fields=["price_list_rate", "uom", "creation"],
+                    filters={"item_code": item.name, "price_list": price_list},
+                    order_by="creation",
+                )
+
+                price_map = {price.uom: price.price_list_rate for price in item_prices}
+                barcode_map = {}
+                for barcode in barcodes:
+                    if barcode.uom in barcode_map:
+                        barcode_map[barcode.uom].append(barcode.barcode)
+                    else:
+                        barcode_map[barcode.uom] = [barcode.barcode]
+
+                grouped_items[item.item_group]["items"].append(
+                    {
+                        "item_id": item.name,
+                        "item_code": item.name,
+                        "item_name": item.item_name,
+                        "item_name_english": item_name_english,
+                        "item_name_arabic": item_name_arabic,
+                        "tax_percentage": (item.get("custom_tax_percentage") or 0.0),
+                        "description": item.description,
+                        "barcodes": [
+                            {
+                                "id": barcode.name,
+                                "barcode": barcode.barcode,
+                                "uom": barcode.uom,
+                            }
+                            for barcode in barcodes
+                        ],
+                        "uom": [
+                            {
+                                "id": uom.name,
+                                "uom": uom.uom,
+                                "conversion_factor": uom.conversion_factor,
+                                "price": round(price_map.get(uom.uom, 0.0), 2),
+                                "barcode": ", ".join(barcode_map.get(uom.uom, [])),
+                                "editable_price": bool(
+                                    frappe.get_value("UOM", uom.uom, "custom_editable_price")
+                                ),
+                                "editable_quantity": bool(
+                                    frappe.get_value("UOM", uom.uom, "custom_editable_quantity")
+                                ),
+                            }
+                            for uom in uoms
+                        ],
+                    }
+                )
         result = list(grouped_items.values())
 
 
@@ -397,6 +391,7 @@ def get_items(item_group=None, last_updated_time=None, pos_profile = None):
             status=404,
             mimetype="application/json"
         )
+
 
 
 @frappe.whitelist(allow_guest=True)
