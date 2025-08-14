@@ -284,7 +284,7 @@ def get_items(item_group=None, last_updated_time=None, pos_profile = None):
                 grouped_items[item.item_group] = {
                     "item_group_id": item.item_group,
                     "item_group": item.item_group,
-                    "disabled": bool(item_group_disabled),
+                    "item_group_disabled": bool(item_group_disabled),
                     "items": [] if not item_group_disabled else [],
                 }
 
