@@ -1329,6 +1329,7 @@ def create_invoice(
         if pos_profile:
             pos_doc = frappe.get_doc("POS Profile", pos_profile)
             cost_center = pos_doc.cost_center
+            source_warehouse = pos_doc.warehouse
 
         new_invoice = frappe.get_doc(
             {
@@ -1348,6 +1349,8 @@ def create_invoice(
                 "posa_pos_opening_shift": pos_shift,
                 "custom_cashier": cashier,
                 "cost_center": cost_center,
+                "update_stock": True,
+                "set_warehouse": source_warehouse
             }
         )
         if taxes_list:
