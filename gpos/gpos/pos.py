@@ -314,11 +314,11 @@ def get_items(item_group=None, last_updated_time=None, pos_profile = None):
                     fields=["name", "barcode", "uom", "custom_editable_price", "custom_editable_quantity"],
                 )
 
-                price_list = "Standard Selling"
+                price_list = "Retail Price"
                 if pos_profile:
                     price_list = frappe.db.get_value(
                         "POS Profile", pos_profile, "selling_price_list"
-                    ) or "Standard Selling"
+                    ) or "Retail Price"
 
                 item_prices = frappe.get_all(
                     "Item Price",
