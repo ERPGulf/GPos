@@ -1350,7 +1350,8 @@ def create_invoice(
                 "custom_cashier": cashier,
                 "cost_center": cost_center,
                 "update_stock": True,
-                "set_warehouse": source_warehouse
+                "set_warehouse": source_warehouse,
+                "custom_invoice_type": "Retail"
             }
         )
         if taxes_list:
