@@ -1330,6 +1330,7 @@ def create_invoice(
             pos_doc = frappe.get_doc("POS Profile", pos_profile)
             cost_center = pos_doc.cost_center
             source_warehouse = pos_doc.warehouse
+            profile_taxes_and_charges = pos_doc.taxes_and_charges
 
         new_invoice = frappe.get_doc(
             {
@@ -1351,7 +1352,8 @@ def create_invoice(
                 "cost_center": cost_center,
                 "update_stock": True,
                 "set_warehouse": source_warehouse,
-                "custom_invoice_type": "Retail"
+                "custom_invoice_type": "Retail",
+                "taxes_and_charges": profile_taxes_and_charges
             }
         )
         if taxes_list:
