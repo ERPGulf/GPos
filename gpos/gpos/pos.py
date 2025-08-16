@@ -1010,7 +1010,7 @@ def getOfflinePOSUsers(id=None, offset=0, limit=50):
 
 
 @frappe.whitelist(allow_guest=True)
-def create_invoice_unsynced(date_time, invoice_number, clearing_status,manually_submitted=None,json_dump=None,api_response=None):
+def create_invoice_unsynced(date_time, invoice_number, clearing_status,type="Sales INvoice",manually_submitted=None,json_dump=None,api_response=None):
     try:
         sales_invoice = frappe.get_all(
             "Sales Invoice",
@@ -1031,6 +1031,7 @@ def create_invoice_unsynced(date_time, invoice_number, clearing_status,manually_
                 "custom_json_dump": json_dump if json_dump else None,
                 "custom_manually_submitted": manually_submitted if manually_submitted else 0,
                 "custom_api_response": api_response if api_response else None,
+                "custom_type" : type,
             }
         )
         doc.insert()
@@ -1043,6 +1044,7 @@ def create_invoice_unsynced(date_time, invoice_number, clearing_status,manually_
             "json_dump": doc.custom_json_dump,
             "manually_submitted": doc.custom_manually_submitted,
             "api_response": doc.custom_api_response,
+            "type":doc.custom_type
         }
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "API: create_invoice_unsynced")
@@ -1336,7 +1338,7 @@ def create_invoice(
             source_warehouse = pos_doc.warehouse
             profile_taxes_and_charges = pos_doc.taxes_and_charges
             profile_discount_account = pos_doc.custom_discount_account
-            
+
         new_invoice = frappe.get_doc(
             {
                 "doctype": doctype,
@@ -1695,7 +1697,6 @@ def create_credit_note(
                 mimetype="application/json",
             )
 
-        # ✅ Prevent duplicate return based on unique_id
         if unique_id:
             existing_return = frappe.db.exists(
                 "Sales Invoice",
@@ -1727,18 +1728,35 @@ def create_credit_note(
             }
             for item in items
         ]
+        pos_profile_doc = (
+                    frappe.get_doc("POS Profile", pos_profile) if pos_profile else None
+                )
+        payment_items = []
+        if payments:
+            if pos_profile:
+                pos_profile_doc = frappe.get_doc("POS Profile", pos_profile)
 
-        payment_items = [
-            {
-                "mode_of_payment": payment.get("mode_of_payment", "Cash"),
-                "amount": float(payment.get("amount", 0)),
-            }
-            for payment in payments or []
-        ]
+            for payment in payments:
+                mode = payment.get("mode_of_payment", "").strip()
+                amount = float(payment.get("amount", 0))
+
+
+                if mode.lower() in ["cash", "card"] and pos_profile:
+                    for row in pos_profile_doc.get("payments") or []:
+                        if row.custom_offline_mode_of_payment1 and row.custom_offline_mode_of_payment1.lower() == mode.lower():
+                            mode = row.mode_of_payment
+                            break
+
+                payment_items.append({
+                    "mode_of_payment": mode,
+                    "amount": amount
+                })
         cost_center = None
         if pos_profile:
             pos_doc = frappe.get_doc("POS Profile", pos_profile)
-            cost_center = pos_doc.cost_center
+            cost_center = pos_doc.cost_center,
+            source_warehouse = pos_doc.warehouse,
+            profile_taxes_and_charges = pos_doc.taxes_and_charges
 
         new_invoice = frappe.get_doc(
             {
@@ -1758,11 +1776,12 @@ def create_credit_note(
                 "custom_cashier": cashier,
                 "custom_reason": reason,
                 "cost_center": cost_center,
+                "set_warehouse": source_warehouse,
+                "taxes_and_charges": profile_taxes_and_charges,
             }
         )
 
-        new_invoice.insert(ignore_permissions=True)
-        new_invoice.save()
+
 
         uploaded_files = frappe.request.files
         if "xml" in uploaded_files:
@@ -1777,7 +1796,7 @@ def create_credit_note(
         new_invoice.save(ignore_permissions=True)
         new_invoice.submit()
 
-        # Update PIH value
+
         zatca_setting_name = pos_settings.zatca_multiple_setting
         frappe.db.set_value(
             "ZATCA Multiple Setting", zatca_setting_name, "custom_pih", PIH
@@ -1786,11 +1805,14 @@ def create_credit_note(
         doc = frappe.get_doc("ZATCA Multiple Setting", zatca_setting_name)
         doc.save()
 
-        # Get item tax rate
-        template = frappe.get_doc(
-            "Item Tax Template", new_invoice.items[0].item_tax_template
-        )
-        item_tax_rate = template.taxes[0].tax_rate if template.taxes else None
+
+        item_tax_rate = None   # <-- add this line before the condition
+
+        if new_invoice.items[0].item_tax_template:
+            template = frappe.get_doc(
+                "Item Tax Template", new_invoice.items[0].item_tax_template
+            )
+            item_tax_rate = template.taxes[0].tax_rate if template.taxes else None
 
         response_data = {
             "id": new_invoice.name,
@@ -1815,7 +1837,12 @@ def create_credit_note(
                     "uom": item.uom,
                     "income_account": item.income_account,
                     "item_tax_template": item.item_tax_template,
-                    "tax_rate": item_tax_rate,
+                    "tax_rate": frappe.get_value(
+                    "Item Tax Template Detail",
+                    {"parent": item.item_tax_template},
+                    "tax_rate",
+                ) if item.item_tax_template else None,
+
                 }
                 for item in new_invoice.items
             ],

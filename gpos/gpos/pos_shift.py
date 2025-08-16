@@ -20,26 +20,43 @@ def opening_shift(period_start_date, company, user, pos_profile,name):
     try:
         payments = parse_json_field(frappe.form_dict.get("balance_details"))
 
-        # Validate: ensure balance_details exists and is not empty
+
         if not payments or not isinstance(payments, list):
             return Response(
-            json.dumps({"data": "Missing or invalid balance_details: must be a non-empty list."}),
-            status=404,
-            mimetype="application/json"
-        )
+                json.dumps({"success": False, "message": "Missing or invalid balance_details: must be a non-empty list."}),
+                status=400,
+                mimetype="application/json"
+            )
 
         payment_items = []
+        pos_profile_doc = None
+        if pos_profile:
+            pos_profile_doc = frappe.get_doc("POS Profile", pos_profile)
+
         for payment in payments:
             if not payment.get("mode_of_payment"):
                 return Response(
-                json.dumps({"data": "Each payment entry must have a 'mode_of_payment'."}),
-                status=404,
-                mimetype="application/json")
+                    json.dumps({"success": False, "message": "Each payment entry must have a 'mode_of_payment'."}),
+                    status=400,
+                    mimetype="application/json"
+                )
+
+            mode = payment.get("mode_of_payment", "").strip()
+            amount = float(payment.get("opening_amount", 0))
+
+
+            if mode.lower() in ["cash", "card"] and pos_profile_doc:
+                for row in pos_profile_doc.get("payments") or []:
+                    if getattr(row, "custom_offline_mode_of_payment1", "").lower() == mode.lower():
+                        mode = row.mode_of_payment
+                        break
+
             payment_items.append({
-                "mode_of_payment": payment["mode_of_payment"],
-                "amount": float(payment.get("opening_amount", 0))
-            })   
-        name = frappe.form_dict.get("name")    
+                "mode_of_payment": mode,
+                "amount": amount
+            })
+
+        name = frappe.form_dict.get("name")
         period_start_dt = datetime.strptime(period_start_date, "%Y-%m-%d %H:%M:%S")
         offline_user_record = frappe.get_all(
             "POS Offline Users",
@@ -50,7 +67,7 @@ def opening_shift(period_start_date, company, user, pos_profile,name):
         if offline_user_record:
             user = offline_user_record[0].user
 
-        # Create the POS Opening Entry only if validation passed
+
         doc = frappe.get_doc({
             "doctype": "POS Opening Shift",
             "name" : name,
@@ -102,13 +119,12 @@ def opening_shift(period_start_date, company, user, pos_profile,name):
             mimetype="application/json"
         )
 
-
 @frappe.whitelist(allow_guest=True)
-def closing_shift(period_end_date,company, pos_opening_entry,name,created_invoice_status):
+def closing_shift(period_end_date, company, pos_opening_entry, name=None, created_invoice_status=None):
     try:
         payments = parse_json_field(frappe.form_dict.get("payment_reconciliation"))
 
-        # Validate: ensure payment_reconciliation exists and is a non-empty lis t
+
         if not payments or not isinstance(payments, list):
             return Response(
                 json.dumps({
@@ -117,43 +133,60 @@ def closing_shift(period_end_date,company, pos_opening_entry,name,created_invoic
                 status=400,
                 mimetype="application/json"
             )
-        name = frappe.form_dict.get("name") 
-        payment_items = []
-        for payment in payments:
-            if not payment.get("mode_of_payment"):
-                return Response(
-                    json.dumps({
-                        "error": "Each payment entry must have a 'mode_of_payment'."
-                    }),
-                    status=400,
-                    mimetype="application/json"
-                )
 
-            payment_items.append({
-                "mode_of_payment": payment.get("mode_of_payment"),
-                "opening_amount": float(payment.get("opening_amount", 0)),
-                "expected_amount": float(payment.get("expected_amount", 0)),
-                "closing_amount": float(payment.get("closing_amount", 0)),
-            })
 
-        # Fetch POS Opening Entry
         pos_opening = frappe.get_doc("POS Opening Shift", pos_opening_entry)
         if pos_opening.status != "Open":
             return Response(
                 json.dumps({
+                    "success": False,
                     "error": "Selected POS Opening Entry should be open."
                 }),
                 status=409,
                 mimetype="application/json"
             )
 
+
+        pos_profile_doc = None
+        if pos_opening.pos_profile:
+            pos_profile_doc = frappe.get_doc("POS Profile", pos_opening.pos_profile)
+
+
+        payment_items = []
+        for payment in payments:
+            if not payment.get("mode_of_payment"):
+                return Response(
+                    json.dumps({
+                        "success": False,
+                        "error": "Each payment entry must have a 'mode_of_payment'."
+                    }),
+                    status=400,
+                    mimetype="application/json"
+                )
+
+            mode = payment.get("mode_of_payment", "").strip()
+
+
+            if mode.lower() in ["cash", "card"] and pos_profile_doc:
+                for row in pos_profile_doc.get("payments") or []:
+                    if getattr(row, "custom_offline_mode_of_payment1", "").lower() == mode.lower():
+                        mode = row.mode_of_payment
+                        break
+
+            payment_items.append({
+                "mode_of_payment": mode,
+                "opening_amount": float(payment.get("opening_amount", 0)),
+                "expected_amount": float(payment.get("expected_amount", 0)),
+                "closing_amount": float(payment.get("closing_amount", 0)),
+            })
+
+
         period_end_dt = datetime.strptime(period_end_date, "%Y-%m-%d %H:%M:%S")
 
-        # Create POS Closing Entry
+
         doc = frappe.get_doc({
             "doctype": "POS Closing Shift",
-            "name" : name,
-            "period_end_date":period_end_dt ,
+            "period_end_date": period_end_dt,
             "pos_opening_shift": pos_opening_entry,
             "company": company,
             "pos_profile": pos_opening.pos_profile,
@@ -162,16 +195,20 @@ def closing_shift(period_end_date,company, pos_opening_entry,name,created_invoic
             "payment_reconciliation": payment_items,
             "custom_created_invoice_status": created_invoice_status
         })
+
+
+        if name:
+            doc.name = name
+
         doc.insert(ignore_permissions=True)
-        doc.save(ignore_permissions=True)
         doc.submit()
+
 
         data = {
             "sync_id": doc.name,
             "period_start_date": format_datetime_safe(doc.period_start_date),
             "period_end_date": format_datetime_safe(doc.period_end_date),
             "posting_date": format_datetime_safe(doc.posting_date),
-            # "posting_time": str(doc.posting_time),
             "pos_opening_shift": doc.pos_opening_shift,
             "company": doc.company,
             "pos_profile": doc.pos_profile,
@@ -205,6 +242,7 @@ def closing_shift(period_end_date,company, pos_opening_entry,name,created_invoic
             status=500,
             mimetype="application/json"
         )
+
 from datetime import datetime, date
 
 def format_datetime_safe(value):
