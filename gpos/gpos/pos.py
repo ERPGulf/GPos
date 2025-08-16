@@ -625,7 +625,8 @@ def create_customer(
 
 
 @frappe.whitelist(allow_guest=True)
-def customer_list(id=None):
+def customer_list(id=None, pos_profile=None):
+    #Check POS Profile for customers
     doc = frappe.get_list(
         "Customer",
         fields=[
