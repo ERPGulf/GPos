@@ -1223,6 +1223,7 @@ def create_invoice(
         if pos_profile:
             pos_profile_doc = frappe.get_doc("POS Profile", pos_profile)
             profile_cost_center = pos_profile_doc.cost_center
+            profile_discount_account = pos_profile_doc.custom_discount_account
             if not pos_profile_doc.get("taxes_and_charges") and pos_settings.get(
                 "sales_taxes_and_charges"
             ):
@@ -1247,7 +1248,8 @@ def create_invoice(
                 "qty": item.get("quantity", 0),
                 "rate": item.get("rate", 0),
                 "uom": item.get("uom", "Nos"),
-                "cost_center": item.get("cost_center",profile_cost_center)
+                "cost_center": item.get("cost_center",profile_cost_center),
+                "discount_account": item.get("discount_account",profile_discount_account)
                 # "income_account": pos_settings.income_account,
             }
             for item in items
@@ -1333,6 +1335,7 @@ def create_invoice(
             cost_center = pos_doc.cost_center
             source_warehouse = pos_doc.warehouse
             profile_taxes_and_charges = pos_doc.taxes_and_charges
+            profile_discount_account = pos_doc.custom_discount_account
             
         new_invoice = frappe.get_doc(
             {
@@ -1355,7 +1358,8 @@ def create_invoice(
                 "update_stock": True,
                 "set_warehouse": source_warehouse,
                 "custom_invoice_type": "Retail",
-                "taxes_and_charges": profile_taxes_and_charges
+                "taxes_and_charges": profile_taxes_and_charges,
+                "additional_discount_account":  profile_discount_account
             }
         )
         if taxes_list:
