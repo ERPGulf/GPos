@@ -1689,13 +1689,21 @@ def create_credit_note(
                 status=400,
                 mimetype="application/json",
             )
-
+        return_invoice=frappe.db.exists("Sales Invoice", return_against)
+        if not return_invoice:
+           offline_no_invoice_id = frappe.db.get_value(
+            "Sales Invoice",
+            {"custom_offline_invoice_number": offline_invoice_number},
+            "name"
+        )
         if not frappe.db.exists("Sales Invoice", return_against):
-            return Response(
-                json.dumps({"data": f"Sales Invoice {return_against} not found"}),
-                status=404,
-                mimetype="application/json",
-            )
+
+            if not frappe.db.exists("Sales Invoice", {"custom_offline_invoice_number": offline_invoice_number}):
+                return Response(
+                    json.dumps({"data": f"Sales Invoice {return_against} not found"}),
+                    status=404,
+                    mimetype="application/json",
+                )
 
         if unique_id:
             existing_return = frappe.db.exists(
@@ -1769,7 +1777,7 @@ def create_credit_note(
                 "custom_zatca_pos_name": machine_name,
                 "is_pos": 1,
                 "is_return": 1,
-                "return_against": return_against,
+                "return_against": return_against if return_invoice else offline_no_invoice_id,
                 "custom_offline_invoice_number": offline_invoice_number,
                 "pos_profile": pos_profile,
                 "posa_pos_opening_shift": pos_shift,
