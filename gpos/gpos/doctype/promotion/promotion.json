@@ -19,19 +19,19 @@
   {
    "fieldname": "name1",
    "fieldtype": "Data",
-   "label": "name",
+   "label": "Name",
    "unique": 1
   },
   {
    "fieldname": "pos_profile_table",
    "fieldtype": "Table",
-   "label": "pos profile table",
+   "label": "Pos Profile Table",
    "options": "pos profile child table"
   },
   {
    "fieldname": "company",
    "fieldtype": "Link",
-   "label": "company",
+   "label": "Company",
    "options": "Company"
   },
   {
@@ -41,12 +41,12 @@
   {
    "fieldname": "valid_from",
    "fieldtype": "Date",
-   "label": "valid from"
+   "label": "Valid From"
   },
   {
    "fieldname": "valid_upto",
    "fieldtype": "Date",
-   "label": "valid upto"
+   "label": "Valid Upto"
   },
   {
    "fieldname": "section_break_qfdy",
@@ -55,14 +55,14 @@
   {
    "fieldname": "item_table",
    "fieldtype": "Table",
-   "label": "item table",
+   "label": "Item Table",
    "options": "Item child table"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-07-10 14:01:32.409616",
+ "modified": "2025-08-17 11:11:19.282147",
  "modified_by": "Administrator",
  "module": "Gpos",
  "name": "promotion",

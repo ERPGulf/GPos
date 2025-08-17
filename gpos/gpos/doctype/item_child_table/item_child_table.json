@@ -42,14 +42,14 @@
    "fieldname": "min_qty",
    "fieldtype": "Int",
    "in_list_view": 1,
-   "label": "min qty"
+   "label": "Min Qty"
   },
   {
    "default": "1000",
    "fieldname": "max_qty",
    "fieldtype": "Int",
    "in_list_view": 1,
-   "label": "max qty"
+   "label": "Max Qty"
   },
   {
    "fieldname": "column_break_dtuj",
@@ -81,7 +81,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-08-03 11:19:17.905500",
+ "modified": "2025-08-17 11:12:00.914865",
  "modified_by": "Administrator",
  "module": "Gpos",
  "name": "Item child table",

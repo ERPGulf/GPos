@@ -623,22 +623,83 @@ def create_customer(
         # Handle DoesNotExistError if needed
         pass
 
-
 @frappe.whitelist(allow_guest=True)
 def customer_list(id=None, pos_profile=None):
-    #Check POS Profile for customers
-    doc = frappe.get_list(
-        "Customer",
-        fields=[
-            "name as id",
-            "mobile_no as phone_no",
-            "customer_name",
-            "custom_default_pos",
-            "disabled",
-        ],
-        filters={"name": ["like", f"{id}"]} if id else None,
-    )
-    return Response(json.dumps({"data": doc}), status=200, mimetype="application/json")
+    try:
+
+        filters = {"name": ["like", f"{id}"]} if id else None
+
+        customers = frappe.get_list(
+            "Customer",
+            fields=[
+                "name as id",
+                "mobile_no as phone_no",
+                "customer_name",
+                "custom_default_pos",
+                "disabled",
+            ],
+            filters=filters,
+        )
+
+
+        if  not customers:
+            return Response(
+                json.dumps({"error": "Customer not found"}),
+                status=404,
+                mimetype="application/json",
+            )
+
+
+        if not pos_profile:
+            return Response(
+                json.dumps({"data": customers}),
+                status=200,
+                mimetype="application/json",
+            )
+
+
+        if not frappe.db.exists("POS Profile", pos_profile):
+            return Response(
+                json.dumps({"error": "POS Profile not found"}),
+                status=404,
+                mimetype="application/json",
+            )
+
+        default_customer = frappe.db.get_value("POS Profile", pos_profile, "customer")
+
+        filtered_customers = []
+        for cust in customers:
+
+            if default_customer and cust["id"] == default_customer:
+                cust["custom_default_pos"] = 1
+                filtered_customers.append(cust)
+                continue
+
+
+            pos_profiles = frappe.get_all(
+                "pos profile child table",
+                filters={"parent": cust["id"]},
+                fields=["pos_profile"],
+            )
+
+            if not pos_profiles:
+                filtered_customers.append(cust)
+            else:
+                if any(p["pos_profile"] == pos_profile for p in pos_profiles):
+                    filtered_customers.append(cust)
+
+        return Response(
+            json.dumps({"data": filtered_customers}),
+            status=200,
+            mimetype="application/json",
+        )
+
+    except Exception as e:
+        return Response(
+            json.dumps({"error": f"Server error: {str(e)}"}),
+            status=500,
+            mimetype="application/json",
+        )
 
 
 @frappe.whitelist(allow_guest=True)
@@ -2009,7 +2070,7 @@ def get_promotion_list(pos_profile):
             for item in doc.item_table:
                 item_doc = frappe.get_doc("Item", item.item_code)
 
-                # Find the child UOM row where uom == item.uom
+
                 matched_uom_row = None
                 for uom_row in item_doc.uoms:
                     if uom_row.uom == item.uom:
