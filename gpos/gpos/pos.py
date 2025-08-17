@@ -674,7 +674,7 @@ def customer_list(id=None, pos_profile=None):
                 cust["custom_default_pos"] = 1
                 filtered_customers.append(cust)
                 continue
-
+            cust["custom_default_pos"] = 0
 
             pos_profiles = frappe.get_all(
                 "pos profile child table",
