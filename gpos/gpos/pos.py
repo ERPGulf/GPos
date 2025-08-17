@@ -1406,7 +1406,7 @@ def create_invoice(
                 "doctype": doctype,
                 "customer": customer_name,
                 "custom_unique_id": unique_id,
-                "apply_discount_on": "Net Total",
+                "apply_discount_on": "Grand Total",
                 "discount_amount": discount_amount,
                 "items": invoice_items,
                 "payments": payment_items,
