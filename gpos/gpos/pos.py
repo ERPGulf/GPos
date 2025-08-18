@@ -1276,6 +1276,7 @@ def create_invoice(
                     for row in pos_profile_doc.get("payments") or []:
                         if row.custom_offline_mode_of_payment1 and row.custom_offline_mode_of_payment1.lower() == mode.lower():
                             mode = row.mode_of_payment
+                            frappe.log_error("mode of payment")
                             break
 
                 payment_items.append({
@@ -1301,6 +1302,7 @@ def create_invoice(
                     }
                     for tax in pos_settings.get("sales_taxes_and_charges")
                 ]
+                frappe.log_error("tax list")
 
         invoice_items = [
             {
@@ -1318,6 +1320,7 @@ def create_invoice(
             }
             for item in items
         ]
+        frappe.log_error("invoice_items")
 
 
 
@@ -1426,6 +1429,8 @@ def create_invoice(
                 "additional_discount_account":  profile_discount_account
             }
         )
+        frappe.log_error("adding invoice data")
+
         if taxes_list:
             new_invoice["taxes"] = taxes_list
 
@@ -1450,23 +1455,28 @@ def create_invoice(
             new_invoice.custom_xml = process_file_upload(
                 uploaded_files["xml"], ignore_permissions=True, is_private=True
             )
+            frappe.log_error("phase2 xml")
             new_invoice.custom_qr_code = process_file_upload(
                 uploaded_files["qr_code"], ignore_permissions=True, is_private=True
             )
+            frappe.log_error("phase2 qr")
         else:
 
             if "xml" in uploaded_files:
                 new_invoice.custom_xml = process_file_upload(
                     uploaded_files["xml"], ignore_permissions=True, is_private=True
                 )
+                frappe.log_error("phase1 xml")
             if "qr_code" in uploaded_files:
                 new_invoice.custom_qr_code = process_file_upload(
                     uploaded_files["qr_code"], ignore_permissions=True, is_private=True
                 )
+                frappe.log_error("phase1 qr")
 
         # new_invoice.flags.ignore_version = True
         new_invoice.insert(ignore_permissions=True)
         new_invoice.submit()
+        frappe.log_error("After submit")
         zatca_setting_name = pos_settings.zatca_multiple_setting
         if PIH:
             frappe.db.set_value(
@@ -1474,6 +1484,7 @@ def create_invoice(
             )
 
         doc = frappe.get_doc("ZATCA Multiple Setting", zatca_setting_name)
+        frappe.log_error("After submit")
 
         doc.save()
 
@@ -1535,10 +1546,11 @@ def create_invoice(
             #     for payment in new_invoice.payments
             # ],
         }
-
+        frappe.log_error("before response data")
         return Response(
             json.dumps({"data": response_data}), status=200, mimetype="application/json"
         )
+
 
     except ValidationError as ve:
 
@@ -1546,14 +1558,14 @@ def create_invoice(
 
         if "Status code: 400" in error_message:
             return Response(
-                json.dumps({"message": error_message}),
+                json.dumps({"message 400": error_message}),
                 status=400,
                 mimetype="application/json",
             )
         else:
             # default to 500 if not 400 specific
             return Response(
-                json.dumps({"message": error_message}),
+                json.dumps({"message 500": error_message}),
                 status=500,
                 mimetype="application/json",
             )
@@ -1561,7 +1573,7 @@ def create_invoice(
     except Exception as e:
         # Fallback for all other errors
         return Response(
-            json.dumps({"message": str(e)}), status=500, mimetype="application/json"
+            json.dumps({"message Fallback 500": str(e)}), status=500, mimetype="application/json"
         )
 
 
@@ -1833,6 +1845,7 @@ def create_credit_note(
                 "doctype": "Sales Invoice",
                 "customer": customer_name,
                 "custom_unique_id": unique_id,
+                "apply_discount_on": "Grand Total",
                 "discount_amount": discount_amount,
                 "items": invoice_items,
                 "payments": payment_items,
