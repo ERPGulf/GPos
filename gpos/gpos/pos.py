@@ -1484,10 +1484,10 @@ def create_invoice(
             )
 
         doc = frappe.get_doc("ZATCA Multiple Setting", zatca_setting_name)
-        frappe.log_error("After submit")
+        frappe.log_error("After submit2")
 
         doc.save()
-
+        frappe.log_error("After save")
         item_tax_rate = None
 
 
@@ -1572,6 +1572,7 @@ def create_invoice(
 
     except Exception as e:
         # Fallback for all other errors
+        frappe.log_error(frappe.get_traceback(), "Invoice API Error")
         return Response(
             json.dumps({"message Fallback 500": str(e)}), status=500, mimetype="application/json"
         )

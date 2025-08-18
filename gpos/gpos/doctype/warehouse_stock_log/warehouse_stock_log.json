@@ -16,8 +16,9 @@
  "fields": [
   {
    "fieldname": "warehouse",
-   "fieldtype": "Data",
-   "label": "Warehouse"
+   "fieldtype": "Link",
+   "label": "Warehouse",
+   "options": "Warehouse"
   },
   {
    "fieldname": "barcode",
@@ -55,7 +56,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-08-18 09:26:22.190882",
+ "modified": "2025-08-18 10:10:40.181896",
  "modified_by": "Administrator",
  "module": "Gpos",
  "name": "Warehouse Stock Log",
