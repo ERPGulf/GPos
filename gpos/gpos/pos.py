@@ -1209,6 +1209,7 @@ def get_number_of_files(file_storage):
     else:
         return 0
 
+
 @frappe.whitelist(allow_guest=False)
 def create_invoice(
     customer_name,
@@ -1225,11 +1226,8 @@ def create_invoice(
     cashier=None,
     PIH=None,
     phase=1,
-
-
 ):  # Default to phase 1
     try:
-
         pos_settings = frappe.get_doc("Claudion POS setting")
 
         items = parse_json_field(frappe.form_dict.get("items"))
@@ -1242,56 +1240,53 @@ def create_invoice(
         pos_profile = frappe.form_dict.get("pos_profile")
         pos_shift = frappe.form_dict.get("pos_shift")
         cashier = frappe.form_dict.get("cashier")
+
         for item in items:
             item["rate"] = float(item.get("rate", 0))
             item["quantity"] = float(item.get("quantity", 0))
-
-
 
         customer_details = frappe.get_all(
             "Customer",
             fields=["name"],
             filters={"name": ["like", customer_name]},
         )
+
         if not customer_details:
             return Response(
                 json.dumps({"data": "Customer name not found"}),
                 status=404,
                 mimetype="application/json",
             )
+
         pos_profile_doc = (
             frappe.get_doc("POS Profile", pos_profile) if pos_profile else None
         )
+
         payment_items = []
         if payments:
-            if pos_profile:
-                pos_profile_doc = frappe.get_doc("POS Profile", pos_profile)
-
             for payment in payments:
                 mode = payment.get("mode_of_payment", "").strip()
                 amount = float(payment.get("amount", 0))
 
-
                 if mode.lower() in ["cash", "card"] and pos_profile:
                     for row in pos_profile_doc.get("payments") or []:
-                        if row.custom_offline_mode_of_payment1 and row.custom_offline_mode_of_payment1.lower() == mode.lower():
+                        if (
+                            row.custom_offline_mode_of_payment1
+                            and row.custom_offline_mode_of_payment1.lower() == mode.lower()
+                        ):
                             mode = row.mode_of_payment
                             break
 
-                payment_items.append({
-                    "mode_of_payment": mode,
-                    "amount": amount
-                })
+                payment_items.append({"mode_of_payment": mode, "amount": amount})
+
         taxes_list = None
 
         if pos_profile:
-            pos_profile_doc = frappe.get_doc("POS Profile", pos_profile)
             profile_cost_center = pos_profile_doc.cost_center
             profile_discount_account = pos_profile_doc.custom_discount_account
             if not pos_profile_doc.get("taxes_and_charges") and pos_settings.get(
                 "sales_taxes_and_charges"
             ):
-
                 taxes_list = [
                     {
                         "charge_type": tax.charge_type,
@@ -1301,7 +1296,6 @@ def create_invoice(
                     }
                     for tax in pos_settings.get("sales_taxes_and_charges")
                 ]
-
 
         invoice_items = [
             {
@@ -1313,15 +1307,11 @@ def create_invoice(
                 "qty": item.get("quantity", 0),
                 "rate": item.get("rate", 0),
                 "uom": item.get("uom", "Nos"),
-                "cost_center": item.get("cost_center",profile_cost_center),
-                "discount_account": item.get("discount_account",profile_discount_account)
-                # "income_account": pos_settings.income_account,
+                "cost_center": item.get("cost_center", profile_cost_center),
+                "discount_account": item.get("discount_account", profile_discount_account),
             }
             for item in items
         ]
-
-
-
 
         if pos_settings.post_to_pos_invoice and pos_settings.post_to_sales_invoice:
             return Response(
@@ -1395,7 +1385,12 @@ def create_invoice(
                 status=400,
                 mimetype="application/json",
             )
+
         cost_center = None
+        source_warehouse = None
+        profile_taxes_and_charges = None
+        profile_discount_account = None
+
         if pos_profile:
             pos_doc = frappe.get_doc("POS Profile", pos_profile)
             cost_center = pos_doc.cost_center
@@ -1425,21 +1420,17 @@ def create_invoice(
                 "set_warehouse": source_warehouse,
                 "custom_invoice_type": "Retail",
                 "taxes_and_charges": profile_taxes_and_charges,
-                "additional_discount_account":  profile_discount_account
+                "additional_discount_account": profile_discount_account,
             }
         )
 
-
         if taxes_list:
             new_invoice["taxes"] = taxes_list
-
-
 
         uploaded_files = frappe.request.files
         xml_url, qr_code_url = None, None
 
         if phase == 2:
-
             if "xml" not in uploaded_files or "qr_code" not in uploaded_files:
                 return Response(
                     json.dumps(
@@ -1460,7 +1451,6 @@ def create_invoice(
             )
 
         else:
-
             if "xml" in uploaded_files:
                 new_invoice.custom_xml = process_file_upload(
                     uploaded_files["xml"], ignore_permissions=True, is_private=True
@@ -1471,8 +1461,6 @@ def create_invoice(
                     uploaded_files["qr_code"], ignore_permissions=True, is_private=True
                 )
 
-
-        # new_invoice.flags.ignore_version = True
         new_invoice.insert(ignore_permissions=True)
         new_invoice.submit()
 
@@ -1484,11 +1472,7 @@ def create_invoice(
 
         doc = frappe.get_doc("ZATCA Multiple Setting", zatca_setting_name)
 
-
-
-
         item_tax_rate = None
-
 
         response_data = {
             "id": new_invoice.name,
@@ -1503,14 +1487,10 @@ def create_invoice(
                 int(new_invoice.po_no) if new_invoice.po_no else None
             ),
             "discount_amount": new_invoice.discount_amount,
-            "xml": (
-                new_invoice.custom_xml if hasattr(new_invoice, "custom_xml") else None
-            ),
-            "qr_code": (
-                new_invoice.custom_qr_code
-                if hasattr(new_invoice, "custom_qr_code")
-                else None
-            ),
+            "xml": new_invoice.custom_xml if hasattr(new_invoice, "custom_xml") else None,
+            "qr_code": new_invoice.custom_qr_code
+            if hasattr(new_invoice, "custom_qr_code")
+            else None,
             "pih": doc.custom_pih if PIH else None,
             "items": [
                 {
@@ -1537,22 +1517,13 @@ def create_invoice(
                 }
                 for tax in new_invoice.taxes
             ],
-            # "payments": [
-            #     {
-            #         "mode_of_payment": payment.mode_of_payment,
-            #         "amount": payment.amount,
-            #     }F
-            #     for payment in new_invoice.payments
-            # ],
         }
 
         return Response(
             json.dumps({"data": response_data}), status=200, mimetype="application/json"
         )
 
-
     except ValidationError as ve:
-
         error_message = str(ve)
 
         if "Status code: 400" in error_message:
@@ -1562,7 +1533,6 @@ def create_invoice(
                 mimetype="application/json",
             )
         else:
-            # default to 500 if not 400 specific
             return Response(
                 json.dumps({"message 500": error_message}),
                 status=500,
@@ -1570,12 +1540,12 @@ def create_invoice(
             )
 
     except Exception as e:
-        # Fallback for all other errors
         frappe.log_error(frappe.get_traceback(), "Invoice API Error")
         return Response(
-            json.dumps({"message Fallback 500": str(e)}), status=500, mimetype="application/json"
+            json.dumps({"message Fallback 500": str(e)}),
+            status=500,
+            mimetype="application/json",
         )
-
 
 
 @frappe.whitelist()
@@ -1704,6 +1674,7 @@ def get_shift_status(shift_id):
         )
 
 
+
 @frappe.whitelist(allow_guest=False)
 def create_credit_note(
     customer_name,
@@ -1720,7 +1691,6 @@ def create_credit_note(
     return_against=None,
     reason=None,
 ):
-
     try:
         pos_settings = frappe.get_doc("Claudion POS setting")
 
@@ -1763,21 +1733,22 @@ def create_credit_note(
                 status=400,
                 mimetype="application/json",
             )
-        return_invoice=frappe.db.exists("Sales Invoice", return_against)
-        if not return_invoice:
-           offline_no_invoice_id = frappe.db.get_value(
-            "Sales Invoice",
-            {"custom_offline_invoice_number": offline_invoice_number},
-            "name"
-        )
-        if not frappe.db.exists("Sales Invoice", return_against):
 
-            if not frappe.db.exists("Sales Invoice", {"custom_offline_invoice_number": offline_invoice_number}):
-                return Response(
-                    json.dumps({"data": f"Sales Invoice {return_against} not found"}),
-                    status=404,
-                    mimetype="application/json",
-                )
+        return_invoice = frappe.db.exists("Sales Invoice", return_against)
+        offline_no_invoice_id = None
+        if not return_invoice:
+            offline_no_invoice_id = frappe.db.get_value(
+                "Sales Invoice",
+                {"custom_offline_invoice_number": offline_invoice_number},
+                "name",
+            )
+
+        if not return_invoice and not offline_no_invoice_id:
+            return Response(
+                json.dumps({"data": f"Sales Invoice {return_against} not found"}),
+                status=404,
+                mimetype="application/json",
+            )
 
         if unique_id:
             existing_return = frappe.db.exists(
@@ -1805,39 +1776,39 @@ def create_credit_note(
                 "qty": item.get("quantity", 0),
                 "rate": item.get("rate", 0),
                 "uom": item.get("uom", "Nos"),
-                "income_account": pos_settings.income_account,
-                "item_tax_template": pos_settings.item_tax_template,
             }
             for item in items
         ]
-        pos_profile_doc = (
-                    frappe.get_doc("POS Profile", pos_profile) if pos_profile else None
-                )
+
         payment_items = []
         if payments:
-            if pos_profile:
-                pos_profile_doc = frappe.get_doc("POS Profile", pos_profile)
+            pos_profile_doc = (
+                frappe.get_doc("POS Profile", pos_profile) if pos_profile else None
+            )
 
             for payment in payments:
                 mode = payment.get("mode_of_payment", "").strip()
                 amount = float(payment.get("amount", 0))
 
-
                 if mode.lower() in ["cash", "card"] and pos_profile:
                     for row in pos_profile_doc.get("payments") or []:
-                        if row.custom_offline_mode_of_payment1 and row.custom_offline_mode_of_payment1.lower() == mode.lower():
+                        if (
+                            row.custom_offline_mode_of_payment1
+                            and row.custom_offline_mode_of_payment1.lower() == mode.lower()
+                        ):
                             mode = row.mode_of_payment
                             break
 
-                payment_items.append({
-                    "mode_of_payment": mode,
-                    "amount": amount
-                })
+                payment_items.append({"mode_of_payment": mode, "amount": amount})
+
         cost_center = None
+        source_warehouse = None
+        profile_taxes_and_charges = None
+
         if pos_profile:
             pos_doc = frappe.get_doc("POS Profile", pos_profile)
-            cost_center = pos_doc.cost_center,
-            source_warehouse = pos_doc.warehouse,
+            cost_center = pos_doc.cost_center
+            source_warehouse = pos_doc.warehouse
             profile_taxes_and_charges = pos_doc.taxes_and_charges
 
         new_invoice = frappe.get_doc(
@@ -1864,8 +1835,6 @@ def create_credit_note(
             }
         )
 
-
-
         uploaded_files = frappe.request.files
         if "xml" in uploaded_files:
             new_invoice.custom_xml = process_file_upload(
@@ -1879,7 +1848,6 @@ def create_credit_note(
         new_invoice.save(ignore_permissions=True)
         new_invoice.submit()
 
-
         zatca_setting_name = pos_settings.zatca_multiple_setting
         frappe.db.set_value(
             "ZATCA Multiple Setting", zatca_setting_name, "custom_pih", PIH
@@ -1888,8 +1856,7 @@ def create_credit_note(
         doc = frappe.get_doc("ZATCA Multiple Setting", zatca_setting_name)
         doc.save()
 
-
-        item_tax_rate = None   # <-- add this line before the condition
+        item_tax_rate = None  # <-- add this line before the condition
 
         if new_invoice.items[0].item_tax_template:
             template = frappe.get_doc(
@@ -1919,13 +1886,16 @@ def create_credit_note(
                     "rate": item.rate,
                     "uom": item.uom,
                     "income_account": item.income_account,
-                    "item_tax_template": item.item_tax_template,
+                    "item_tax_template": item.item_tax_template
+                    if item.item_tax_template
+                    else None,
                     "tax_rate": frappe.get_value(
-                    "Item Tax Template Detail",
-                    {"parent": item.item_tax_template},
-                    "tax_rate",
-                ) if item.item_tax_template else None,
-
+                        "Item Tax Template Detail",
+                        {"parent": item.item_tax_template},
+                        "tax_rate",
+                    )
+                    if item.item_tax_template
+                    else None,
                 }
                 for item in new_invoice.items
             ],
