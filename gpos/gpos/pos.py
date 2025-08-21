@@ -1726,14 +1726,14 @@ def create_credit_note(
                 mimetype="application/json",
             )
 
-        if not return_against:
-            return Response(
-                json.dumps(
-                    {"data": "Missing 'return_against' parameter for credit note."}
-                ),
-                status=400,
-                mimetype="application/json",
-            )
+        # if not return_against:
+        #     return Response(
+        #         json.dumps(
+        #             {"data": "Missing 'return_against' parameter for credit note."}
+        #         ),
+        #         status=400,
+        #         mimetype="application/json",
+        #     )
 
         return_invoice = frappe.db.exists("Sales Invoice", return_against)
         offline_no_invoice_id = None
@@ -2124,3 +2124,12 @@ def get_promotion_list(pos_profile):
             status=500,
             mimetype="application/json",
         )
+
+
+@frappe.whitelist(allow_guest=True)
+def get_valuation_rate(itemcode):
+    doc= frappe.db.get_value("Bin",
+        {"item_code": itemcode},
+        "valuation_rate"
+    )
+    return doc

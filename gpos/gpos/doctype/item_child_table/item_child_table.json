@@ -8,16 +8,20 @@
  "field_order": [
   "item_code",
   "item_name",
+  "uom",
+  "sale_price",
+  "cost_price",
   "discount_type",
+  "discount_percentage",
+  "discount__amount",
+  "price_after_discount",
   "min_qty",
   "max_qty",
-  "column_break_dtuj",
-  "discount__amount",
-  "discount_percentage",
-  "uom"
+  "column_break_dtuj"
  ],
  "fields": [
   {
+   "columns": 1,
    "fieldname": "item_code",
    "fieldtype": "Link",
    "in_list_view": 1,
@@ -25,6 +29,7 @@
    "options": "Item"
   },
   {
+   "columns": 1,
    "fetch_from": "item_code.item_name",
    "fieldname": "item_name",
    "fieldtype": "Data",
@@ -32,6 +37,7 @@
    "label": "Item Name"
   },
   {
+   "columns": 1,
    "fieldname": "discount_type",
    "fieldtype": "Select",
    "in_list_view": 1,
@@ -39,12 +45,15 @@
    "options": "Discount Percentage\nDiscount Amount\nRate"
   },
   {
+   "columns": 1,
+   "default": "1",
    "fieldname": "min_qty",
    "fieldtype": "Int",
    "in_list_view": 1,
    "label": "Min Qty"
   },
   {
+   "columns": 1,
    "default": "1000",
    "fieldname": "max_qty",
    "fieldtype": "Int",
@@ -56,6 +65,7 @@
    "fieldtype": "Column Break"
   },
   {
+   "columns": 1,
    "depends_on": "eval:doc.discount_type == 'Discount Amount'||'Rate'",
    "fieldname": "discount__amount",
    "fieldtype": "Currency",
@@ -64,6 +74,7 @@
    "precision": "2"
   },
   {
+   "columns": 1,
    "depends_on": "eval:doc.discount_type == 'Discount Percentage'",
    "fieldname": "discount_percentage",
    "fieldtype": "Float",
@@ -72,16 +83,39 @@
    "precision": "2"
   },
   {
+   "columns": 1,
    "fieldname": "uom",
    "fieldtype": "Select",
+   "in_list_view": 1,
    "label": "UOM"
+  },
+  {
+   "columns": 1,
+   "fieldname": "sale_price",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Sale Price"
+  },
+  {
+   "columns": 1,
+   "fieldname": "cost_price",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Cost Price"
+  },
+  {
+   "columns": 1,
+   "fieldname": "price_after_discount",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Price After Discount"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-08-17 11:12:00.914865",
+ "modified": "2025-08-21 10:06:16.098455",
  "modified_by": "Administrator",
  "module": "Gpos",
  "name": "Item child table",
