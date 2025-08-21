@@ -1822,7 +1822,6 @@ def create_credit_note(
                 "items": invoice_items,
                 "payments": payment_items,
                 "custom_zatca_pos_name": machine_name,
-                # "disable_rounded_total" : 0,
                 "is_pos": 1,
                 "is_return": 1,
                 "return_against": return_against if return_invoice else offline_no_invoice_id,
