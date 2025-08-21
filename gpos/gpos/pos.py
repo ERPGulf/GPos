@@ -1834,6 +1834,7 @@ def create_credit_note(
                 "cost_center": cost_center,
                 "set_warehouse": source_warehouse,
                 "taxes_and_charges": profile_taxes_and_charges,
+                "custom_invoice_type": "Retail",
             }
         )
 
