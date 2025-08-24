@@ -2142,7 +2142,7 @@ def create_customer_new(
     customer_name,
     vat_number,
     mobile_no,
-    city,
+    city=None,
     referral_code=None,
     birthday=None,
     customer_group=None,
@@ -2155,84 +2155,95 @@ def create_customer_new(
     building_number=None,
     pb_no=None,
 ):
-    if frappe.db.exists("Customer",{"tax_id":vat_number}):
-        return Response(json.dumps({"data": "VAT Number already exists!"}), status=409, mimetype="application/json")
-    if frappe.db.exists("Customer",{"mobile_no":mobile_no}):
-        return Response(json.dumps({"data": "Mobile Number already exists!"}), status=409, mimetype="application/json")
-    if address_line1 and not city:
-        frappe.throw(_("City is mandatory when address is provided."))
-    if not frappe.db.exists("Customer", {"mobile_no": mobile_no}):
-        customer = frappe.get_doc(
-            {
-                "doctype": "Customer",
-                "customer_name": customer_name,
-                "posa_referral_company": frappe.defaults.get_user_default("Company"),
-                "tax_id": vat_number,
-                "mobile_no": mobile_no,
-                "posa_referral_code": referral_code,
-                "posa_birthday": birthday,
-                "company": frappe.defaults.get_user_default("Company")
-            }
-        )
-        if customer_group:
-            customer.customer_group = customer_group
-        if territory:
-            customer.territory = territory
-        if isinstance(custom_b2c, str):
-            custom_b2c = custom_b2c.lower() in ("true", "1", "yes")
+    try:
+        if frappe.db.exists("Customer",{"tax_id":vat_number}):
+            return Response(json.dumps({"data": "VAT Number already exists!"}), status=409, mimetype="application/json")
+        if frappe.db.exists("Customer",{"mobile_no":mobile_no}):
+            return Response(json.dumps({"data": "Mobile Number already exists!"}), status=409, mimetype="application/json")
+        if address_line1 and not city:
+            frappe.throw(_("City is mandatory when address is provided."))
+        if not frappe.db.exists("Customer", {"mobile_no": mobile_no}):
+            customer = frappe.get_doc(
+                {
+                    "doctype": "Customer",
+                    "customer_name": customer_name,
+                    "posa_referral_company": frappe.defaults.get_user_default("Company"),
+                    "tax_id": vat_number,
+                    "mobile_no": mobile_no,
+                    "posa_referral_code": referral_code,
+                    "posa_birthday": birthday,
+                    "company": frappe.defaults.get_user_default("Company")
+                }
+            )
+            if customer_group:
+                customer.customer_group = customer_group
+            if territory:
+                customer.territory = territory
+            if isinstance(custom_b2c, str):
+                custom_b2c = custom_b2c.lower() in ("true", "1", "yes")
 
 
-            customer.custom_b2c = 1 if custom_b2c else 0
-        if custom_buyer_id_type:
-            customer.custom_buyer_id_type = custom_buyer_id_type
-        if custom_buyer_id:
-            customer.custom_buyer_id = custom_buyer_id
+                customer.custom_b2c = 1 if custom_b2c else 0
+            if custom_buyer_id_type:
+                customer.custom_buyer_id_type = custom_buyer_id_type
+            if custom_buyer_id:
+                customer.custom_buyer_id = custom_buyer_id
 
-        customer.save(ignore_permissions=True)
-
-        if address_line1:
-
-
-            address = frappe.get_doc({
-                "doctype": "Address",
-                "address_title": customer_name,
-                "address_type": "Billing",
-                "customer": customer.name,
-                "address_line1": address_line1,
-                "city": city,
-                "links": [
-                    {
-                        "link_doctype": "Customer",
-                        "link_name": customer.name
-                    }
-            ]
-            })
-
-            if address_line2:
-                address.address_line2 = address_line2
-            if building_number:
-                address.custom_building_number = building_number
-            if pb_no:
-                address.pincode = pb_no
-
-            address.insert(ignore_permissions=True)
-            customer.customer_primary_address = address.name
             customer.save(ignore_permissions=True)
+            address_created = False
+            address_data = {}
+
+            if address_line1:
+
+
+                address = frappe.get_doc({
+                    "doctype": "Address",
+                    "address_title": customer_name,
+                    "address_type": "Billing",
+                    "customer": customer.name,
+                    "address_line1": address_line1,
+                    "city": city,
+                    "links": [
+                        {
+                            "link_doctype": "Customer",
+                            "link_name": customer.name
+                        }
+                ]
+                })
+
+                if address_line2:
+                    address.address_line2 = address_line2
+                if building_number:
+                    address.custom_building_number = building_number
+                if pb_no:
+                    address.pincode = pb_no
+
+                address.insert(ignore_permissions=True)
+                customer.customer_primary_address = address.name
+                customer.save(ignore_permissions=True)
+                address_created = True
+                address_data = {
+                    "address_1": address.address_line1 ,
+                    "address_2": address.address_line2 ,
+                    "building_no": int(address.custom_building_number) if address.custom_building_number else None,
+                    "pb_no": int(address.pincode) if address.pincode else None
+                }
+
 
             data={
                 "id": customer.name,
                 "customer": customer.name,
                 "customer_group": customer.customer_group,
                 "mobile": customer.mobile_no,
-                "address_1": address.address_line1 if address else None,
-                "address_2": address.address_line2 if address else None,
-                "building_no": int(address.custom_building_number) if address else None,
-                "vat_number": customer.tax_id if customer else None,
-                "pb_no": int(address.pincode) if address else None
+                "vat_number": customer.tax_id ,
+                **address_data,
+                "address_created": address_created
             }
             return Response(json.dumps({"data":data}), status=200, mimetype="application/json")
-    else:
-        frappe.throw(_("Mobile Number is already exist!"))
+        else:
+            frappe.throw(_("Mobile Number is already exist!"))
+    except Exception as e:
+        return Response(json.dumps({"error": str(e)}), status=500, mimetype="application/json")
 
 
 
@@ -2256,7 +2267,7 @@ def customer_list_new(id=None):
             filters=filters,
         )
 
-        # Ensure that the response is a list of dictionaries
+
         data = []
         for customer in doc:
             data.append({
