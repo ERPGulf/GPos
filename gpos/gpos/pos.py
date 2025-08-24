@@ -2138,7 +2138,6 @@ def get_valuation_rate(itemcode):
 @frappe.whitelist()
 def create_customer_new(
     customer_name,
-    company,
     vat_number,
     mobile_no,
     city,
@@ -2226,7 +2225,6 @@ def create_customer_new(
                 "id": customer.name,
                 "customer": customer.name,
                 "mobile": customer.mobile_no,
-                "company": customer.company,
                 "address_1": address.address_line1 if address else None,
                 "address_2": address.address_line2 if address else None,
                 "building_no": int(address.custom_building_number) if address else None,
