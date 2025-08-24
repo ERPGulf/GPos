@@ -22,6 +22,7 @@ def generate_token_secure(api_key, api_secret, app_key):
     try:
         try:
             app_key = base64.b64decode(app_key).decode("utf-8")
+
         except Exception as e:
             return Response(
                 json.dumps(
@@ -30,6 +31,7 @@ def generate_token_secure(api_key, api_secret, app_key):
                 status=401,
                 mimetype="application/json",
             )
+
         clientID, clientSecret, clientUser = frappe.db.get_value(
             "OAuth Client",
             {"app_name": app_key},
@@ -2157,10 +2159,6 @@ def create_customer_new(
         return Response(json.dumps({"data": "VAT Number already exists!"}), status=409, mimetype="application/json")
     if frappe.db.exists("Customer",{"mobile_no":mobile_no}):
         return Response(json.dumps({"data": "Mobile Number already exists!"}), status=409, mimetype="application/json")
-     # Check if customer group is "Wholesale customers - عميل جملة"
-    if customer_group == "Wholesale customers - عميل جملة":
-        if frappe.db.exists("Customer", {"vat_number": vat_number}):
-            frappe.throw(_("A customer with this VAT Number already exists!"))
     if address_line1 and not city:
         frappe.throw(_("City is mandatory when address is provided."))
     if not frappe.db.exists("Customer", {"mobile_no": mobile_no}):
@@ -2171,7 +2169,7 @@ def create_customer_new(
                 "posa_referral_company": frappe.defaults.get_user_default("Company"),
                 "tax_id": vat_number,
                 "mobile_no": mobile_no,
-                "posa_referral_code": referral_code, #referral_code
+                "posa_referral_code": referral_code,
                 "posa_birthday": birthday,
                 "company": frappe.defaults.get_user_default("Company")
             }
@@ -2224,6 +2222,7 @@ def create_customer_new(
             data={
                 "id": customer.name,
                 "customer": customer.name,
+                "customer_group": customer.customer_group,
                 "mobile": customer.mobile_no,
                 "address_1": address.address_line1 if address else None,
                 "address_2": address.address_line2 if address else None,
@@ -2234,3 +2233,40 @@ def create_customer_new(
             return Response(json.dumps({"data":data}), status=200, mimetype="application/json")
     else:
         frappe.throw(_("Mobile Number is already exist!"))
+
+
+
+
+
+@frappe.whitelist()
+def customer_list_new(id=None):
+    try:
+        filters = {"name": id} if id else {}
+        doc = frappe.get_list(
+            "Customer",
+            fields=[
+                "name",
+                "customer_name",
+                "mobile_no",
+                "email_id",
+                "tax_id",
+                "customer_group",
+                "territory",
+            ],
+            filters=filters,
+        )
+
+        # Ensure that the response is a list of dictionaries
+        data = []
+        for customer in doc:
+            data.append({
+                "id": customer.get("name"),
+                "customer": customer.get("customer_name"),
+                "mobile": customer.get("mobile_no"),
+                "vat_number": customer.get("tax_id"),
+                "customer_group": customer.get("customer_group")
+            })
+
+        return Response(json.dumps({"data": data}), status=200, mimetype="application/json")
+    except Exception as e:
+        return Response(json.dumps({"error": str(e)}), status=500, mimetype="application/json")
