@@ -2232,7 +2232,7 @@ def create_customer_new(
 
             data={
                 "id": customer.name,
-                "customer": customer.name,
+                "customer": customer.customer_name,
                 "customer_group": customer.customer_group,
                 "mobile": customer.mobile_no,
                 "vat_number": customer.tax_id ,
