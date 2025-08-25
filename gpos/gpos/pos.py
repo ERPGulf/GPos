@@ -626,7 +626,8 @@ def create_customer(
         pass
 
 @frappe.whitelist(allow_guest=True)
-def customer_list(id=None, pos_profile=None):
+def customer_list_old(id=None, pos_profile=None):
+    #Please use the new new customer_list - Farook
     try:
 
         filters = {"name": ["like", f"{id}"]} if id else None
@@ -2260,7 +2261,7 @@ def create_customer_new(
 
 
 @frappe.whitelist()
-def customer_list_new(id=None):
+def customer_listid=None):
     try:
         filters = {"name": id} if id else {}
         customers = frappe.get_list(
@@ -2273,7 +2274,9 @@ def customer_list_new(id=None):
                 "tax_id",
                 "customer_group",
                 "territory",
-                "customer_primary_address"
+                "customer_primary_address",
+                "custom_default_pos",
+                "disabled",
             ],
             filters=filters,
         )
@@ -2294,10 +2297,12 @@ def customer_list_new(id=None):
 
             data.append({
                 "id": customer.get("name"),
-                "customer": customer.get("customer_name"),
+                "customer_name": customer.get("customer_name"),
                 "mobile": customer.get("mobile_no"),
                 "vat_number": customer.get("tax_id"),
                 "customer_group": customer.get("customer_group"),
+                "custom_default_pos": customer.get("custom_default_pos"),
+                "disabled": customer.get("disabled"),
                 **address_data,
 
             })
