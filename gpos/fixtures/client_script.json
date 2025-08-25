@@ -3,11 +3,11 @@
   "docstatus": 0,
   "doctype": "Client Script",
   "dt": "promotion",
-  "enabled": 0,
-  "modified": "2025-08-24 18:28:54.079482",
+  "enabled": 1,
+  "modified": "2025-08-25 15:35:30.861759",
   "module": "Gpos",
   "name": "promotion uom",
-  "script": "frappe.ui.form.on(\"Sales Invoice\", {\n  setup(frm) {\n    frm.set_query(\"uom\", \"items\", function (doc, cdt, cdn) {\n      const child = locals[cdt][cdn];\n      if (!child?.item_code) return {};\n\n      console.log(\"👉 Filtering UOMs for item:\", child.item_code);\n\n      return {\n        query: \"erpnext.controllers.queries.get_item_uom_query\",\n        filters: {\n          item_code: child.item_code\n        }\n      };\n    });\n  },\n});",
+  "script": "frappe.ui.form.on(\"promotion\", {\r\n    setup(frm) {\r\n        console.log(\"Promotion form setup triggered\", frm);\r\n\r\n        // Restrict UOM in item_table rows to only the item's defined UOMs\r\n        frm.set_query(\"uom\", \"item_table\", function (doc, cdt, cdn) {\r\n            const row = locals[cdt][cdn];\r\n            console.log(\"Set query for UOM called for row:\", row);\r\n\r\n            if (!row?.item_code) {\r\n                console.log(\"No item_code in row, returning empty query\");\r\n                return {};\r\n            }\r\n\r\n            console.log(\"Applying filter for item_code:\", row.item_code);\r\n            return {\r\n                query: \"erpnext.controllers.queries.get_item_uom_query\",\r\n                filters: { item_code: row.item_code },\r\n            };\r\n        });\r\n\r\n        console.log(\"Setup complete for promotion form\");\r\n    },\r\n});\r\n\r\nfrappe.ui.form.on(\"Item child table\", {\r\n    item_code(frm, cdt, cdn) {\r\n        const row = locals[cdt][cdn];\r\n        console.log(\"item_code change detected in child table row:\", row);\r\n\r\n        if (!row) {\r\n            console.log(\"Row not found, aborting\");\r\n            return;\r\n        }\r\n\r\n        console.log(`Clearing UOM for row with item_code ${row.item_code}`);\r\n        frappe.model.set_value(cdt, cdn, \"uom\", \"\");\r\n\r\n        console.log(\"UOM cleared for row:\", locals[cdt][cdn]);\r\n    },\r\n});\r\n",
   "view": "Form"
  },
  {
