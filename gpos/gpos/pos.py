@@ -718,13 +718,12 @@ def cache2():
 
 
 @frappe.whitelist(allow_guest=True)
-def pos_setting(machine_name):
+def pos_setting(machine_name, pos_profile=None):
     systemSettings = frappe.get_doc("Claudion POS setting")
     var = True if systemSettings.show_item == 1 else False
     Zatca_Multiple_Setting = (
         frappe.get_doc("ZATCA Multiple Setting", machine_name) if machine_name else None
     )
-    # return Zatca_Multiple_Setting
     linked_doctype = (
         Zatca_Multiple_Setting.custom_linked_doctype if Zatca_Multiple_Setting else None
     )
@@ -763,12 +762,20 @@ def pos_setting(machine_name):
         public_key = zatca.custom_public_key
 
     encoded_certificate = base64.b64encode(certificate.encode("utf-8")).decode("utf-8")
-
     encoded_private_key = base64.b64encode(private_key.encode("utf-8")).decode("utf-8")
     encoded_public_key = base64.b64encode(public_key.encode("utf-8")).decode("utf-8")
-    # return encoded_certificate,encoded_private_key,encoded_public_key
 
     address_record = address[0] if address else None
+
+    pos_profile_doc = frappe.get_doc("POS Profile", pos_profile) if pos_profile else None
+    address = pos_profile_doc.custom_address if pos_profile_doc else None
+    address_details = frappe.get_doc("Address", address) if address else None
+
+    branch_details = {
+        "branch_name": pos_profile_doc.name if pos_profile_doc else None,
+        "branch_address": address_details.address_line1 if address_details else None,
+        "phone": address_details.phone if address_details else None,
+    } if pos_profile_doc else None
 
     data = {
         "phase": zatca.custom_phase_1_or_2,
@@ -793,7 +800,6 @@ def pos_setting(machine_name):
         "no_of_decimal_in_price": int(systemSettings.no_of_decimal_in_price),
         "show_item_pictures": var,
         "inclusive": systemSettings.inclusive,
-        # "exclusive": systemSettings.exclusive,
         "post_to_sales_invoice": systemSettings.post_to_sales_invoice,
         "post_to_pos_invoice": systemSettings.post_to_pos_invoice,
         "is_tax_included_in_price": systemSettings.is_tax_included_in_price,
@@ -857,9 +863,10 @@ def pos_setting(machine_name):
                 else None
             ),
         },
+        "branch_details": branch_details,
     }
-    return Response(json.dumps({"data": data}), status=200, mimetype="application/json")
 
+    return Response(json.dumps({"data": data}), status=200, mimetype="application/json")
 
 @frappe.whitelist(allow_guest=True)
 def warehouse_details(id=None):
