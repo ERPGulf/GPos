@@ -16,6 +16,7 @@ frappe.ui.form.on("promotion", {
 });
 
 
+
 frappe.ui.form.on("Item child table", {
     item_code(frm, cdt, cdn) {
         const row = locals[cdt][cdn];
