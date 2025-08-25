@@ -772,9 +772,12 @@ def pos_setting(machine_name, pos_profile=None):
     address_details = frappe.get_doc("Address", address) if address else None
 
     branch_details = {
-        "branch_name": pos_profile_doc.name if pos_profile_doc else None,
-        "branch_address": address_details.address_line1 if address_details else None,
-        "phone": address_details.phone if address_details else None,
+        "branch_name": pos_profile_doc.custom_branch if pos_profile_doc else None,
+        "address1": address_details.address_line1 if address_details else None,
+        "address2":address_details.address_line2 if address_details else None,
+        "building_no":address_details.custom_building_number if address_details else None,
+        "pb_no":address_details.pincode if address_details else None,
+        "phone": int(address_details.phone) if address_details else None,
     } if pos_profile_doc else None
 
     data = {
@@ -917,6 +920,7 @@ def warehouse_details(id=None):
 
 @frappe.whitelist(allow_guest=True)
 def wallet_refund_request(user, amount, transaction_id=None):
+
     wallet_refund = frappe.get_doc(
         {
             "doctype": "wallet refund",
