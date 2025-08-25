@@ -2261,7 +2261,7 @@ def create_customer_new(
 
 
 @frappe.whitelist()
-def customer_listid=None):
+def customer_list(id=None):
     try:
         filters = {"name": id} if id else {}
         customers = frappe.get_list(
@@ -2298,7 +2298,7 @@ def customer_listid=None):
             data.append({
                 "id": customer.get("name"),
                 "customer_name": customer.get("customer_name"),
-                "mobile": customer.get("mobile_no"),
+                "phone_no": customer.get("mobile_no"),
                 "vat_number": customer.get("tax_id"),
                 "customer_group": customer.get("customer_group"),
                 "custom_default_pos": customer.get("custom_default_pos"),
