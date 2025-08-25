@@ -2267,7 +2267,7 @@ def customer_list(id=None, pos_profile=None):
         customers = frappe.get_list(
             "Customer",
             fields=[
-                "name",
+                "name as id",
                 "customer_name",
                 "mobile_no",
                 "email_id",
@@ -2288,15 +2288,14 @@ def customer_list(id=None, pos_profile=None):
                 mimetype="application/json",
             )
 
-
         if not pos_profile:
             return Response(
                 json.dumps({"data": customers}),
                 status=200,
                 mimetype="application/json",
             )
-
-
+        
+        
         if not frappe.db.exists("POS Profile", pos_profile):
             return Response(
                 json.dumps({"error": "POS Profile not found"}),
@@ -2304,29 +2303,36 @@ def customer_list(id=None, pos_profile=None):
                 mimetype="application/json",
             )
 
+        
         default_customer = frappe.db.get_value("POS Profile", pos_profile, "customer")
-
+        
+        
         filtered_customers = []
-        for cust in customers:
-
-            if default_customer and cust["id"] == default_customer:
-                cust["custom_default_pos"] = 1
-                filtered_customers.append(cust)
-                continue
-            cust["custom_default_pos"] = 0
-
-            pos_profiles = frappe.get_all(
-                "pos profile child table",
-                filters={"parent": cust["id"]},
-                fields=["pos_profile"],
-            )
-
-            if not pos_profiles:
-                filtered_customers.append(cust)
-            else:
-                if any(p["pos_profile"] == pos_profile for p in pos_profiles):
+        
+        try:
+            for cust in customers:
+                if default_customer and cust["id"] == default_customer:
+                    cust["custom_default_pos"] = 1
                     filtered_customers.append(cust)
+                    continue
+                else:
+                    cust["custom_default_pos"] = 0
+                
+                pos_profiles = frappe.get_all(
+                    "pos profile child table",
+                    filters={"parent": cust["id"]},
+                    fields=["pos_profile"],
+                )
 
+                if not pos_profiles:
+                    filtered_customers.append(cust)
+                else:
+                    if any(p["pos_profile"] == pos_profile for p in pos_profiles):
+                        filtered_customers.append(cust)
+        except Exception as e:
+            return f"Error occurred: {str(e)}"
+
+        
         data = []
         for customer in customers:
             address_data = {}
@@ -2342,7 +2348,7 @@ def customer_list(id=None, pos_profile=None):
 
 
             data.append({
-                "id": customer.get("name"),
+                "id": customer.get("id"),
                 "customer_name": customer.get("customer_name"),
                 "phone_no": customer.get("mobile_no"),
                 "vat_number": customer.get("tax_id"),
