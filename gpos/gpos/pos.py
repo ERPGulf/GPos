@@ -2221,7 +2221,7 @@ def create_customer_new(
                 address.insert(ignore_permissions=True)
                 customer.customer_primary_address = address.name
                 customer.save(ignore_permissions=True)
-                address_created = True
+
                 address_data = {
                     "address_1": address.address_line1 ,
                     "address_2": address.address_line2 ,
@@ -2237,7 +2237,7 @@ def create_customer_new(
                 "mobile": customer.mobile_no,
                 "vat_number": customer.tax_id ,
                 **address_data,
-                "address_created": address_created
+
             }
             return Response(json.dumps({"data":data}), status=200, mimetype="application/json")
         else:
@@ -2279,7 +2279,7 @@ def customer_list_new(id=None):
                     "building_no": int(address.custom_building_number) if address.custom_building_number else None,
                     "pb_no": int(address.pincode) if address.pincode else None
                 }
-                address_created = True
+
 
             data.append({
                 "id": customer.get("name"),
@@ -2288,7 +2288,7 @@ def customer_list_new(id=None):
                 "vat_number": customer.get("tax_id"),
                 "customer_group": customer.get("customer_group"),
                 **address_data,
-                "address_created": address_created
+
             })
 
         return Response(json.dumps({"data": data}), status=200, mimetype="application/json")
