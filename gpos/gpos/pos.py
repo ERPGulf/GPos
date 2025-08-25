@@ -2248,12 +2248,11 @@ def create_customer_new(
 
 
 
-
 @frappe.whitelist()
 def customer_list_new(id=None):
     try:
         filters = {"name": id} if id else {}
-        doc = frappe.get_list(
+        customers = frappe.get_list(
             "Customer",
             fields=[
                 "name",
@@ -2263,19 +2262,33 @@ def customer_list_new(id=None):
                 "tax_id",
                 "customer_group",
                 "territory",
+                "customer_primary_address"
             ],
             filters=filters,
         )
 
-
         data = []
-        for customer in doc:
+        for customer in customers:
+            address_data = {}
+            address_created = False
+            if customer.customer_primary_address:
+                address = frappe.get_doc("Address", customer.customer_primary_address)
+                address_data = {
+                    "address_1": address.address_line1,
+                    "address_2": address.address_line2,
+                    "building_no": int(address.custom_building_number) if address.custom_building_number else None,
+                    "pb_no": int(address.pincode) if address.pincode else None
+                }
+                address_created = True
+
             data.append({
                 "id": customer.get("name"),
                 "customer": customer.get("customer_name"),
                 "mobile": customer.get("mobile_no"),
                 "vat_number": customer.get("tax_id"),
-                "customer_group": customer.get("customer_group")
+                "customer_group": customer.get("customer_group"),
+                **address_data,
+                "address_created": address_created
             })
 
         return Response(json.dumps({"data": data}), status=200, mimetype="application/json")
