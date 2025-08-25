@@ -2261,7 +2261,7 @@ def create_customer_new(
 
 
 @frappe.whitelist()
-def customer_list(id=None):
+def customer_list(id=None, pos_profile=None):
     try:
         filters = {"name": id} if id else {}
         customers = frappe.get_list(
@@ -2280,6 +2280,52 @@ def customer_list(id=None):
             ],
             filters=filters,
         )
+        
+        if  not customers:
+            return Response(
+                json.dumps({"error": "Customer not found"}),
+                status=404,
+                mimetype="application/json",
+            )
+
+
+        if not pos_profile:
+            return Response(
+                json.dumps({"data": customers}),
+                status=200,
+                mimetype="application/json",
+            )
+
+
+        if not frappe.db.exists("POS Profile", pos_profile):
+            return Response(
+                json.dumps({"error": "POS Profile not found"}),
+                status=404,
+                mimetype="application/json",
+            )
+
+        default_customer = frappe.db.get_value("POS Profile", pos_profile, "customer")
+
+        filtered_customers = []
+        for cust in customers:
+
+            if default_customer and cust["id"] == default_customer:
+                cust["custom_default_pos"] = 1
+                filtered_customers.append(cust)
+                continue
+            cust["custom_default_pos"] = 0
+
+            pos_profiles = frappe.get_all(
+                "pos profile child table",
+                filters={"parent": cust["id"]},
+                fields=["pos_profile"],
+            )
+
+            if not pos_profiles:
+                filtered_customers.append(cust)
+            else:
+                if any(p["pos_profile"] == pos_profile for p in pos_profiles):
+                    filtered_customers.append(cust)
 
         data = []
         for customer in customers:
