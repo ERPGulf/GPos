@@ -82,6 +82,10 @@ function call_discount_api(row, cdt, cdn) {
      });
 }
  function get_item_details(frm, cdt, cdn, row){
+        if (!frm.doc.custom_price_list) {
+                    frappe.msgprint("Please set price list before selecting item");
+                    return;
+                }
         frappe.call({
                 method: "gpos.gpos.doctype.promotion.promotion.get_item_price",
                 args: {
