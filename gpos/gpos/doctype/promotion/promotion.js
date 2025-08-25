@@ -2,7 +2,7 @@ frappe.ui.form.on('Item child table', {
     item_code: function(frm, cdt, cdn) {
         let row = locals[cdt][cdn];
 
-        // Set UOM options dynamically based on item_code
+
         if (row.item_code) {
             frappe.call({
                 method: "frappe.client.get",
@@ -16,10 +16,10 @@ frappe.ui.form.on('Item child table', {
                         let uoms = item.uoms || [];
                         let uom_names = uoms.map(u => u.uom);
 
-                        // Reset UOM first
+
                         frappe.model.set_value(cdt, cdn, "uom", "");
 
-                        // Update UOM field options dynamically
+
                         if (frm.fields_dict.item_table && frm.fields_dict.item_table.grid) {
                             frm.fields_dict.item_table.grid.update_docfield_property(
                                 'uom',
@@ -42,36 +42,15 @@ frappe.ui.form.on('Item child table', {
             console.log("No item_code selected.");
         }
 
-        // Existing logic for price and valuation rate
-        if (row.item_code && frm.doc.custom_price_list) {
-            frappe.call({
-                method: "gpos.gpos.doctype.promotion.promotion.get_item_price",
-                args: {
-                    item_code: row.item_code,
-                    price_list: frm.doc.custom_price_list,
-                    uom: frm.doc.uom
-                },
-                callback: function(r) {
-                    if (r.message && r.message.price !== undefined) {
-                        frappe.model.set_value(cdt, cdn, "sale_price", r.message.price);
 
-                        // After fetching price, calculate discount
-                        call_discount_api(row, cdt, cdn);
-                    }
-                }
-            });
-            frappe.call({
-                method: "gpos.gpos.doctype.promotion.promotion.get_valuation_rate",
-                args: {
-                    itemcode: row.item_code,
-                    uom: row.uom
-                },
-                callback: function(r) {
-                    if (r.message !== undefined) {
-                        frappe.model.set_value(cdt, cdn, "cost_price", r.message);
-                    }
-                }
-            });
+        if (row.item_code && frm.doc.custom_price_list) {
+            get_item_details(frm, cdt, cdn, row);
+        }
+    },
+    uom: function(frm, cdt, cdn) {
+         let row = locals[cdt][cdn];
+          if (row.item_code && frm.doc.custom_price_list) {
+            get_item_details(frm, cdt, cdn, row);
         }
     },
 
@@ -102,3 +81,36 @@ function call_discount_api(row, cdt, cdn) {
         }
      });
 }
+ function get_item_details(frm, cdt, cdn, row){
+        frappe.call({
+                method: "gpos.gpos.doctype.promotion.promotion.get_item_price",
+                args: {
+                    item_code: row.item_code,
+                    price_list: frm.doc.custom_price_list,
+                    uom: row.uom
+                },
+                callback: function(r) {
+                    if (r.message && r.message.price !== undefined) {
+                        frappe.model.set_value(cdt, cdn, "sale_price", r.message.price);
+
+
+                        call_discount_api(row, cdt, cdn);
+                    }
+                }
+            });
+        console.log("itemcode:", row.item_code, "uom:", row.uom);
+        frappe.call({
+            method: "gpos.gpos.doctype.promotion.promotion.get_valuation_rate",
+            args: {
+                itemcode: row.item_code,
+                uom: row.uom
+            },
+            callback: function(r) {
+                if (r.message !== undefined) {
+                    frappe.model.set_value(cdt, cdn, "cost_price", r.message);
+                }else{
+                        frappe.model.set_value(cdt, cdn, "cost_price", 0);
+                }
+            }
+        });
+ }

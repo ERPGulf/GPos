@@ -4,16 +4,15 @@
 import frappe
 from frappe.model.document import Document
 
-
 class promotion(Document):
 	pass
 
 
 
 
-# Fetch Item Price
+
 @frappe.whitelist()
-def get_item_price(item_code, price_list,uom=None):
+def get_item_price(item_code,price_list,uom=None):
     try:
         filters = {"item_code": item_code, "price_list": price_list}
         if uom:
@@ -51,18 +50,16 @@ def calculate_price_after_discount(sale_price, discount_type=None, discount_perc
         return {"error": str(e), "price_after_discount": 0}
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def get_valuation_rate(itemcode, uom=None):
     try:
-        frappe.msgprint(uom)
         filters = {"item_code": itemcode}
         if uom:
-            filters["uom"] = uom
+            filters["stock_uom"] = uom
         valuation_rate = frappe.db.get_value("Bin",
             filters,
             "valuation_rate"
         )
-        frappe.msgprint(valuation_rate)
         return valuation_rate
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Valuation Rate Fetch Error")
