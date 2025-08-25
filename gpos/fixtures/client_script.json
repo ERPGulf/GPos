@@ -4,10 +4,10 @@
   "doctype": "Client Script",
   "dt": "promotion",
   "enabled": 0,
-  "modified": "2025-08-21 14:51:40.779320",
+  "modified": "2025-08-24 18:28:54.079482",
   "module": "Gpos",
   "name": "promotion uom",
-  "script": "frappe.ui.form.on('Item child table', {\r\n    item_code: function (frm, cdt, cdn) {\r\n        let row = locals[cdt][cdn];\r\n\r\n        if (row.item_code) {\r\n            frappe.call({\r\n                method: \"frappe.client.get\",\r\n                args: {\r\n                    doctype: \"Item\",\r\n                    name: row.item_code\r\n                },\r\n                callback: function (response) {\r\n                    if (response.message) {\r\n                        let item = response.message;\r\n                        let uoms = item.uoms || [];\r\n                        let uom_names = uoms.map(u => u.uom);\r\n\r\n                        // Reset UOM first\r\n                        frappe.model.set_value(cdt, cdn, \"uom\", \"\");\r\n\r\n                        // Update UOM field options dynamically\r\n                        frm.fields_dict.item_table.grid.update_docfield_property(\r\n                            'uom',\r\n                            'options',\r\n                            uom_names.join(\"\\n\")\r\n                        );\r\n\r\n                        if (uom_names.length > 0) {\r\n                            frappe.model.set_value(cdt, cdn, \"uom\", uom_names[0]);\r\n                        } else {\r\n                            console.warn(\"No UOMs found to set default.\");\r\n                        }\r\n                    } else {\r\n                        console.warn(\"Item not found for item_code:\", row.item_code);\r\n                    }\r\n                }\r\n            });\r\n        } else {\r\n            console.log(\"No item_code selected.\");\r\n        }\r\n    }\r\n});\r\n",
+  "script": "frappe.ui.form.on(\"Sales Invoice\", {\n  setup(frm) {\n    frm.set_query(\"uom\", \"items\", function (doc, cdt, cdn) {\n      const child = locals[cdt][cdn];\n      if (!child?.item_code) return {};\n\n      console.log(\"👉 Filtering UOMs for item:\", child.item_code);\n\n      return {\n        query: \"erpnext.controllers.queries.get_item_uom_query\",\n        filters: {\n          item_code: child.item_code\n        }\n      };\n    });\n  },\n});",
   "view": "Form"
  },
  {
