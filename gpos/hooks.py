@@ -217,7 +217,7 @@ app_license = "mit"
 # --------------------------------
 
 # auth_hooks = [
-# 	"gpos.auth.validate"
+# 	"gpos.auth.va lidate"
 # ]
 
 fixtures = [
