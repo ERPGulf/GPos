@@ -31,5 +31,16 @@
   "name": "For Label Printing",
   "script": "frappe.ui.form.on('Label Printing', {\r\n    item_code: function(frm) {\r\n        if (!frm.doc.item_code) return;\r\n\r\n        // Fetch Item and set UOM filter\r\n        frappe.db.get_doc(\"Item\", frm.doc.item_code).then(item => {\r\n            let allowed_uoms = [];\r\n\r\n            if (item.uoms && item.uoms.length > 0) {\r\n                allowed_uoms = item.uoms.map(row => row.uom);\r\n            } else if (item.stock_uom) {\r\n                allowed_uoms = [item.stock_uom];\r\n            }\r\n\r\n            // Restrict UOM field to allowed UOMs\r\n            frm.set_query(\"uom\", () => {\r\n                return {\r\n                    filters: [[\"UOM\", \"name\", \"in\", allowed_uoms]]\r\n                };\r\n            });\r\n\r\n            // Optionally auto-set if only one UOM exists\r\n            if (allowed_uoms.length === 1) {\r\n                frm.set_value(\"uom\", allowed_uoms[0]);\r\n            }\r\n\r\n            // Do NOT set barcode here — wait for UOM selection\r\n            frm.set_value(\"barcode\", \"\"); \r\n        });\r\n    },\r\n\r\n    uom: function(frm) {\r\n        if (!frm.doc.item_code || !frm.doc.uom) return;\r\n\r\n        // Fetch Item to get barcodes\r\n        frappe.db.get_doc(\"Item\", frm.doc.item_code).then(item => {\r\n            if (item.barcodes && item.barcodes.length > 0) {\r\n                // Find the barcode that matches the selected UOM\r\n                let matched = item.barcodes.find(b => b.uom === frm.doc.uom);\r\n                if (matched) {\r\n                    frm.set_value(\"barcode\", matched.barcode);\r\n                } else {\r\n                    frm.set_value(\"barcode\", \"\"); // clear if no match\r\n                }\r\n            } else {\r\n                frm.set_value(\"barcode\", \"\"); // clear if no barcodes\r\n            }\r\n        });\r\n    }\r\n});\r\n",
   "view": "Form"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Client Script",
+  "dt": "Label Printing",
+  "enabled": 1,
+  "modified": "2025-08-27 07:39:21.021571",
+  "module": "Gpos",
+  "name": "Update Price From Price List",
+  "script": "frappe.ui.form.on('Label Printing', {\r\n    update_price_from_price_list: function(frm) {\r\n        if (!frm.doc.item_code || !frm.doc.uom || !frm.doc.price_list) {\r\n            frappe.msgprint(__('Please select Item, UOM and Price List first.'));\r\n            return;\r\n        }\r\n\r\n        // Fetch Item Price\r\n        frappe.db.get_value(\"Item Price\", \r\n            {\r\n                item_code: frm.doc.item_code,\r\n                price_list: frm.doc.price_list,\r\n                uom: frm.doc.uom\r\n            },\r\n            \"price_list_rate\"\r\n        ).then(r => {\r\n            if (r && r.message && r.message.price_list_rate) {\r\n                frm.set_value(\"price_to_print\", r.message.price_list_rate);\r\n            } else {\r\n                frappe.msgprint(__('No Price found for this Item, Price List and UOM.'));\r\n            }\r\n        });\r\n    }\r\n});\r\n",
+  "view": "Form"
  }
 ]

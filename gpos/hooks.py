@@ -213,7 +213,7 @@ app_license = "mit"
 # 	}
 # ]
 
-# Authentication and authorization
+# Authentication and  authorization
 # --------------------------------
 
 # auth_hooks = [

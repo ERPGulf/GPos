@@ -9,7 +9,10 @@
   "item_name_english",
   "item_name_arabic",
   "uom",
-  "barcode"
+  "barcode",
+  "price_list",
+  "update_price_from_price_list",
+  "price_to_print"
  ],
  "fields": [
   {
@@ -40,12 +43,29 @@
    "fieldname": "barcode",
    "fieldtype": "Barcode",
    "label": "Barcode"
+  },
+  {
+   "default": "Retail",
+   "fieldname": "price_list",
+   "fieldtype": "Link",
+   "label": "Price List",
+   "options": "Price List"
+  },
+  {
+   "fieldname": "price_to_print",
+   "fieldtype": "Data",
+   "label": "Price to print"
+  },
+  {
+   "fieldname": "update_price_from_price_list",
+   "fieldtype": "Button",
+   "label": "Update Price from Price list"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-08-26 14:31:16.605567",
+ "modified": "2025-08-26 21:53:47.298575",
  "modified_by": "Administrator",
  "module": "Gpos",
  "name": "Label Printing",
