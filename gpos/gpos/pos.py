@@ -219,9 +219,20 @@ def get_items(item_group=None, last_updated_time=None, pos_profile = None):
 
 
     try:
+        item_filters = {}
+        pos_item_groups = []
+        if pos_profile:
+            pos = frappe.get_doc("POS Profile", pos_profile)
+            pos_item_groups = [d.item_group for d in pos.item_groups]
+
+
+            if pos_item_groups:
+                item_filters["item_group"] = ["in", pos_item_groups]
+
+
         fields = ["name", "stock_uom", "item_name", "item_group", "description", "modified","disabled"]
         # filters = {"item_group": ["like", f"%{item_group}%"]} if item_group else {}
-        item_filters = {}
+
         if item_group:
             item_filters["item_group"] = ["like", f"%{item_group}%"]
 
@@ -2280,7 +2291,7 @@ def customer_list(id=None, pos_profile=None):
             ],
             filters=filters,
         )
-        
+
         if  not customers:
             return Response(
                 json.dumps({"error": "Customer not found"}),
@@ -2294,8 +2305,8 @@ def customer_list(id=None, pos_profile=None):
                 status=200,
                 mimetype="application/json",
             )
-        
-        
+
+
         if not frappe.db.exists("POS Profile", pos_profile):
             return Response(
                 json.dumps({"error": "POS Profile not found"}),
@@ -2303,12 +2314,12 @@ def customer_list(id=None, pos_profile=None):
                 mimetype="application/json",
             )
 
-        
+
         default_customer = frappe.db.get_value("POS Profile", pos_profile, "customer")
-        
-        
+
+
         filtered_customers = []
-        
+
         try:
             for cust in customers:
                 if default_customer and cust["id"] == default_customer:
@@ -2317,7 +2328,7 @@ def customer_list(id=None, pos_profile=None):
                     continue
                 else:
                     cust["custom_default_pos"] = 0
-                
+
                 pos_profiles = frappe.get_all(
                     "pos profile child table",
                     filters={"parent": cust["id"]},
@@ -2332,7 +2343,7 @@ def customer_list(id=None, pos_profile=None):
         except Exception as e:
             return f"Error occurred: {str(e)}"
 
-        
+
         data = []
         for customer in customers:
             address_data = {}
