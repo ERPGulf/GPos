@@ -2061,7 +2061,8 @@ def get_promotion_list(pos_profile):
         promotions = frappe.get_all(
             "promotion",
             filters={"valid_upto": (">=", today),
-                     "docstatus":1},
+                     "docstatus":1,
+                     "enabled":1},
             fields=["name", "company", "valid_from", "valid_upto"],
         )
 

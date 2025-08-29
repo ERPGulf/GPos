@@ -12,6 +12,7 @@
   "column_break_apua",
   "valid_from",
   "valid_upto",
+  "enabled",
   "section_break_qfdy",
   "item_table",
   "amended_from"
@@ -42,11 +43,13 @@
   {
    "fieldname": "valid_from",
    "fieldtype": "Date",
+   "in_list_view": 1,
    "label": "Valid From"
   },
   {
    "fieldname": "valid_upto",
    "fieldtype": "Date",
+   "in_list_view": 1,
    "label": "Valid Upto"
   },
   {
@@ -68,13 +71,21 @@
    "print_hide": 1,
    "read_only": 1,
    "search_index": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "default": "0",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Enabled"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-08-28 21:46:33.135205",
+ "modified": "2025-08-29 08:40:54.888829",
  "modified_by": "Administrator",
  "module": "Gpos",
  "name": "promotion",
