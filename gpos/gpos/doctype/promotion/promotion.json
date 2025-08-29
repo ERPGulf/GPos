@@ -13,7 +13,8 @@
   "valid_from",
   "valid_upto",
   "section_break_qfdy",
-  "item_table"
+  "item_table",
+  "amended_from"
  ],
  "fields": [
   {
@@ -57,12 +58,23 @@
    "fieldtype": "Table",
    "label": "Item Table",
    "options": "Item child table"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "promotion",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
+ "is_submittable": 1,
  "links": [],
- "modified": "2025-08-17 11:11:19.282147",
+ "modified": "2025-08-28 21:46:33.135205",
  "modified_by": "Administrator",
  "module": "Gpos",
  "name": "promotion",
