@@ -1886,9 +1886,9 @@ def create_credit_note(
         )
 
         doc = frappe.get_doc("ZATCA Multiple Setting", zatca_setting_name)
-        doc.save()
 
-        item_tax_rate = None  # <-- add this line before the condition
+
+        item_tax_rate = None
 
         if new_invoice.items[0].item_tax_template:
             template = frappe.get_doc(
