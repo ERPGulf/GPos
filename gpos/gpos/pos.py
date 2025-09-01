@@ -1759,7 +1759,9 @@ def create_credit_note(
         #         status=400,
         #         mimetype="application/json",
         #     )
-
+        cost_center = None
+        source_warehouse = None
+        profile_taxes_and_charges = None
         return_invoice = frappe.db.exists("Sales Invoice", return_against)
         offline_no_invoice_id = None
         if not return_invoice:
@@ -1791,7 +1793,12 @@ def create_credit_note(
                     status=409,
                     mimetype="application/json",
                 )
-
+        if pos_profile:
+            pos_doc = frappe.get_doc("POS Profile", pos_profile)
+            cost_center = pos_doc.cost_center
+            source_warehouse = pos_doc.warehouse
+            profile_taxes_and_charges = pos_doc.taxes_and_charges
+            profile_discount_account = pos_doc.custom_discount_account
         invoice_items = [
             {
                 "item_code": (
@@ -1802,6 +1809,8 @@ def create_credit_note(
                 "qty": item.get("quantity", 0),
                 "rate": item.get("rate", 0),
                 "uom": item.get("uom", "Nos"),
+                "cost_center": item.get("cost_center",cost_center),
+                "discount_account": item.get("discount_account", profile_discount_account),
             }
             for item in items
         ]
@@ -1827,15 +1836,11 @@ def create_credit_note(
 
                 payment_items.append({"mode_of_payment": mode, "amount": amount})
 
-        cost_center = None
-        source_warehouse = None
-        profile_taxes_and_charges = None
-
-        if pos_profile:
-            pos_doc = frappe.get_doc("POS Profile", pos_profile)
-            cost_center = pos_doc.cost_center
-            source_warehouse = pos_doc.warehouse
-            profile_taxes_and_charges = pos_doc.taxes_and_charges
+        # if pos_profile:
+        #     pos_doc = frappe.get_doc("POS Profile", pos_profile)
+        #     cost_center = pos_doc.cost_center
+        #     source_warehouse = pos_doc.warehouse
+        #     profile_taxes_and_charges = pos_doc.taxes_and_charges
 
         new_invoice = frappe.get_doc(
             {
