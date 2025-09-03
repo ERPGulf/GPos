@@ -2099,6 +2099,8 @@ def get_promotion_list(pos_profile):
                         "id": item.name,
                         "item_code": item.item_code,
                         "item_name": item.item_name,
+                        "sale_price":float(item.sale_price),
+                        "cost_price":float(item.cost_price),
                         "discount_type": (
                             "PERCENTAGE"
                             if item.discount_type == "Discount Percentage"
@@ -2116,6 +2118,7 @@ def get_promotion_list(pos_profile):
                         "max_qty": item.max_qty,
                         "discount_percentage": item.discount_percentage,
                         "discount_price": item.discount__amount,
+                        "price_after_discount":float(item.price_after_discount),
                         "uom_id": matched_uom_row.name if matched_uom_row else None,
                         "uom": item.uom,
                     }
