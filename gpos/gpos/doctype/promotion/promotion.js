@@ -25,7 +25,7 @@ frappe.ui.form.on("Item child table", {
 
 
         if (!frm.doc.custom_price_list) {
-            frappe.msgprint({
+            frappe.throw({
                 title: "Missing Price List",
                 message: "Please set a Price List before selecting an item.",
                 indicator: "red"
