@@ -284,9 +284,9 @@ def get_items(item_group=None, last_updated_time=None, pos_profile = None):
         grouped_items = {}
 
         for item in items:
-
-            if item.disabled == 1:
-                continue
+            # Commented by Farook to send disabled tag on api, to handle from offline side properly
+            # if item.disabled == 1:
+            #     continue
 
             item_group_disabled = frappe.db.get_value(
                 "Item Group", item.item_group, "custom_disabled"
@@ -299,6 +299,7 @@ def get_items(item_group=None, last_updated_time=None, pos_profile = None):
                     "item_group": item.item_group,
                     "item_group_disabled": bool(item_group_disabled),
                     "items": [] if not item_group_disabled else [],
+                    "disabled": item.disabled,
                 }
 
             if not item_group_disabled:
@@ -357,6 +358,7 @@ def get_items(item_group=None, last_updated_time=None, pos_profile = None):
                         "item_name_arabic": item_name_arabic,
                         "tax_percentage": (item.get("custom_tax_percentage") or 0.0),
                         "description": item.description,
+                        "disabled": item.disabled,
                         "barcodes": [
                             {
                                 "id": barcode.name,
