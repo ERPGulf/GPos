@@ -1042,7 +1042,6 @@ def generate_token_secure_for_users(username, password, app_key):
 
 @frappe.whitelist(allow_guest=True)
 def getOfflinePOSUsers(id=None, offset=0, limit=500):
-
     docs = frappe.db.get_all(
         "POS Offline Users",
         fields=[
