@@ -1335,6 +1335,7 @@ def create_invoice(
                 "uom": item.get("uom", "Nos"),
                 "cost_center": item.get("cost_center", profile_cost_center),
                 "discount_account": item.get("discount_account", profile_discount_account),
+                "allow_zero_valuation_rate":1
             }
             for item in items
         ]
@@ -1529,6 +1530,7 @@ def create_invoice(
                     "income_account": item.income_account,
                     "item_tax_template": item.item_tax_template,
                     "tax_rate": item_tax_rate,
+                    "allow_zero_valuation_rate":item.allow_zero_valuation_rate
                 }
                 for item in new_invoice.items
             ],
@@ -1812,6 +1814,7 @@ def create_credit_note(
                 "uom": item.get("uom", "Nos"),
                 "cost_center": item.get("cost_center",cost_center),
                 "discount_account": item.get("discount_account", profile_discount_account),
+                "allow_zero_valuation_rate": 1
             }
             for item in items
         ]
@@ -1922,6 +1925,7 @@ def create_credit_note(
                     "item_tax_template": item.item_tax_template
                     if item.item_tax_template
                     else None,
+                    "allow_zero_valuation_rate": item.allow_zero_valuation_rate,
                     "tax_rate": frappe.get_value(
                         "Item Tax Template Detail",
                         {"parent": item.item_tax_template},
