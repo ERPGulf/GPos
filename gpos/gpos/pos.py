@@ -586,7 +586,7 @@ from frappe.exceptions import DoesNotExistError
 
 @frappe.whitelist(allow_guest=True)
 def create_customer(
-    customer_name, lead_name, email_id=None, gender=None, mobile_no=None
+    customer_name, lead_name,pos_profile=None, email_id=None, gender=None, mobile_no=None,
 ):
     try:
         lead = frappe.get_all(
@@ -2180,6 +2180,7 @@ def create_customer_new(
     customer_name,
     vat_number,
     mobile_no,
+    pos_profile=None,
     city=None,
     referral_code=None,
     birthday=None,
@@ -2200,6 +2201,15 @@ def create_customer_new(
             return Response(json.dumps({"data": "Mobile Number already exists!"}), status=409, mimetype="application/json")
         if address_line1 and not city:
             frappe.throw(_("City is mandatory when address is provided."))
+        pos = parse_json_field(frappe.form_dict.get("pos_profile"))
+        if pos:
+            pos_profiles = [
+                {
+                    "pos_profile": pos1.get("pos_profile")
+                }
+                for pos1 in pos
+            ]
+
         if not frappe.db.exists("Customer", {"mobile_no": mobile_no}):
             customer = frappe.get_doc(
                 {
@@ -2210,7 +2220,8 @@ def create_customer_new(
                     "mobile_no": mobile_no,
                     "posa_referral_code": referral_code,
                     "posa_birthday": birthday,
-                    "company": frappe.defaults.get_user_default("Company")
+                    "company": frappe.defaults.get_user_default("Company"),
+                    "custom_pos_profile_table":pos_profiles if pos else None
                 }
             )
             if customer_group:
@@ -2274,6 +2285,9 @@ def create_customer_new(
                 "customer_group": customer.customer_group,
                 "mobile": customer.mobile_no,
                 "vat_number": customer.tax_id ,
+                "pos_profiles":[{
+                    "pos_profile":pos2.pos_profile
+                } for pos2 in customer.custom_pos_profile_table],
                 **address_data,
 
             }
@@ -2313,7 +2327,7 @@ def customer_list(id=None, pos_profile=None):
                 mimetype="application/json",
             )
 
-        # ✅ If no pos_profile, return all customers
+
         if not pos_profile:
             return Response(
                 json.dumps({"data": customers}),
@@ -2321,7 +2335,7 @@ def customer_list(id=None, pos_profile=None):
                 mimetype="application/json",
             )
 
-        # ✅ Validate POS Profile exists
+
         if not frappe.db.exists("POS Profile", pos_profile):
             return Response(
                 json.dumps({"error": "POS Profile not found"}),
@@ -2335,13 +2349,13 @@ def customer_list(id=None, pos_profile=None):
         for cust in customers:
             cust["custom_default_pos"] = 0
 
-            # ✅ Mark and include default customer
+
             if default_customer and cust["id"] == default_customer:
                 cust["custom_default_pos"] = 1
                 filtered_customers.append(cust)
                 continue
 
-            # ✅ Get POS Profiles linked to this customer
+
             pos_profiles = frappe.get_all(
                 "pos profile child table",
                 filters={"parent": cust["id"], "pos_profile": pos_profile},
@@ -2358,7 +2372,7 @@ def customer_list(id=None, pos_profile=None):
                 mimetype="application/json",
             )
 
-        # ✅ Prepare final data with address
+
         data = []
         for customer in filtered_customers:
             address_data = {}
