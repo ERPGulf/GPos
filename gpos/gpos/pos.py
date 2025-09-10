@@ -2243,8 +2243,6 @@ def create_customer_new(
             address_data = {}
 
             if address_line1:
-
-
                 address = frappe.get_doc({
                     "doctype": "Address",
                     "address_title": customer_name,
