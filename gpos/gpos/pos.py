@@ -2337,9 +2337,15 @@ def customer_list(id=None, pos_profile=None):
 
 
             if default_customer and cust["id"] == default_customer:
-                cust["custom_default_pos"] = 1
-                filtered_customers.append(cust)
-                continue
+                pos_profiles = frappe.get_all(
+                "pos profile child table",
+                filters={"parent": cust["id"], "pos_profile": pos_profile},
+                fields=["pos_profile"],
+                )
+                if pos_profiles:
+                    cust["custom_default_pos"] = 1
+                    filtered_customers.append(cust)
+                    continue
 
 
             pos_profiles = frappe.get_all(
