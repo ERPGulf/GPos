@@ -1,0 +1,82 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-09-23 09:36:45.422606",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "number_of_invoices",
+  "number_of_return_invoices",
+  "total_of_invoices",
+  "total_of_returns",
+  "total_of_cash",
+  "total_of_return_cash",
+  "total_of_bank",
+  "total_of_return_bank"
+ ],
+ "fields": [
+  {
+   "fieldname": "number_of_invoices",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Number of Invoices"
+  },
+  {
+   "fieldname": "number_of_return_invoices",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Number of Return Invoices"
+  },
+  {
+   "fieldname": "total_of_invoices",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Total of Invoices"
+  },
+  {
+   "fieldname": "total_of_returns",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Total of Returns"
+  },
+  {
+   "fieldname": "total_of_cash",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Total of Cash"
+  },
+  {
+   "fieldname": "total_of_return_cash",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Total of Return Cash"
+  },
+  {
+   "fieldname": "total_of_bank",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": " Total of Bank"
+  },
+  {
+   "fieldname": "total_of_return_bank",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Total of Return Bank"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2025-09-23 09:42:26.005334",
+ "modified_by": "Administrator",
+ "module": "Gpos",
+ "name": "closing shift details",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
