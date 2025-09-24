@@ -159,11 +159,20 @@ def closing_shift(pos_opening_entry,company=None,period_end_date=None,created_in
                 )
 
             mode = payment.get("mode_of_payment", "").strip()
-            if mode.lower() in ["cash", "card"] and pos_profile_doc:
+            original_mode = mode.lower()
+
+
+            if original_mode in ["cash", "card"] and pos_profile_doc:
+                mapped = None
                 for row in pos_profile_doc.get("payments") or []:
-                    if getattr(row, "custom_offline_mode_of_payment1", "").lower() == mode.lower():
-                        mode = row.mode_of_payment
+                    if getattr(row, "custom_offline_mode_of_payment1", "").lower() == original_mode:
+                        mapped = row.mode_of_payment
                         break
+                if mapped:
+                    mode = mapped
+                else:
+
+                    continue
 
             payment_items.append({
                 "mode_of_payment": mode,
@@ -184,10 +193,10 @@ def closing_shift(pos_opening_entry,company=None,period_end_date=None,created_in
             "total_of_return_bank": details.get("total_of_return_bank", 0)
         }]
 
-        # Parse period_end_date
+
         period_end_dt = datetime.strptime(period_end_date, "%Y-%m-%d %H:%M:%S")
 
-        # Create POS Closing Shift document
+
         doc = frappe.get_doc({
             "doctype": "POS Closing Shift",
             "period_end_date": period_end_dt,
