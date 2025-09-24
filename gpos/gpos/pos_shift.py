@@ -122,29 +122,22 @@ def opening_shift(period_start_date, company, user, pos_profile,name):
 
 
 @frappe.whitelist(allow_guest=True)
-def closing_shift():
+def closing_shift(pos_opening_entry,company=None,period_end_date=None,created_invoice_status=None,name=None,details=None):
     try:
-        # Get JSON body
-        data = frappe.request.get_json() or {}
+        payments = parse_json_field(frappe.form_dict.get("payment_reconciliation"))
+        details = parse_json_field(frappe.form_dict.get("details"))
 
-        # Extract fields
-        name = data.get("name")
-        created_invoice_status = data.get("created_invoice_status")
-        payments = data.get("payment_reconciliation", [])
-        details = data.get("details", {})
-        period_end_date = data.get("period_end_date")
-        pos_opening_entry = data.get("pos_opening_entry")
-        company = data.get("company")
 
-        # Validate payments
         if not payments or not isinstance(payments, list):
             return Response(
-                json.dumps({"error": "Missing or invalid payment_reconciliation: must be a non-empty list."}),
+                json.dumps({
+                    "error": "Missing or invalid payment_reconciliation: must be a non-empty list."
+                }),
                 status=400,
                 mimetype="application/json"
             )
 
-        # Get POS Opening Shift
+
         pos_opening = frappe.get_doc("POS Opening Shift", pos_opening_entry)
         if pos_opening.status != "Open":
             return Response(
