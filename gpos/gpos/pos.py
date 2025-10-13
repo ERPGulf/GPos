@@ -1522,7 +1522,7 @@ def create_invoice(
             if hasattr(new_invoice, "custom_qr_code")
             else None,
             "pih": doc.custom_pih if PIH else None,
-            "transaction_id":int(new_invoice.custom_transaction_id),
+            "transaction_id":new_invoice.custom_transaction_id if transaction_id else None,
             "items": [
                 {
                     "item_name": item.item_name,
