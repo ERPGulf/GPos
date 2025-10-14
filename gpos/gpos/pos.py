@@ -829,6 +829,7 @@ def pos_setting(machine_name, pos_profile=None):
             "secret_key":cardpay_setting.secret_key,
             "api_key":cardpay_setting.api_key,
             "merchant_id":cardpay_setting.merchant_id,
+            "connection_type":cardpay_setting.connection_type,
             "company":cardpay_setting.provider
         } if card_pay else None,
         "taxes": [
