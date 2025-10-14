@@ -825,7 +825,7 @@ def pos_setting(machine_name, pos_profile=None):
         "tax_percentage": systemSettings.tax_percentage,
         "company_name_in_arabic": systemSettings.company_name_in_arabic,
         "cardpay_settings": {
-            "name":cardpay_setting.name,
+            "id":cardpay_setting.name,
             "secret_key":cardpay_setting.secret_key,
             "api_key":cardpay_setting.api_key,
             "merchant_id":cardpay_setting.merchant_id,
