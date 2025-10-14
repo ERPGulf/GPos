@@ -830,7 +830,7 @@ def pos_setting(machine_name, pos_profile=None):
             "Api_key":cardpay_setting.api_key,
             "merchant_id":cardpay_setting.merchant_id,
             "company":cardpay_setting.company
-        } if card_pay else None
+        } if card_pay else None,
         "taxes": [
             {
                 "charge_type": tax.charge_type,
