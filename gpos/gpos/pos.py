@@ -784,6 +784,8 @@ def pos_setting(machine_name, pos_profile=None):
     pos_profile_doc = frappe.get_doc("POS Profile", pos_profile) if pos_profile else None
     address = pos_profile_doc.custom_address if pos_profile_doc else None
     address_details = frappe.get_doc("Address", address) if address else None
+    card_pay=pos_profile_doc.custom_cardpay_settings if pos_profile_doc else None
+    cardpay_setting=frappe.get_doc("CardPay Settings",card_pay) if card_pay else None
 
     branch_details = {
         "branch_name": pos_profile_doc.custom_branch if pos_profile_doc else None,
@@ -822,7 +824,13 @@ def pos_setting(machine_name, pos_profile=None):
         "is_tax_included_in_price": systemSettings.is_tax_included_in_price,
         "tax_percentage": systemSettings.tax_percentage,
         "company_name_in_arabic": systemSettings.company_name_in_arabic,
-        "cardpay_settings":pos_profile_doc.custom_cardpay_settings if pos_profile_doc else None,
+        "cardpay_settings": {
+            "name":cardpay_setting.name,
+            "secret_key":cardpay_setting.secret_key,
+            "Api_key":cardpay_setting.api_key,
+            "merchant_id":cardpay_setting.merchant_id,
+            "company":cardpay_setting.company
+        } if card_pay else None
         "taxes": [
             {
                 "charge_type": tax.charge_type,
