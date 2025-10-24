@@ -2476,7 +2476,6 @@ def get_loyalty_points(customer):
         total_points = points[0][0] if points and points[0][0] else 0
 
         data = {
-            "status": "success",
             "customer": customer,
             "loyalty_points": total_points
         }
