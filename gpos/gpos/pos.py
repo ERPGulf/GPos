@@ -1262,8 +1262,9 @@ def create_invoice(
     cashier=None,
     PIH=None,
     transaction_id=None,
+    mobile_no=None,
     phase=1,
-):  # Default to phase 1
+):
     try:
         pos_settings = frappe.get_doc("Claudion POS setting")
 
@@ -1460,7 +1461,8 @@ def create_invoice(
                 "custom_invoice_type": "Retail",
                 "taxes_and_charges": profile_taxes_and_charges,
                 "additional_discount_account": profile_discount_account,
-                "custom_transaction_id": transaction_id
+                "custom_transaction_id": transaction_id,
+                "contact_mobile":mobile_no
             }
         )
 
@@ -1533,6 +1535,7 @@ def create_invoice(
             else None,
             "pih": doc.custom_pih if PIH else None,
             "transaction_id":new_invoice.custom_transaction_id if transaction_id else None,
+            "mobile_no":new_invoice.contact_mobile,
             "items": [
                 {
                     "item_name": item.item_name,
@@ -2439,3 +2442,51 @@ def cardpay_log(branch=None,unique_id=None, response_json=None, date_time=None, 
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "CardPay Log Error")
         return Response(json.dumps({"error": str(e)}), status=500, mimetype="application/json")
+
+
+
+
+
+
+@frappe.whitelist()
+def get_loyalty_points(customer):
+
+    try:
+        if not customer:
+            frappe.throw("Customer is required")
+
+
+        customer_exists = frappe.db.exists("Customer", customer)
+        if not customer_exists:
+            error_data = {
+                "status": "error",
+                "message": f"Customer '{customer}' does not exist"
+            }
+            return Response(json.dumps({"data": error_data}), status=404, mimetype="application/json")
+
+        points = frappe.db.sql(
+            """
+            SELECT SUM(loyalty_points)
+            FROM `tabLoyalty Point Entry`
+            WHERE customer = %s
+            """,
+            (customer,),
+        )
+
+        total_points = points[0][0] if points and points[0][0] else 0
+
+        data = {
+            "status": "success",
+            "customer": customer,
+            "loyalty_points": total_points
+        }
+
+        return Response(json.dumps({"data": data}), status=200, mimetype="application/json")
+
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "get_loyalty_points Error")
+        error_data = {
+            "status": "error",
+            "message": f"An unexpected error occurred: {str(e)}"
+        }
+        return Response(json.dumps({"data": error_data}), status=500, mimetype="application/json")
