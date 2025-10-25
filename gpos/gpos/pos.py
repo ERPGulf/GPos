@@ -2460,26 +2460,22 @@ def cardpay_log(branch=None,unique_id=None, response_json=None, date_time=None, 
 
 
 
-from frappe import _
+
 @frappe.whitelist()
-def get_loyalty_points(customer_number):
-    """
-    Fetch total loyalty points for a customer using their phone/customer number
-    """
+def get_loyalty_points(customer):
+
     try:
-        if not customer_number:
-            frappe.throw(_("Customer number is required"))
-
-
-        customer = frappe.db.get_value("Customer", {"mobile_no": customer_number}, "name")
-
         if not customer:
+            frappe.throw("Customer is required")
+
+
+        customer_exists = frappe.db.exists("Customer", customer)
+        if not customer_exists:
             error_data = {
                 "status": "error",
-                "message": f"Customer with number '{customer_number}' does not exist"
+                "message": f"Customer '{customer}' does not exist"
             }
             return Response(json.dumps({"data": error_data}), status=404, mimetype="application/json")
-
 
         points = frappe.db.sql(
             """
@@ -2494,7 +2490,6 @@ def get_loyalty_points(customer_number):
 
         data = {
             "customer": customer,
-            "customer_number": customer_number,
             "loyalty_points": total_points
         }
 
