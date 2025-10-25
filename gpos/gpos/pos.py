@@ -1263,7 +1263,9 @@ def create_invoice(
     PIH=None,
     transaction_id=None,
     mobile_no=None,
+    coupen_customer_name=None,
     phase=1,
+
 ):
     try:
         pos_settings = frappe.get_doc("Claudion POS setting")
@@ -1295,6 +1297,14 @@ def create_invoice(
                 status=404,
                 mimetype="application/json",
             )
+        if mobile_no:
+            customer_id = customer_details[0].name
+            existing_mobile = frappe.db.get_value("Customer", customer_id, "mobile_no")
+
+        if not existing_mobile or existing_mobile != mobile_no:
+            frappe.db.set_value("Customer", customer_id, "mobile_no", mobile_no)
+            frappe.db.commit()
+
 
         pos_profile_doc = (
             frappe.get_doc("POS Profile", pos_profile) if pos_profile else None
@@ -1462,6 +1472,7 @@ def create_invoice(
                 "taxes_and_charges": profile_taxes_and_charges,
                 "additional_discount_account": profile_discount_account,
                 "custom_transaction_id": transaction_id,
+                "custom_coupon_customer_name":coupen_customer_name,
                 "contact_mobile":mobile_no
             }
         )
@@ -1536,6 +1547,7 @@ def create_invoice(
             "pih": doc.custom_pih if PIH else None,
             "transaction_id":new_invoice.custom_transaction_id if transaction_id else None,
             "mobile_no":new_invoice.contact_mobile,
+            "coupon_customer_name":new_invoice.custom_coupon_customer_name,
             "items": [
                 {
                     "item_name": item.item_name,
@@ -1769,6 +1781,7 @@ def create_credit_note(
                 status=404,
                 mimetype="application/json",
             )
+
 
         # if not return_against:
         #     return Response(
@@ -2447,22 +2460,26 @@ def cardpay_log(branch=None,unique_id=None, response_json=None, date_time=None, 
 
 
 
-
+from frappe import _
 @frappe.whitelist()
-def get_loyalty_points(customer):
-
+def get_loyalty_points(customer_number):
+    """
+    Fetch total loyalty points for a customer using their phone/customer number
+    """
     try:
+        if not customer_number:
+            frappe.throw(_("Customer number is required"))
+
+
+        customer = frappe.db.get_value("Customer", {"mobile_no": customer_number}, "name")
+
         if not customer:
-            frappe.throw("Customer is required")
-
-
-        customer_exists = frappe.db.exists("Customer", customer)
-        if not customer_exists:
             error_data = {
                 "status": "error",
-                "message": f"Customer '{customer}' does not exist"
+                "message": f"Customer with number '{customer_number}' does not exist"
             }
             return Response(json.dumps({"data": error_data}), status=404, mimetype="application/json")
+
 
         points = frappe.db.sql(
             """
@@ -2477,6 +2494,7 @@ def get_loyalty_points(customer):
 
         data = {
             "customer": customer,
+            "customer_number": customer_number,
             "loyalty_points": total_points
         }
 
