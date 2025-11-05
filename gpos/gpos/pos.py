@@ -833,7 +833,7 @@ def pos_setting(machine_name, pos_profile=None):
             "merchant_id":cardpay_setting.merchant_id,
             "connection_type":cardpay_setting.connection_type,
             "company":cardpay_setting.provider,
-            "url":cardpay_setting.url
+            "url":cardpay_setting.custom_url
         } if card_pay else None,
         "taxes": [
             {
@@ -1267,8 +1267,6 @@ def create_invoice(
     transaction_id=None,
     mobile_no=None,
     coupen_customer_name=None,
-    redeem_loyalty=None,
-    loyalty_point=None,
     phase=1,
 
 ):
@@ -1471,9 +1469,7 @@ def create_invoice(
                 "additional_discount_account": profile_discount_account,
                 "custom_transaction_id": transaction_id,
                 "custom_coupon_customer_name":coupen_customer_name,
-                "custom_loyalty_customer_mobile":mobile_no,
-                "custom_redeem_loyalty_point":redeem_loyalty,
-                "custom_loyalty_point":loyalty_point
+                "custom_loyalty_customer_mobile":mobile_no
             }
         )
 
@@ -1517,42 +1513,6 @@ def create_invoice(
         new_invoice.insert(ignore_permissions=True)
         new_invoice.submit()
 
-        try:
-            loyalty_by_group = {}
-
-            for item in new_invoice.items:
-                loyalty_info = get_loyalty_item(item.item_code)
-                if not loyalty_info or "error" in loyalty_info:
-                    continue
-
-                loyalty_percentage = float(loyalty_info.get("custom_loyalty_percentage") or 0)
-                item_group = frappe.db.get_value("Item", item.item_code, "item_group")
-
-                if loyalty_percentage > 0:
-                    points = (loyalty_percentage / 100) * float(item.amount)
-                    loyalty_by_group[item_group] = loyalty_by_group.get(item_group, 0) + points
-
-            total_loyalty_points = sum(loyalty_by_group.values())
-
-            if total_loyalty_points > 0:
-                loyalty_doc = frappe.get_doc({
-                    "doctype": "Loyalty Point Entry Gpos",
-                    "invoice_id": new_invoice.name,
-                    "date": new_invoice.posting_date,
-                    "total_amount": new_invoice.grand_total,
-                    "custom_customer":customer_name,
-                    "loyalty_point":total_loyalty_points,
-                    "debit": total_loyalty_points,
-                    "redeem_against":new_invoice.name if redeem_loyalty else None,
-                    "credit": loyalty_point if loyalty_point else None
-                })
-                loyalty_doc.insert(ignore_permissions=True)
-                frappe.db.commit()
-
-        except Exception:
-            frappe.log_error(frappe.get_traceback(), "Loyalty Calculation Error")
-
-
         zatca_setting_name = pos_settings.zatca_multiple_setting
         if PIH:
             frappe.db.set_value(
@@ -1584,8 +1544,6 @@ def create_invoice(
             "transaction_id":new_invoice.custom_transaction_id if transaction_id else None,
             "mobile_no":new_invoice.custom_loyalty_customer_mobile,
             "coupon_customer_name":new_invoice.custom_coupon_customer_name,
-            "loyalty_point":new_invoice.custom_loyalty_point if loyalty_point else None,
-            "redeem_loyalty":new_invoice.custom_redeem_loyalty_point if redeem_loyalty else None,
             "items": [
                 {
                     "item_name": item.item_name,
