@@ -794,6 +794,7 @@ def pos_setting(machine_name, pos_profile=None):
         "building_no":address_details.custom_building_number if address_details else None,
         "pb_no":address_details.pincode if address_details else None,
         "phone": int(address_details.phone) if address_details else None,
+        "card_machine":bool(int(pos_profile_doc.custom_card_machine)) if pos_profile_doc and pos_profile_doc.custom_card_machine is not None else None
     } if pos_profile_doc else None
 
     data = {
@@ -824,13 +825,15 @@ def pos_setting(machine_name, pos_profile=None):
         "is_tax_included_in_price": systemSettings.is_tax_included_in_price,
         "tax_percentage": systemSettings.tax_percentage,
         "company_name_in_arabic": systemSettings.company_name_in_arabic,
+
         "cardpay_settings": {
             "id":cardpay_setting.name,
             "secret_key":cardpay_setting.secret_key,
             "api_key":cardpay_setting.api_key,
             "merchant_id":cardpay_setting.merchant_id,
             "connection_type":cardpay_setting.connection_type,
-            "company":cardpay_setting.provider
+            "company":cardpay_setting.provider,
+            "url":cardpay_setting.url
         } if card_pay else None,
         "taxes": [
             {
@@ -1264,6 +1267,8 @@ def create_invoice(
     transaction_id=None,
     mobile_no=None,
     coupen_customer_name=None,
+    redeem_loyalty=None,
+    loyalty_point=None,
     phase=1,
 
 ):
@@ -1297,13 +1302,6 @@ def create_invoice(
                 status=404,
                 mimetype="application/json",
             )
-        if mobile_no:
-            customer_id = customer_details[0].name
-            existing_mobile = frappe.db.get_value("Customer", customer_id, "mobile_no")
-
-        if not existing_mobile or existing_mobile != mobile_no:
-            frappe.db.set_value("Customer", customer_id, "mobile_no", mobile_no)
-            frappe.db.commit()
 
 
         pos_profile_doc = (
@@ -1473,7 +1471,9 @@ def create_invoice(
                 "additional_discount_account": profile_discount_account,
                 "custom_transaction_id": transaction_id,
                 "custom_coupon_customer_name":coupen_customer_name,
-                "contact_mobile":mobile_no
+                "custom_loyalty_customer_mobile":mobile_no,
+                "custom_redeem_loyalty_point":redeem_loyalty,
+                "custom_loyalty_point":loyalty_point
             }
         )
 
@@ -1517,6 +1517,42 @@ def create_invoice(
         new_invoice.insert(ignore_permissions=True)
         new_invoice.submit()
 
+        try:
+            loyalty_by_group = {}
+
+            for item in new_invoice.items:
+                loyalty_info = get_loyalty_item(item.item_code)
+                if not loyalty_info or "error" in loyalty_info:
+                    continue
+
+                loyalty_percentage = float(loyalty_info.get("custom_loyalty_percentage") or 0)
+                item_group = frappe.db.get_value("Item", item.item_code, "item_group")
+
+                if loyalty_percentage > 0:
+                    points = (loyalty_percentage / 100) * float(item.amount)
+                    loyalty_by_group[item_group] = loyalty_by_group.get(item_group, 0) + points
+
+            total_loyalty_points = sum(loyalty_by_group.values())
+
+            if total_loyalty_points > 0:
+                loyalty_doc = frappe.get_doc({
+                    "doctype": "Loyalty Point Entry Gpos",
+                    "invoice_id": new_invoice.name,
+                    "date": new_invoice.posting_date,
+                    "total_amount": new_invoice.grand_total,
+                    "custom_customer":customer_name,
+                    "loyalty_point":total_loyalty_points,
+                    "debit": total_loyalty_points,
+                    "redeem_against":new_invoice.name if redeem_loyalty else None,
+                    "credit": loyalty_point if loyalty_point else None
+                })
+                loyalty_doc.insert(ignore_permissions=True)
+                frappe.db.commit()
+
+        except Exception:
+            frappe.log_error(frappe.get_traceback(), "Loyalty Calculation Error")
+
+
         zatca_setting_name = pos_settings.zatca_multiple_setting
         if PIH:
             frappe.db.set_value(
@@ -1546,8 +1582,10 @@ def create_invoice(
             else None,
             "pih": doc.custom_pih if PIH else None,
             "transaction_id":new_invoice.custom_transaction_id if transaction_id else None,
-            "mobile_no":new_invoice.contact_mobile,
+            "mobile_no":new_invoice.custom_loyalty_customer_mobile,
             "coupon_customer_name":new_invoice.custom_coupon_customer_name,
+            "loyalty_point":new_invoice.custom_loyalty_point if loyalty_point else None,
+            "redeem_loyalty":new_invoice.custom_redeem_loyalty_point if redeem_loyalty else None,
             "items": [
                 {
                     "item_name": item.item_name,
@@ -1582,6 +1620,7 @@ def create_invoice(
 
     except ValidationError as ve:
         error_message = str(ve)
+        frappe.db.rollback()
 
         if "Status code: 400" in error_message:
             return Response(
@@ -1598,6 +1637,7 @@ def create_invoice(
 
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Invoice API Error")
+        frappe.db.rollback()
         return Response(
             json.dumps({"message Fallback 500": str(e)}),
             status=500,
@@ -2507,3 +2547,103 @@ def get_loyalty_points(customer_number):
             "message": f"An unexpected error occurred: {str(e)}"
         }
         return Response(json.dumps({"data": error_data}), status=500, mimetype="application/json")
+
+
+
+@frappe.whitelist()
+def get_coupon_details(coupon_code):
+
+    if not coupon_code:
+        frappe.throw(_("Coupon Code is required"))
+
+    coupon = frappe.db.get_value(
+        "Coupon Code",
+        {"coupon_code": coupon_code},
+        ["name", "pricing_rule", "valid_from", "valid_upto", "maximum_use", "used"],
+        as_dict=True,
+    )
+
+    if not coupon:
+        frappe.throw(_("Invalid Coupon Code"))
+
+
+    today = frappe.utils.today()
+    if coupon.valid_from and today < str(coupon.valid_from):
+        frappe.throw(_("Coupon is not yet valid"))
+    if coupon.valid_upto and today > str(coupon.valid_upto):
+        frappe.throw(_("Coupon has expired"))
+
+
+    pricing_rule = frappe.get_doc("Pricing Rule", coupon.pricing_rule)
+
+    data = {
+        "coupon_name": coupon.name,
+        "coupon_code": coupon_code,
+        "pricing_rule": pricing_rule.name,
+        "discount_type": pricing_rule.rate_or_discount,
+        "discount_amount": pricing_rule.discount_amount or 0,
+        "discount_percentage": pricing_rule.discount_percentage or 0,
+        "currency": pricing_rule.currency,
+        "applicable_on": pricing_rule.apply_on,
+        "valid_from": str(coupon.valid_from),
+        "valid_upto": str(coupon.valid_upto),
+        "maximum_use": coupon.maximum_use,
+        "used": coupon.used,
+    }
+
+    if pricing_rule.apply_on == "Item Group":
+        item_groups = [d.item_group for d in pricing_rule.get("item_groups") if d.item_group]
+        data["applicable_item_groups"] = item_groups
+
+
+    if pricing_rule.apply_on == "Item Code":
+        items = [d.item_code for d in pricing_rule.get("items") if d.item_code]
+        data["applicable_items"] = items
+
+    return Response(json.dumps({"data": data}), status=200, mimetype="application/json")
+
+
+
+@frappe.whitelist(allow_guest=True)
+def get_loyalty_item(item):
+
+    item_doc = frappe.get_all("Item", fields=["item_group"], filters={"name": item})
+    if not item_doc:
+        return {"error": "Item not found"}
+
+    item_group = item_doc[0].get("item_group")
+    item_group_doc = frappe.get_all(
+        "Item Group",
+        fields=["custom_loyalty_percentage"],
+        filters={"name": item_group}
+    )
+
+    if not item_group_doc:
+        return {"error": "Item Group not found"}
+
+    return item_group_doc[0]
+
+
+@frappe.whitelist(allow_guest=True)
+def get_loyality_point(customer):
+    try:
+        total_points = frappe.db.sql("""
+            SELECT
+                COALESCE(SUM(debit), 0) - COALESCE(SUM(credit), 0) AS total_loyalty_points
+            FROM
+                `tabLoyalty Point Entry Gpos`
+            WHERE
+                custom_customer = %s
+                AND used_loyalty_point = '0'
+        """, (customer,), as_dict=True)
+
+
+        return total_points
+
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "Get Loyalty Points Error")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
