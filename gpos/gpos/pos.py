@@ -2536,6 +2536,7 @@ def get_loyalty_item(item):
     )
 
     if not item_group_doc:
+        frappe.log_error(frappe.get_traceback(), "Item Group not found")
         return {"error": "Item Group not found"}
 
     return item_group_doc[0]
