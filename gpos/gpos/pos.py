@@ -2668,7 +2668,6 @@ def handle_loyalty_points(invoice_name, customer_name, mobile_no):
                     if available_points <= remaining_to_redeem:
                         remaining_to_redeem -= available_points
 
-
         return {
             "status": "success",
             "earned_points": total_loyalty_points,
