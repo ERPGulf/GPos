@@ -12,6 +12,7 @@
   "debit",
   "credit",
   "redeem_against",
+  "mobile_no",
   "column_break_qwsz",
   "used_loyalty_point"
  ],
@@ -62,12 +63,17 @@
    "fieldname": "used_loyalty_point",
    "fieldtype": "Check",
    "label": "Used Loyalty Point"
+  },
+  {
+   "fieldname": "mobile_no",
+   "fieldtype": "Data",
+   "label": "Mobile No"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-11-05 12:26:35.438240",
+ "modified": "2025-11-09 12:02:27.176570",
  "modified_by": "Administrator",
  "module": "Gpos",
  "name": "Loyalty Point Entry Gpos",

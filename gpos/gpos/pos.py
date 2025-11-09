@@ -1267,6 +1267,7 @@ def create_invoice(
     transaction_id=None,
     mobile_no=None,
     coupen_customer_name=None,
+
     phase=1,
 
 ):
@@ -1469,7 +1470,7 @@ def create_invoice(
                 "additional_discount_account": profile_discount_account,
                 "custom_transaction_id": transaction_id,
                 "custom_coupon_customer_name":coupen_customer_name,
-                "custom_loyalty_customer_mobile":mobile_no
+                "custom_loyalty_customer_mobile":mobile_no,
             }
         )
 
@@ -1512,6 +1513,12 @@ def create_invoice(
 
         new_invoice.insert(ignore_permissions=True)
         new_invoice.submit()
+
+        handle_loyalty_points(
+            new_invoice.name,
+            customer_name,
+            mobile_no=mobile_no,
+        )
 
         zatca_setting_name = pos_settings.zatca_multiple_setting
         if PIH:
@@ -2458,54 +2465,6 @@ def cardpay_log(branch=None,unique_id=None, response_json=None, date_time=None, 
 
 
 
-from frappe import _
-@frappe.whitelist()
-def get_loyalty_points(customer_number):
-    """
-    Fetch total loyalty points for a customer using their phone/customer number
-    """
-    try:
-        if not customer_number:
-            frappe.throw(_("Customer number is required"))
-
-
-        customer = frappe.db.get_value("Customer", {"mobile_no": customer_number}, "name")
-
-        if not customer:
-            error_data = {
-                "status": "error",
-                "message": f"Customer with number '{customer_number}' does not exist"
-            }
-            return Response(json.dumps({"data": error_data}), status=404, mimetype="application/json")
-
-
-        points = frappe.db.sql(
-            """
-            SELECT SUM(loyalty_points)
-            FROM `tabLoyalty Point Entry`
-            WHERE customer = %s
-            """,
-            (customer,),
-        )
-
-        total_points = points[0][0] if points and points[0][0] else 0
-
-        data = {
-            "customer": customer,
-            "customer_number": customer_number,
-            "loyalty_points": total_points
-        }
-
-        return Response(json.dumps({"data": data}), status=200, mimetype="application/json")
-
-    except Exception as e:
-        frappe.log_error(frappe.get_traceback(), "get_loyalty_points Error")
-        error_data = {
-            "status": "error",
-            "message": f"An unexpected error occurred: {str(e)}"
-        }
-        return Response(json.dumps({"data": error_data}), status=500, mimetype="application/json")
-
 
 
 @frappe.whitelist()
@@ -2582,26 +2541,139 @@ def get_loyalty_item(item):
     return item_group_doc[0]
 
 
+
+
 @frappe.whitelist(allow_guest=True)
-def get_loyality_point(customer):
+def get_loyalty_points(customer_number):
     try:
+
+        customer_doc = frappe.get_all(
+            "Loyalty Point Entry Gpos",
+            filters={"mobile_no": customer_number},
+            fields=["custom_customer"],
+            limit=1
+        )
+
+        customer = customer_doc[0]["custom_customer"] if customer_doc else None
+
+
         total_points = frappe.db.sql("""
             SELECT
                 COALESCE(SUM(debit), 0) - COALESCE(SUM(credit), 0) AS total_loyalty_points
             FROM
                 `tabLoyalty Point Entry Gpos`
             WHERE
-                custom_customer = %s
+                mobile_no = %s
                 AND used_loyalty_point = '0'
-        """, (customer,), as_dict=True)
+        """, (customer_number,), as_dict=True)
+
+        total_loyalty_points = (
+            total_points[0]["total_loyalty_points"] if total_points else 0
+        )
 
 
-        return total_points
+        data = {
+            "customer": customer or "",
+            "customer_number": customer_number,
+            "loyalty_points": total_loyalty_points,
+            "Amount":total_loyalty_points,
+        }
+
+        return Response(
+            json.dumps({"data": data}),
+            status=200,
+            mimetype="application/json"
+        )
 
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Get Loyalty Points Error")
+        return Response(
+            json.dumps({"success": False, "error": str(e)}),
+            status=500,
+            mimetype="application/json"
+        )
+
+@frappe.whitelist(allow_guest=True)
+def handle_loyalty_points(invoice_name, customer_name, mobile_no):
+
+    try:
+        invoice_doc = frappe.get_doc("Sales Invoice", invoice_name)
+        loyalty_setting = frappe.get_single("Loyalty Point Setting")
+
+        loyalty_by_group = {}
+        calculate_without_tax = loyalty_setting.get("loyalty_calculate_without_tax")
+
+
+        for item in invoice_doc.items:
+            loyalty_info = get_loyalty_item(item.item_code)
+            if not loyalty_info or "error" in loyalty_info:
+                continue
+
+            loyalty_percentage = float(loyalty_info.get("custom_loyalty_percentage") or 0)
+            item_group = frappe.db.get_value("Item", item.item_code, "item_group")
+
+            if calculate_without_tax == 1 and loyalty_percentage > 0:
+                points = (loyalty_percentage / 100) * float(item.amount)
+                loyalty_by_group[item_group] = loyalty_by_group.get(item_group, 0) + points
+
+        total_loyalty_points = sum(loyalty_by_group.values())
+
+
+        redeemed_points = 0
+        for pay in invoice_doc.payments:
+            if pay.mode_of_payment and pay.mode_of_payment.lower() in ["loyalty", "loyalty point"]:
+                redeemed_points = float(pay.amount)
+                break
+
+
+        if total_loyalty_points > 0 or redeemed_points > 0:
+            loyalty_doc = frappe.get_doc({
+                "doctype": "Loyalty Point Entry Gpos",
+                "invoice_id": invoice_doc.name,
+                "date": invoice_doc.posting_date,
+                "total_amount": invoice_doc.grand_total,
+                "custom_customer": customer_name,
+                "mobile_no": mobile_no,
+                "debit": total_loyalty_points if total_loyalty_points > 0 else 0,
+                "credit": redeemed_points if redeemed_points > 0 else 0,
+                "loyalty_point": total_loyalty_points if total_loyalty_points > 0 else redeemed_points,
+                "redeem_against": invoice_doc.name if redeemed_points > 0 else None,
+            })
+            loyalty_doc.insert(ignore_permissions=True)
+
+
+            if redeemed_points > 0 and mobile_no:
+                remaining_to_redeem = redeemed_points
+
+
+                previous_entries = frappe.get_all(
+                    "Loyalty Point Entry Gpos",
+                    filters={
+                        "mobile_no": mobile_no,
+                        "used_loyalty_point": ["!=", 1],
+                        "credit": 0
+                    },
+                    fields=["name", "debit"],
+                    order_by="creation asc"
+                )
+
+                for entry in previous_entries:
+                    if remaining_to_redeem <= 0:
+                        break
+
+                    entry_doc = frappe.get_doc("Loyalty Point Entry Gpos", entry.name)
+                    available_points = float(entry_doc.debit or 0)
+
+                    if available_points <= remaining_to_redeem:
+                        remaining_to_redeem -= available_points
+
+
         return {
-            "success": False,
-            "error": str(e)
+            "status": "success",
+            "earned_points": total_loyalty_points,
+            "redeemed_points": redeemed_points
         }
 
+    except Exception:
+        frappe.log_error(frappe.get_traceback(), "Loyalty Calculation Error")
+        return {"status": "error", "message": "Loyalty calculation failed"}

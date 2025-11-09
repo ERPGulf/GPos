@@ -1,0 +1,56 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-11-05 17:21:25.284979",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "expiry_date",
+  "loyalty_calculate_without_tax",
+  "loyalty_redeem_only_on_next_purchase"
+ ],
+ "fields": [
+  {
+   "fieldname": "expiry_date",
+   "fieldtype": "Date",
+   "label": "Valid Days"
+  },
+  {
+   "default": "0",
+   "fieldname": "loyalty_calculate_without_tax",
+   "fieldtype": "Check",
+   "label": "Loyalty calculate without tax"
+  },
+  {
+   "default": "0",
+   "fieldname": "loyalty_redeem_only_on_next_purchase",
+   "fieldtype": "Check",
+   "label": "Loyalty Redeem Only On Next Purchase"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2025-11-06 17:00:16.026112",
+ "modified_by": "Administrator",
+ "module": "Gpos",
+ "name": "Loyalty Point Setting",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
