@@ -2574,7 +2574,7 @@ def get_loyalty_points(customer_number):
 
 
         data = {
-            "customer": customer or "",
+            "customer_id": customer or "",
             "customer_number": customer_number,
             "loyalty_points": total_loyalty_points,
             "Amount":total_loyalty_points,
