@@ -16,6 +16,7 @@ from frappe import _
 from frappe import ValidationError
 
 from datetime import datetime
+BACKEND_SERVER_SETTINGS = "Backend Server Settings"
 @frappe.whitelist(allow_guest=True)
 def generate_token_secure(api_key, api_secret, app_key):
 
@@ -2677,3 +2678,120 @@ def handle_loyalty_points(invoice_name, customer_name, mobile_no):
     except Exception:
         frappe.log_error(frappe.get_traceback(), "Loyalty Calculation Error")
         return {"status": "error", "message": "Loyalty calculation failed"}
+
+
+
+import random
+
+@frappe.whitelist(allow_guest=True)
+def generate_otp(mobile_no):
+    otp = str(random.randint(100000, 999999))
+    key = f"otp:{mobile_no}"
+    frappe.cache().set_value(key, otp, expires_in_sec=300)
+
+    data = {"otp": otp}
+    send_message(mobile_no,otp)
+    return Response(
+            json.dumps({"data": data}),
+            status=200,
+            mimetype="application/json"
+        )
+
+
+@frappe.whitelist(allow_guest=True)
+def validate_otp(mobile_no, otp):
+    key = f"otp:{mobile_no}"
+    stored_otp = frappe.cache().get_value(key)
+
+    if not stored_otp:
+        data = {
+                "status": "error",
+                "message": "OTP expired or not found"
+               }
+        return Response(
+            json.dumps({"data": data}),
+            status=404,
+            mimetype="application/json"
+        )
+    if stored_otp != otp:
+        data={
+            "status": "error",
+            "message": "Invalid OTP"
+            }
+        return Response(
+            json.dumps({"data": data}),
+            status=404,
+            mimetype="application/json"
+        )
+
+    frappe.cache().delete_key(key)
+
+    data = {
+        "status": "success",
+        "message": "OTP verified"
+        }
+    return Response(
+            json.dumps({"data": data}),
+            status=200,
+            mimetype="application/json"
+        )
+
+@frappe.whitelist(allow_guest=True)
+def send_message(mobile_no,otp):
+        url =frappe.get_doc('Whatsapp Saudi').get('message_url')
+        instance =frappe.get_doc('Whatsapp Saudi').get('instance_id')
+        token =frappe.get_doc('Whatsapp Saudi').get('token')
+        recipients = get_receiver_phone_number(mobile_no)
+        for receipt in recipients:
+            number = receipt
+            frappe.log_error(number)
+            phoneNumber = get_receiver_phone_number(mobile_no)
+        querystring = {
+            "instanceid":instance,
+            "token": token,
+            "phone":phoneNumber,
+            "body":f"Hello 👋\nYour verification code is {otp}"
+        }
+        try:
+            frappe.log_error("WhatsApp API Payload", f"Query: {frappe.as_json(querystring)}")
+            response = requests.get(url, params=querystring)
+            response_json=response.text
+            if response.status_code == 200:
+                response_dict = json.loads(response_json)
+                if response_dict.get("sent") and response_dict.get("id"):
+                    current_time = now_datetime()
+                    # If the message is sent successfully a success message response will be recorded in the WhatsApp Saudi success log."
+                    frappe.get_doc({
+                        "doctype": "whatsapp saudi success log",
+                        "title": "Message successfully sent",
+                        "message":otp,
+                        "to_number": number,
+                        "time": current_time
+                    }).insert()
+
+                else:
+                    frappe.log_error(ERROR_MESSAGE, frappe.get_traceback())
+            else:
+                frappe.log_error("status code  is not 200", frappe.get_traceback())
+            return response
+        except requests.exceptions.RequestException:
+            frappe.log_error(title='Failed to send notification', message=frappe.get_traceback())
+
+
+
+def get_receiver_phone_number(number):
+        phoneNumber = number.replace("+","").replace("-","")
+        if phoneNumber.startswith("+") == True:
+            phoneNumber = phoneNumber[1:]
+        elif phoneNumber.startswith("00") == True:
+            phoneNumber = phoneNumber[2:]
+        elif phoneNumber.startswith("0") == True:
+            if len(phoneNumber) == 10:
+                phoneNumber = "966" + phoneNumber[1:]
+        else:
+            if len(phoneNumber) < 10:
+                phoneNumber ="966" + phoneNumber
+        if phoneNumber.startswith("0") == True:
+            phoneNumber = phoneNumber[1:]
+
+        return phoneNumber
