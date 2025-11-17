@@ -2750,7 +2750,12 @@ def send_message(mobile_no,otp):
             "instanceid":instance,
             "token": token,
             "phone":phoneNumber,
-            "body":f"Hello 👋\nYour verification code is {otp}"
+            "body": (
+                f"رمز التحقق لاستبدال نقاط الولاء في الجواد بريميوم هو *{otp}*.\n"
+                "هذا الرمز صالح لمدة 10 دقائق يُرجى مشاركته مع أمين الصندوق للتحقق.\n\n"
+                f"The verification code for redeeming your loyalty points in Aljawad Premium is {otp}. "
+                "This is valid for 10 min and please share it with the cashier for validation."
+            )
         }
         try:
             frappe.log_error("WhatsApp API Payload", f"Query: {frappe.as_json(querystring)}")
