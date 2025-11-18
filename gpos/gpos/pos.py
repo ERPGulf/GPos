@@ -2611,7 +2611,16 @@ def handle_loyalty_points(invoice_name, customer_name, mobile_no):
             if not loyalty_info or "error" in loyalty_info:
                 continue
 
+
             loyalty_percentage = float(loyalty_info.get("custom_loyalty_percentage") or 0)
+
+
+            if (
+                loyalty_percentage == 0
+                and loyalty_setting.get("loyalty_point_percentage_if_not_defined_in_item_group") == 1
+            ):
+                loyalty_percentage = 1
+
             item_group = frappe.db.get_value("Item", item.item_code, "item_group")
 
             if calculate_without_tax == 1 and loyalty_percentage > 0:
@@ -2638,7 +2647,7 @@ def handle_loyalty_points(invoice_name, customer_name, mobile_no):
                 "mobile_no": mobile_no,
                 "debit": total_loyalty_points if total_loyalty_points > 0 else 0,
                 "credit": redeemed_points if redeemed_points > 0 else 0,
-                "loyalty_point": total_loyalty_points if total_loyalty_points > 0 else redeemed_points,
+                "loyalty_point": total_loyalty_points if total_loyalty_points > 0 else None,
                 "redeem_against": invoice_doc.name if redeemed_points > 0 else None,
             })
             loyalty_doc.insert(ignore_permissions=True)
