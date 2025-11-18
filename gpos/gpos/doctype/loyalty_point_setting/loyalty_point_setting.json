@@ -20,7 +20,7 @@
    "default": "0",
    "fieldname": "loyalty_calculate_without_tax",
    "fieldtype": "Check",
-   "label": "Loyalty calculate without tax"
+   "label": "Loyalty Calculate Without Tax"
   },
   {
    "default": "0",
@@ -39,7 +39,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-11-18 13:35:36.105657",
+ "modified": "2025-11-18 13:56:38.102283",
  "modified_by": "Administrator",
  "module": "Gpos",
  "name": "Loyalty Point Setting",
