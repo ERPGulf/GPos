@@ -8,7 +8,8 @@
   "expiry_date",
   "loyalty_calculate_without_tax",
   "loyalty_redeem_only_on_next_purchase",
-  "loyalty_point_percentage_if_not_defined_in_item_group"
+  "loyalty_point_percentage_if_not_defined_in_item_group",
+  "loyalty_percentage"
  ],
  "fields": [
   {
@@ -32,14 +33,19 @@
    "default": "0",
    "fieldname": "loyalty_point_percentage_if_not_defined_in_item_group",
    "fieldtype": "Check",
-   "label": "Default Loyalty Percentage(Loyalty point percentage set as 1 if not defined in item group)"
+   "label": "Default Loyalty Percentage(Loyalty point percentage if not defined in item group)"
+  },
+  {
+   "fieldname": "loyalty_percentage",
+   "fieldtype": "Percent",
+   "label": "Loyalty Percentage"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-11-18 13:56:38.102283",
+ "modified": "2025-11-18 17:03:23.698846",
  "modified_by": "Administrator",
  "module": "Gpos",
  "name": "Loyalty Point Setting",

@@ -2619,7 +2619,7 @@ def handle_loyalty_points(invoice_name, customer_name, mobile_no):
                 loyalty_percentage == 0
                 and loyalty_setting.get("loyalty_point_percentage_if_not_defined_in_item_group") == 1
             ):
-                loyalty_percentage = 1
+                loyalty_percentage = loyalty_setting.get("loyalty_percentage")
 
             item_group = frappe.db.get_value("Item", item.item_code, "item_group")
 
