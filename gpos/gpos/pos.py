@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 from frappe.utils import today
 from frappe import _
 from frappe import ValidationError
+from frappe.utils import add_days, getdate
 
 from datetime import datetime
 BACKEND_SERVER_SETTINGS = "Backend Server Settings"
@@ -2638,6 +2639,16 @@ def handle_loyalty_points(invoice_name, customer_name, mobile_no):
 
 
         if total_loyalty_points > 0 or redeemed_points > 0:
+            # If no mobile number, DO NOT add loyalty entry
+            if not mobile_no:
+                return {
+                    "status": "success",
+                    "earned_points": 0,
+                    "redeemed_points": 0,
+                    "message": "Loyalty points NOT added because no mobile number was provided."
+                }
+
+
             loyalty_doc = frappe.get_doc({
                 "doctype": "Loyalty Point Entry Gpos",
                 "invoice_id": invoice_doc.name,
@@ -2651,6 +2662,8 @@ def handle_loyalty_points(invoice_name, customer_name, mobile_no):
                 "redeem_against": invoice_doc.name if redeemed_points > 0 else None,
             })
             loyalty_doc.insert(ignore_permissions=True)
+
+
 
 
             if redeemed_points > 0 and mobile_no:
@@ -2809,3 +2822,26 @@ def get_receiver_phone_number(number):
             phoneNumber = phoneNumber[1:]
 
         return phoneNumber
+
+
+
+
+@frappe.whitelist(allow_guest=True)
+def expire_loyalty_points():
+    today = frappe.utils.today()
+
+    entries = frappe.get_all(
+        "Loyalty Point Entry Gpos",
+        filters={
+            "expiry_date": ("<=", today),
+            "is_expired": 0,
+        },
+        fields=["name"]
+    )
+
+    for e in entries:
+        doc = frappe.get_doc("Loyalty Point Entry Gpos", e.name)
+        doc.is_expired = 1
+        doc.save(ignore_permissions=True)
+        frappe.db.commit()
+

@@ -5,18 +5,13 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "expiry_date",
   "loyalty_calculate_without_tax",
   "loyalty_redeem_only_on_next_purchase",
   "loyalty_point_percentage_if_not_defined_in_item_group",
-  "loyalty_percentage"
+  "loyalty_percentage",
+  "valid_days"
  ],
  "fields": [
-  {
-   "fieldname": "expiry_date",
-   "fieldtype": "Date",
-   "label": "Valid Days"
-  },
   {
    "default": "0",
    "fieldname": "loyalty_calculate_without_tax",
@@ -39,13 +34,18 @@
    "fieldname": "loyalty_percentage",
    "fieldtype": "Percent",
    "label": "Loyalty Percentage"
+  },
+  {
+   "fieldname": "valid_days",
+   "fieldtype": "Int",
+   "label": "Valid Days"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-11-18 17:03:23.698846",
+ "modified": "2025-11-21 08:34:15.983795",
  "modified_by": "Administrator",
  "module": "Gpos",
  "name": "Loyalty Point Setting",

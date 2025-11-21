@@ -228,3 +228,10 @@ fixtures = [
         "filters": {"module": "Gpos"},
     },
 ]
+
+scheduler_events = {
+    "daily": [
+        "gpos.gpos.pos.expire_loyalty_points"
+    ]
+}
+

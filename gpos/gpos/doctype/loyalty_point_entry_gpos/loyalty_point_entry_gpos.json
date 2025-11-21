@@ -14,7 +14,9 @@
   "redeem_against",
   "mobile_no",
   "column_break_qwsz",
-  "used_loyalty_point"
+  "used_loyalty_point",
+  "expiry_date",
+  "is_expired"
  ],
  "fields": [
   {
@@ -30,7 +32,7 @@
   },
   {
    "fieldname": "loyalty_point",
-   "fieldtype": "Int",
+   "fieldtype": "Currency",
    "label": "Loyalty Point"
   },
   {
@@ -68,12 +70,23 @@
    "fieldname": "mobile_no",
    "fieldtype": "Data",
    "label": "Mobile No"
+  },
+  {
+   "fieldname": "expiry_date",
+   "fieldtype": "Date",
+   "label": "Expiry Date"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_expired",
+   "fieldtype": "Check",
+   "label": "Is Expired"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-11-09 12:02:27.176570",
+ "modified": "2025-11-21 09:14:14.284657",
  "modified_by": "Administrator",
  "module": "Gpos",
  "name": "Loyalty Point Entry Gpos",
