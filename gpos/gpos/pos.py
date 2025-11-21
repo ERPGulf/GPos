@@ -2568,6 +2568,7 @@ def get_loyalty_points(customer_number):
             WHERE
                 mobile_no = %s
                 AND used_loyalty_point = '0'
+                AND is_expired = 0
         """, (customer_number,), as_dict=True)
 
         total_loyalty_points = (
