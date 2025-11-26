@@ -768,14 +768,25 @@ def pos_setting(machine_name, pos_profile=None):
         limit=1,
     )
 
-    if machine_name:
-        certificate = Zatca_Multiple_Setting.custom_certficate
-        private_key = Zatca_Multiple_Setting.custom_private_key
-        public_key = Zatca_Multiple_Setting.custom_public_key
-    else:
+    use_company_values = (
+        Zatca_Multiple_Setting.custom_take_values_from_main_company_page
+        if Zatca_Multiple_Setting else False
+    )
+
+    if use_company_values:
+
         certificate = zatca.custom_certificate
         private_key = zatca.custom_private_key
         public_key = zatca.custom_public_key
+        pih=zatca.custom_pih
+
+    else:
+
+        pih=Zatca_Multiple_Setting.custom_pih
+        certificate = Zatca_Multiple_Setting.custom_certficate
+        private_key = Zatca_Multiple_Setting.custom_private_key
+        public_key = Zatca_Multiple_Setting.custom_public_key
+
 
     encoded_certificate = base64.b64encode(certificate.encode("utf-8")).decode("utf-8")
     encoded_private_key = base64.b64encode(private_key.encode("utf-8")).decode("utf-8")
@@ -855,11 +866,7 @@ def pos_setting(machine_name, pos_profile=None):
             "company_taxid": zatca.tax_id,
             "certificate": encoded_certificate,
             "pih": (
-                (
-                    Zatca_Multiple_Setting.custom_pih
-                    if Zatca_Multiple_Setting
-                    else zatca.custom_pih
-                )
+                pih
                 if zatca.custom_phase_1_or_2 == "Phase-2"
                 else None
             ),
