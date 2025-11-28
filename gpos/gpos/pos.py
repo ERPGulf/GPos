@@ -2348,6 +2348,9 @@ def customer_list(id=None, pos_profile=None):
                 "customer_primary_address",
                 "custom_default_pos",
                 "disabled",
+                "custom_b2c",
+                "custom_buyer_id_type",
+                "custom_buyer_id"
             ],
             filters=filters,
         )
@@ -2430,6 +2433,9 @@ def customer_list(id=None, pos_profile=None):
                 "vat_number": customer.get("tax_id"),
                 "customer_group": customer.get("customer_group"),
                 "custom_default_pos": customer.get("custom_default_pos"),
+                "B2C":customer.get("custom_b2c"),
+                "buyer_id":customer.get("custom_buyer_id"),
+                "buyer_id_type":customer.get("custom_buyer_Id_type"),
                 "disabled": customer.get("disabled"),
                 **address_data,
             })
