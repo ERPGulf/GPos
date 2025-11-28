@@ -2435,7 +2435,7 @@ def customer_list(id=None, pos_profile=None):
                 "custom_default_pos": customer.get("custom_default_pos"),
                 "B2C":customer.get("custom_b2c"),
                 "buyer_id":customer.get("custom_buyer_id"),
-                "buyer_id_type":customer.get("custom_buyer_Id_type"),
+                "buyer_id_type":customer.get("custom_buyer_id_type"),
                 "disabled": customer.get("disabled"),
                 **address_data,
             })
