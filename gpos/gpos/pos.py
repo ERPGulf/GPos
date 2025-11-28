@@ -2230,8 +2230,8 @@ def create_customer_new(
     birthday=None,
     customer_group=None,
     territory=None,
-    custom_buyer_id_type=None,
-    custom_buyer_id=None,
+    buyer_id_type=None,
+    buyer_id=None,
     address_line1=None,
     address_line2=None,
     building_number=None,
@@ -2261,7 +2261,7 @@ def create_customer_new(
             "posa_referral_code": referral_code,
             "posa_birthday": birthday,
             "company": frappe.defaults.get_user_default("Company"),
-            "custom_pos_profile_table": pos_profiles
+            "custom_pos_profile_table": pos_profiles,
         })
 
         if customer_group:
@@ -2271,10 +2271,10 @@ def create_customer_new(
         if isinstance(custom_b2c, str):
             custom_b2c = custom_b2c.lower() in ("true", "1", "yes")
             customer.custom_b2c = 1 if custom_b2c else 0
-        if custom_buyer_id_type:
-            customer.custom_buyer_id_type = custom_buyer_id_type
-        if custom_buyer_id:
-            customer.custom_buyer_id = custom_buyer_id
+        if buyer_id_type:
+            customer.custom_buyer_id_type = buyer_id_type
+        if buyer_id:
+            customer.custom_buyer_id = buyer_id
 
         customer.save(ignore_permissions=True)
 
@@ -2314,8 +2314,11 @@ def create_customer_new(
             "customer": customer.customer_name,
             "customer_group": customer.customer_group,
             "mobile": customer.mobile_no,
+            "B2C":customer.custom_b2c if custom_b2c else None,
+            "buyer_id_type":customer.custom_buyer_id_type if buyer_id_type else None,
+            "buyer_id":customer.custom_buyer_id if buyer_id else none,
             "vat_number": customer.tax_id,
-             "pos_profiles": (
+            "pos_profiles": (
         customer.custom_pos_profile_table[0].pos_profile
         if customer.custom_pos_profile_table else None
     ),
