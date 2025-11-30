@@ -769,7 +769,8 @@ def pos_setting(machine_name, pos_profile=None):
     )
 
     use_company_values = (
-        Zatca_Multiple_Setting.custom_take_values_from_main_company_page
+        # Zatca_Multiple_Setting.custom_take_values_from_main_company_page
+        Zatca_Multiple_Setting.custom__use_company_certificate__keys
         if Zatca_Multiple_Setting else False
     )
 
