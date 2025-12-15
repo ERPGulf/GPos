@@ -56,7 +56,7 @@ def generate_token_secure(api_key, api_secret, app_key):
                 mimetype="application/json",
             )
 
-        client_id = clientID  # Replace with your OAuth client ID
+        client_id = clientID
         client_secret = clientSecret  # Replace with your OAuth client secret
 
         url = (
@@ -2722,7 +2722,7 @@ def send_message(mobile_no,otp):
                 response_dict = json.loads(response_json)
                 if response_dict.get("sent") and response_dict.get("id"):
                     current_time = now_datetime()
-                    # If the message is sent successfully a success message response will be recorded in the WhatsApp Saudi success log."
+
                     frappe.get_doc({
                         "doctype": "whatsapp saudi success log",
                         "title": "Message successfully sent",
