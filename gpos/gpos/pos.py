@@ -1820,7 +1820,6 @@ def get_shift_status(shift_id):
         )
 
 
-
 @frappe.whitelist(allow_guest=False)
 def create_credit_note(
     customer_name,
@@ -1838,6 +1837,7 @@ def create_credit_note(
     return_against=None,
     reason=None,
 ):
+
     try:
         pos_settings = frappe.get_doc("Claudion POS setting")
 
@@ -1945,7 +1945,7 @@ def create_credit_note(
             )
 
             for payment in payments:
-                mode = payment.get("mode_of_payment", "").strip()
+                mode = payment.get("payment_mode", "").strip()
                 amount = float(payment.get("amount", 0))
 
                 if mode.lower() in ["cash", "card"] and pos_profile:
