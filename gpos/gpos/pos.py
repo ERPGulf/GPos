@@ -1826,6 +1826,7 @@ def create_credit_note(
     items,
     PIH,
     machine_name,
+    return_against,
     payments=None,
     discount_amount=None,
     unique_id=None,
@@ -1834,11 +1835,21 @@ def create_credit_note(
     pos_profile=None,
     pos_shift=None,
     cashier=None,
-    return_against=None,
     reason=None,
 ):
 
     try:
+        ok, error = lock_invoice_numbers(
+            offline_invoice_number=offline_invoice_number,
+            unique_id=unique_id
+        )
+
+        if not ok:
+            return Response(
+                json.dumps({"data": error}),
+                status=409,
+                mimetype="application/json"
+            )
         pos_settings = frappe.get_doc("Claudion POS setting")
 
         items = parse_json_field(frappe.form_dict.get("items"))
@@ -1872,33 +1883,27 @@ def create_credit_note(
                 mimetype="application/json",
             )
 
-
-        # if not return_against:
-        #     return Response(
-        #         json.dumps(
-        #             {"data": "Missing 'return_against' parameter for credit note."}
-        #         ),
-        #         status=400,
-        #         mimetype="application/json",
-        #     )
         cost_center = None
         source_warehouse = None
         profile_taxes_and_charges = None
         return_invoice = frappe.db.exists("Sales Invoice", return_against)
         offline_no_invoice_id = None
-        if not return_invoice:
-            offline_no_invoice_id = frappe.db.get_value(
-                "Sales Invoice",
-                {"custom_offline_invoice_number": offline_invoice_number},
-                "name",
-            )
-
-        if not return_invoice and not offline_no_invoice_id:
-            return Response(
-                json.dumps({"data": f"Sales Invoice {return_against} not found"}),
-                status=404,
-                mimetype="application/json",
-            )
+        if offline_invoice_number:
+                offline_invoice_no = frappe.get_all(
+                    "Sales Invoice",
+                    ["name"],
+                    filters={"custom_offline_invoice_number": offline_invoice_number},
+                )
+                if offline_invoice_no:
+                    return Response(
+                        json.dumps(
+                            {
+                                "data": "A duplicate entry was detected, offline invoice number already exists."
+                            }
+                        ),
+                        status=409,
+                        mimetype="application/json",
+                    )
 
         if unique_id:
             existing_return = frappe.db.exists(
@@ -1977,7 +1982,7 @@ def create_credit_note(
                 "custom_zatca_pos_name": machine_name,
                 "is_pos": 1,
                 "is_return": 1,
-                "return_against": return_against if return_invoice else offline_no_invoice_id,
+                "return_against": return_against,
                 "custom_offline_invoice_number": offline_invoice_number,
                 "custom_offline_creation_time":offline_creation_time,
                 "pos_profile": pos_profile,
