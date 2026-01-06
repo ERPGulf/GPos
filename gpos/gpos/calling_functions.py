@@ -178,6 +178,14 @@ def handle_loyalty_points_for_return(return_invoice_name):
             return {"status": "error", "message": "Not a return invoice."}
 
         original_inv = frappe.get_doc("Sales Invoice", return_inv.return_against)
+        original_mobile = getattr(original_inv, "custom_loyalty_customer_mobile", None)
+
+        if not original_mobile:
+            return {
+                "status": "success",
+                "credited_points": 0,
+                "message": "Original invoice has no mobile number. Loyalty entry skipped."
+            }
 
 
         original_qty_total = sum(abs(i.qty) for i in original_inv.items)
