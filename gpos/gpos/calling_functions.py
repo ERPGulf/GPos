@@ -310,3 +310,106 @@ def handle_loyalty_points_for_return(return_invoice_name):
     except Exception:
         frappe.log_error(frappe.get_traceback(), "Return Loyalty Calculation Error")
         return {"status": "error", "message": "Failed to calculate loyalty for return."}
+
+
+import frappe
+from frappe.utils import nowdate
+
+@frappe.whitelist()
+def apply_promotion_discount(sales_invoice):
+    si = frappe.get_doc("Sales Invoice", sales_invoice)
+
+    if not si.cost_center:
+        frappe.throw("Cost Center is required")
+
+    today = nowdate()
+
+
+    pos_profiles = frappe.get_all(
+        "POS Profile",
+        filters={"cost_center": si.cost_center},
+        pluck="name"
+    )
+
+    if not pos_profiles:
+        return {"status": "no_pos"}
+
+
+    promotions = frappe.get_all(
+        "promotion",
+        filters={
+            "enabled": 1,
+            "valid_from": ["<=", today],
+            "valid_upto": [">=", today],
+            "company": si.company
+        },
+        fields=["name"]
+    )
+
+    if not promotions:
+        return {"status": "no_promo"}
+
+
+    promo_items = {}
+
+    for promo in promotions:
+        pos_rows = frappe.get_all(
+            "pos profile child table",
+            filters={
+                "parent": promo.name,
+                "pos_profile": ["in", pos_profiles]
+            }
+        )
+
+        if not pos_rows:
+            continue
+
+        items = frappe.get_all(
+            "Item child table",
+            filters={"parent": promo.name},
+            fields=[
+                "item_code",
+                "discount_type",
+                "discount_percentage",
+                "discount__amount"
+            ]
+        )
+
+        for i in items:
+            promo_items.setdefault(i.item_code, []).append(i)
+
+    if not promo_items:
+        return {"status": "no_items"}
+
+    promotion_applied_count = 0
+
+
+    for row in si.items:
+
+        if row.custom_promotion_applied:
+            continue
+
+        if row.item_code not in promo_items:
+            continue
+
+        promo = promo_items[row.item_code][0]
+
+        if promo.discount_type == "Discount Percentage" and promo.discount_percentage:
+            discount = row.rate * (promo.discount_percentage / 100)
+            row.rate -= discount
+            promotion_applied_count += 1
+
+        elif promo.discount_type == "Discount Amount" and promo.discount__amount:
+            row.rate -= promo.discount__amount
+            promotion_applied_count += 1
+
+        if promotion_applied_count:
+            row.custom_promotion_applied = 1
+
+    if promotion_applied_count == 0:
+        return {"status": "no promotions for this items"}
+
+    si.calculate_taxes_and_totals()
+    si.save()
+
+    return {"status": "success", "applied_items": promotion_applied_count}
