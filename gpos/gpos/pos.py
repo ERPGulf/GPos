@@ -1528,6 +1528,7 @@ def create_invoice(
             source_warehouse = pos_doc.warehouse
             profile_taxes_and_charges = pos_doc.taxes_and_charges
             profile_discount_account = pos_doc.custom_discount_account
+
         loyalty_used = any(
             p.get("mode_of_payment", "").strip().lower() == "loyalty"
             for p in payments or []
