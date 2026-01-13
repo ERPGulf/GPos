@@ -1340,8 +1340,9 @@ def create_invoice(
 
     phase=1,
 
-):
+    ):
     try:
+
         ok, error = lock_invoice_numbers(
             offline_invoice_number=offline_invoice_number,
             unique_id=unique_id
@@ -1527,7 +1528,19 @@ def create_invoice(
             source_warehouse = pos_doc.warehouse
             profile_taxes_and_charges = pos_doc.taxes_and_charges
             profile_discount_account = pos_doc.custom_discount_account
+        loyalty_used = any(
+            p.get("mode_of_payment", "").strip().lower() == "loyalty"
+            for p in payments or []
+        )
 
+        if loyalty_used and not mobile_no:
+            return Response(
+                json.dumps({
+                    "data": "Loyalty payment requires customer mobile number."
+                }),
+                status=400,
+                mimetype="application/json",
+            )
         new_invoice = frappe.get_doc(
             {
                 "doctype": doctype,
