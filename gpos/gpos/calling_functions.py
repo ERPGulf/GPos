@@ -2,7 +2,7 @@ import frappe
 from decimal import Decimal, getcontext, ROUND_HALF_UP
 
 from decimal import Decimal, ROUND_HALF_UP
-import frappe
+from frappe.utils import nowdate
 
 TOLERANCE = Decimal("0.01")
 TTL_SECONDS = 600
@@ -312,8 +312,7 @@ def handle_loyalty_points_for_return(return_invoice_name):
         return {"status": "error", "message": "Failed to calculate loyalty for return."}
 
 
-import frappe
-from frappe.utils import nowdate
+
 
 @frappe.whitelist()
 def apply_promotion_discount(sales_invoice):
