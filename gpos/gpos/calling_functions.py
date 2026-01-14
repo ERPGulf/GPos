@@ -340,7 +340,8 @@ def apply_promotion_discount(sales_invoice):
             "enabled": 1,
             "valid_from": ["<=", today],
             "valid_upto": [">=", today],
-            "company": si.company
+            "company": si.company,
+            "custom_price_list": si.selling_price_list
         },
         fields=["name"]
     )
@@ -348,10 +349,10 @@ def apply_promotion_discount(sales_invoice):
     if not promotions:
         return {"status": "no_promo"}
 
-
     promo_items = {}
 
     for promo in promotions:
+
         pos_rows = frappe.get_all(
             "pos profile child table",
             filters={
@@ -363,11 +364,13 @@ def apply_promotion_discount(sales_invoice):
         if not pos_rows:
             continue
 
+
         items = frappe.get_all(
             "Item child table",
             filters={"parent": promo.name},
             fields=[
                 "item_code",
+                "uom",
                 "discount_type",
                 "discount_percentage",
                 "discount__amount"
@@ -382,7 +385,6 @@ def apply_promotion_discount(sales_invoice):
 
     promotion_applied_count = 0
 
-
     for row in si.items:
 
         if row.custom_promotion_applied:
@@ -391,7 +393,12 @@ def apply_promotion_discount(sales_invoice):
         if row.item_code not in promo_items:
             continue
 
+
         promo = promo_items[row.item_code][0]
+
+        if promo.uom and row.uom != promo.uom:
+            continue
+
 
         if promo.discount_type == "Discount Percentage" and promo.discount_percentage:
             discount = row.rate * (promo.discount_percentage / 100)
@@ -411,4 +418,7 @@ def apply_promotion_discount(sales_invoice):
     si.calculate_taxes_and_totals()
     si.save()
 
-    return {"status": "success", "applied_items": promotion_applied_count}
+    return {
+        "status": "success",
+        "applied_items": promotion_applied_count
+    }
