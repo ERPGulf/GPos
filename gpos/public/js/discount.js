@@ -8,7 +8,7 @@ frappe.ui.form.on('Sales Invoice', {
             }
 
             frappe.call({
-                method: 'gpos.gpos.calling_functions.apply_promotion_discount_before_save',
+                method: 'gpos.gpos.calling_functions.apply_promotion_discount',
                 args: {
                     items: frm.doc.items,
                     cost_center: frm.doc.cost_center,
