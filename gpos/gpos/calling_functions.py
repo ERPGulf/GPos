@@ -1,6 +1,6 @@
 import frappe
 from decimal import Decimal, getcontext, ROUND_HALF_UP
-
+from frappe.utils import nowdate
 from decimal import Decimal, ROUND_HALF_UP
 from frappe.utils import nowdate
 
@@ -315,24 +315,20 @@ def handle_loyalty_points_for_return(return_invoice_name):
 
 
 @frappe.whitelist()
-def apply_promotion_discount(sales_invoice):
-    si = frappe.get_doc("Sales Invoice", sales_invoice)
+def apply_promotion_discount(items, cost_center, company, price_list):
 
-    if not si.cost_center:
-        frappe.throw("Cost Center is required")
 
     today = nowdate()
-
+    items = frappe.parse_json(items)
 
     pos_profiles = frappe.get_all(
         "POS Profile",
-        filters={"cost_center": si.cost_center},
+        filters={"cost_center": cost_center},
         pluck="name"
     )
 
     if not pos_profiles:
         return {"status": "no_pos"}
-
 
     promotions = frappe.get_all(
         "promotion",
@@ -340,8 +336,8 @@ def apply_promotion_discount(sales_invoice):
             "enabled": 1,
             "valid_from": ["<=", today],
             "valid_upto": [">=", today],
-            "company": si.company,
-            "custom_price_list": si.selling_price_list
+            "company": company,
+            "custom_price_list": price_list
         },
         fields=["name"]
     )
@@ -352,7 +348,6 @@ def apply_promotion_discount(sales_invoice):
     promo_items = {}
 
     for promo in promotions:
-
         pos_rows = frappe.get_all(
             "pos profile child table",
             filters={
@@ -364,8 +359,7 @@ def apply_promotion_discount(sales_invoice):
         if not pos_rows:
             continue
 
-
-        items = frappe.get_all(
+        promo_child_items = frappe.get_all(
             "Item child table",
             filters={"parent": promo.name},
             fields=[
@@ -377,48 +371,37 @@ def apply_promotion_discount(sales_invoice):
             ]
         )
 
-        for i in items:
-            promo_items.setdefault(i.item_code, []).append(i)
+        for p in promo_child_items:
+            promo_items[p.item_code] = p
 
-    if not promo_items:
-        return {"status": "no_items"}
+    updated_items = []
 
-    promotion_applied_count = 0
-
-    for row in si.items:
-
-        if row.custom_promotion_applied:
+    for row in items:
+        if row.get("custom_promotion_applied"):
             continue
 
-        if row.item_code not in promo_items:
+        promo = promo_items.get(row.get("item_code"))
+        if not promo:
             continue
 
-
-        promo = promo_items[row.item_code][0]
-
-        if promo.uom and row.uom != promo.uom:
+        if promo.uom and row.get("uom") != promo.uom:
             continue
 
+        rate = row.get("rate")
 
-        if promo.discount_type == "Discount Percentage" and promo.discount_percentage:
-            discount = row.rate * (promo.discount_percentage / 100)
-            row.rate -= discount
-            promotion_applied_count += 1
+        if promo.discount_type == "Discount Percentage":
+            rate -= rate * (promo.discount_percentage / 100)
 
-        elif promo.discount_type == "Discount Amount" and promo.discount__amount:
-            row.rate -= promo.discount__amount
-            promotion_applied_count += 1
+        elif promo.discount_type == "Discount Amount":
+            rate -= promo.discount__amount
 
-        if promotion_applied_count:
-            row.custom_promotion_applied = 1
-
-    if promotion_applied_count == 0:
-        return {"status": "no promotions for this items"}
-
-    si.calculate_taxes_and_totals()
-    si.save()
+        updated_items.append({
+            "name": row.get("name"),
+            "rate": rate,
+            "custom_promotion_applied": 1
+        })
 
     return {
         "status": "success",
-        "applied_items": promotion_applied_count
+        "items": updated_items
     }
