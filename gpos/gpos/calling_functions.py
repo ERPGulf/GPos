@@ -317,7 +317,6 @@ def handle_loyalty_points_for_return(return_invoice_name):
 @frappe.whitelist()
 def apply_promotion_discount(items, cost_center, company, price_list):
 
-
     today = nowdate()
     items = frappe.parse_json(items)
 
@@ -334,6 +333,7 @@ def apply_promotion_discount(items, cost_center, company, price_list):
         "promotion",
         filters={
             "enabled": 1,
+            "docstatus": ["!=", 2],
             "valid_from": ["<=", today],
             "valid_upto": [">=", today],
             "company": company,
@@ -401,7 +401,13 @@ def apply_promotion_discount(items, cost_center, company, price_list):
             "custom_promotion_applied": 1
         })
 
+    if not updated_items:
+        return {
+            "status": "no_discount",
+            "message": "No promotion applicable for selected items"
+        }
+
     return {
         "status": "success",
         "items": updated_items
-    }
+        }
