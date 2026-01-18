@@ -2754,7 +2754,7 @@ def send_message(mobile_no,otp):
                     }).insert()
 
                 else:
-                    frappe.log_error(ERROR_MESSAGE, frappe.get_traceback())
+                    frappe.log_error("ERROR_MESSAGE", frappe.get_traceback())
             else:
                 frappe.log_error("status code  is not 200", frappe.get_traceback())
             return response
