@@ -18,6 +18,7 @@
   "is_tax_included_in_price",
   "zatca_multiple_setting",
   "company_name_in_arabic",
+  "log_all_api_for_debugging",
   "section_break_udxx",
   "sales_taxes_and_charges",
   "barcode_setting_section",
@@ -212,12 +213,18 @@
    "fieldname": "company_name_in_arabic",
    "fieldtype": "Data",
    "label": "Company Name In Arabic"
+  },
+  {
+   "default": "0",
+   "fieldname": "log_all_api_for_debugging",
+   "fieldtype": "Check",
+   "label": "Log all API For Debugging"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-08-05 18:23:46.562441",
+ "modified": "2026-01-19 14:32:45.982280",
  "modified_by": "Administrator",
  "module": "Gpos",
  "name": "Claudion POS setting",
@@ -235,6 +242,7 @@
   }
  ],
  "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": []

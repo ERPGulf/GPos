@@ -24,12 +24,28 @@ frappe.ui.form.on('Sales Invoice', {
                     r.message.items.forEach(promo_item => {
                         let row = frm.doc.items.find(i => i.name === promo_item.name);
                         if (row) {
-                            row.rate = promo_item.rate;
-                            row.custom_promotion_applied = 1;
+
+                            frappe.model.set_value(
+                                row.doctype,
+                                row.name,
+                                'rate',
+                                promo_item.rate
+                            );
+
+                            frappe.model.set_value(
+                                row.doctype,
+                                row.name,
+                                'custom_promotion_applied',
+                                1
+                            );
                         }
                     });
 
+
+                    frm.trigger('calculate_taxes_and_totals');
+
                     frm.refresh_field('items');
+
                     frappe.show_alert({
                         message: __('Discount applied successfully'),
                         indicator: 'green'

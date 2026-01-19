@@ -1749,10 +1749,20 @@ def get_pos_offers():
 @frappe.whitelist(allow_guest=True)
 def sync_gpos_log(details, datetime, location, sync_id):
     try:
-        # Check for existing record with the same sync_id
+
+        settings = frappe.get_doc("Claudion POS setting","log_all_api_for_debugging")
+        if not settings.log_all_api_for_debugging:
+            data={
+                "status": "skipped",
+                "message": "API logging is disabled",
+                "sync_id": sync_id,
+            }
+            return Response(
+            json.dumps({"data": data}), status=400, mimetype="application/json"
+        )
         existing = frappe.db.exists("gpos logs", {"sync_id": sync_id})
         if existing:
-            frappe.local.response.http_status_code = 409  # Confl ict
+            frappe.local.response.http_status_code = 409
             response_data = {
                 "status": "conflict",
                 "message": f"Log with sync_id '{sync_id}' already exists.",
