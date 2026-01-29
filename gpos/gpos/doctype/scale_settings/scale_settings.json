@@ -1,0 +1,133 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-01-20 09:09:25.994854",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "barcode_settings_section",
+  "prefix_included_or_not",
+  "no_of_prefix_characters",
+  "item_code_strating_position",
+  "column_break_uzyf",
+  "item_code_total_digits",
+  "prefix",
+  "weight_and_price_section",
+  "no_of_decimals_in_price",
+  "weight_starting_position",
+  "weight_total_digits_excluding__decimals",
+  "column_break_irhs",
+  "price_starting_position",
+  "no_of_decimal_in_weights",
+  "price_included_in_barcode_or_not",
+  "price_total_digits_excluding_position"
+ ],
+ "fields": [
+  {
+   "default": "0",
+   "fieldname": "prefix_included_or_not",
+   "fieldtype": "Check",
+   "label": "Prefix Included or Not"
+  },
+  {
+   "fieldname": "no_of_prefix_characters",
+   "fieldtype": "Data",
+   "label": "No of Prefix Characters"
+  },
+  {
+   "fieldname": "prefix",
+   "fieldtype": "Data",
+   "label": "Prefix"
+  },
+  {
+   "fieldname": "item_code_strating_position",
+   "fieldtype": "Data",
+   "label": "Item Code Strating Position"
+  },
+  {
+   "fieldname": "item_code_total_digits",
+   "fieldtype": "Data",
+   "label": "Item code total digits"
+  },
+  {
+   "fieldname": "weight_starting_position",
+   "fieldtype": "Data",
+   "label": "Weight Starting Position"
+  },
+  {
+   "fieldname": "weight_total_digits_excluding__decimals",
+   "fieldtype": "Data",
+   "label": "Weight total digits (excluding  decimals)"
+  },
+  {
+   "fieldname": "no_of_decimal_in_weights",
+   "fieldtype": "Data",
+   "label": "No of decimal in weights"
+  },
+  {
+   "default": "0",
+   "fieldname": "price_included_in_barcode_or_not",
+   "fieldtype": "Check",
+   "label": "Price included in barcode or not"
+  },
+  {
+   "fieldname": "price_starting_position",
+   "fieldtype": "Data",
+   "label": "Price starting position"
+  },
+  {
+   "fieldname": "price_total_digits_excluding_position",
+   "fieldtype": "Data",
+   "label": "Price total digits (excluding position)"
+  },
+  {
+   "fieldname": "no_of_decimals_in_price",
+   "fieldtype": "Data",
+   "label": "No of decimals in price"
+  },
+  {
+   "fieldname": "barcode_settings_section",
+   "fieldtype": "Section Break",
+   "label": "Barcode Settings"
+  },
+  {
+   "fieldname": "column_break_uzyf",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "weight_and_price_section",
+   "fieldtype": "Section Break",
+   "label": "Weight and Price"
+  },
+  {
+   "fieldname": "column_break_irhs",
+   "fieldtype": "Column Break"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-01-21 09:26:08.693753",
+ "modified_by": "Administrator",
+ "module": "Gpos",
+ "name": "Scale Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

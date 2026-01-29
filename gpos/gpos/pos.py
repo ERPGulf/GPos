@@ -797,6 +797,7 @@ def cache2():
 @frappe.whitelist(allow_guest=True)
 def pos_setting(machine_name, pos_profile=None):
     systemSettings = frappe.get_doc("Claudion POS setting")
+    scale_settings = frappe.get_doc("Scale Settings")
     var = True if systemSettings.show_item == 1 else False
     Zatca_Multiple_Setting = (
         frappe.get_doc("ZATCA Multiple Setting", machine_name) if machine_name else None
@@ -860,6 +861,29 @@ def pos_setting(machine_name, pos_profile=None):
     address_details = frappe.get_doc("Address", address) if address else None
     card_pay=pos_profile_doc.custom_cardpay_settings if pos_profile_doc else None
     cardpay_setting=frappe.get_doc("CardPay Settings",card_pay) if card_pay else None
+    scale_data = {
+    "prefix_included_or_not": scale_settings.prefix_included_or_not,
+    "no_of_prefix_characters": int(scale_settings.no_of_prefix_characters or 0),
+    "prefix": scale_settings.prefix,
+    "item_code_total_digits": int(scale_settings.item_code_total_digits or 0),
+    "item_code_starting_position": int(scale_settings.item_code_strating_position or 0),
+
+    "weight_starting_position": int(scale_settings.weight_starting_position or 0),
+    "weight_total_digits_excluding_decimal": int(
+        scale_settings.weight_total_digits_excluding__decimals or 0
+    ),
+    "no_of_decimal_in_weights": int(scale_settings.no_of_decimal_in_weights or 0),
+
+    "price_included_in_barcode_or_not": int(
+        scale_settings.price_included_in_barcode_or_not or 0
+    ),
+    "price_starting_position": int(scale_settings.price_starting_position or 0),
+    "price_total_digits_excluding_decimals": int(
+        scale_settings.price_total_digits_excluding_position or 0
+    ),
+    "no_of_decimal_in_price": int(scale_settings.no_of_decimals_in_price or 0),
+    }
+
 
     branch_details = {
         "branch_name": pos_profile_doc.custom_branch if pos_profile_doc else None,
@@ -963,6 +987,7 @@ def pos_setting(machine_name, pos_profile=None):
                 else None
             ),
         },
+        "scale_settings": scale_data,
         "branch_details": branch_details,
     }
 
@@ -1337,7 +1362,6 @@ def create_invoice(
     transaction_id=None,
     mobile_no=None,
     coupen_customer_name=None,
-
     phase=1,
 
     ):
@@ -1860,11 +1884,10 @@ def create_credit_note(
     pos_shift=None,
     cashier=None,
     reason=None,
-):
+    ):
 
     try:
         ok, error = lock_invoice_numbers(
-            offline_invoice_number=offline_invoice_number,
             unique_id=unique_id
         )
 
@@ -1912,22 +1935,40 @@ def create_credit_note(
         profile_taxes_and_charges = None
         return_invoice = frappe.db.exists("Sales Invoice", return_against)
         offline_no_invoice_id = None
+        if not return_invoice:
+            offline_no_invoice_id = frappe.db.get_value(
+                "Sales Invoice",
+                {"custom_offline_invoice_number": offline_invoice_number},
+                "name",
+            )
+
+        if not return_invoice and not offline_no_invoice_id:
+            return Response(
+                json.dumps({"data": f"Sales Invoice {return_against} not found"}),
+                status=404,
+                mimetype="application/json",
+            )
         if offline_invoice_number:
-                offline_invoice_no = frappe.get_all(
-                    "Sales Invoice",
-                    ["name"],
-                    filters={"custom_offline_invoice_number": offline_invoice_number},
+            existing_return = frappe.db.exists(
+                "Sales Invoice",
+                {
+                    "custom_offline_invoice_number": offline_invoice_number,
+                    "is_return": 1,
+                    "docstatus": 1,
+                },
+            )
+
+            if existing_return:
+                return Response(
+                    json.dumps(
+                        {
+                            "data": f"Credit note already exists for offline invoice number {offline_invoice_number}"
+                        }
+                    ),
+                    status=409,
+                    mimetype="application/json",
                 )
-                if offline_invoice_no:
-                    return Response(
-                        json.dumps(
-                            {
-                                "data": "A duplicate entry was detected, offline invoice number already exists."
-                            }
-                        ),
-                        status=409,
-                        mimetype="application/json",
-                    )
+
 
         if unique_id:
             existing_return = frappe.db.exists(
@@ -2006,7 +2047,7 @@ def create_credit_note(
                 "custom_zatca_pos_name": machine_name,
                 "is_pos": 1,
                 "is_return": 1,
-                "return_against": return_against,
+                "return_against": return_against if return_invoice else offline_no_invoice_id,
                 "custom_offline_invoice_number": offline_invoice_number,
                 "custom_offline_creation_time":offline_creation_time,
                 "pos_profile": pos_profile,
