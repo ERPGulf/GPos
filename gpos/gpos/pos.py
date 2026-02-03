@@ -1421,6 +1421,8 @@ def create_invoice(
             for payment in payments:
                 mode = payment.get("mode_of_payment", "").strip()
                 amount = float(payment.get("amount", 0))
+                transaction_id=payment.get("transaction_id","")
+
 
                 if mode.lower() in ["cash", "card","loyalty"] and pos_profile:
                     for row in pos_profile_doc.get("payments") or []:
@@ -1431,7 +1433,7 @@ def create_invoice(
                             mode = row.mode_of_payment
                             break
 
-                payment_items.append({"mode_of_payment": mode, "amount": amount})
+                payment_items.append({"mode_of_payment": mode, "amount": amount,"custom_transaction_id":transaction_id})
 
         taxes_list = None
 
