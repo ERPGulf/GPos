@@ -313,7 +313,6 @@ def handle_loyalty_points_for_return(return_invoice_name):
 
 
 
-
 @frappe.whitelist()
 def apply_promotion_discount(items, cost_center, company, price_list):
 
@@ -328,6 +327,7 @@ def apply_promotion_discount(items, cost_center, company, price_list):
 
     if not pos_profiles:
         return {"status": "no_pos"}
+
 
     promotions = frappe.get_all(
         "promotion",
@@ -345,9 +345,11 @@ def apply_promotion_discount(items, cost_center, company, price_list):
     if not promotions:
         return {"status": "no_promo"}
 
+
     promo_items = {}
 
     for promo in promotions:
+
         pos_rows = frappe.get_all(
             "pos profile child table",
             filters={
@@ -367,39 +369,63 @@ def apply_promotion_discount(items, cost_center, company, price_list):
                 "uom",
                 "discount_type",
                 "discount_percentage",
-                "discount__amount"
+                "discount__amount",
+                "min_qty",
+                "max_qty"
             ]
         )
 
         for p in promo_child_items:
-            promo_items[p.item_code] = p
+            promo_items.setdefault(p.item_code, []).append(p)
 
     updated_items = []
 
     for row in items:
-        if row.get("custom_promotion_applied"):
+
+        if int(row.get("custom_promotion_applied") or 0):
             continue
 
-        promo = promo_items.get(row.get("item_code"))
-        if not promo:
-            continue
-
-        if promo.uom and row.get("uom") != promo.uom:
-            continue
-
+        item_code = row.get("item_code")
+        row_uom = row.get("uom")
+        qty = row.get("qty") or 1
         rate = row.get("rate")
 
-        if promo.discount_type == "Discount Percentage":
-            rate -= rate * (promo.discount_percentage / 100)
+        promos = promo_items.get(item_code, [])
+        if not promos:
+            continue
 
-        elif promo.discount_type == "Discount Amount":
-            rate -= promo.discount__amount
+        for promo in promos:
 
-        updated_items.append({
-            "name": row.get("name"),
-            "rate": rate,
-            "custom_promotion_applied": 1
-        })
+            if promo.uom and promo.uom != row_uom:
+                continue
+
+
+            if promo.min_qty and qty < promo.min_qty:
+                continue
+
+            if promo.max_qty and qty > promo.max_qty:
+                continue
+
+
+            new_rate = rate
+
+            if promo.discount_type == "Discount Percentage" and promo.discount_percentage:
+                new_rate -= rate * (promo.discount_percentage / 100)
+
+            elif promo.discount_type == "Discount Amount" and promo.discount__amount:
+                new_rate -= promo.discount__amount
+
+
+            new_rate = max(new_rate, 0)
+
+            updated_items.append({
+                "name": row.get("name"),
+                "rate": new_rate,
+                "custom_promotion_applied": 1
+            })
+
+
+            break
 
     if not updated_items:
         return {
@@ -410,4 +436,4 @@ def apply_promotion_discount(items, cost_center, company, price_list):
     return {
         "status": "success",
         "items": updated_items
-        }
+    }

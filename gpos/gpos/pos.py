@@ -2469,7 +2469,7 @@ def create_customer_new(
             "mobile": customer.mobile_no,
             "B2C":customer.custom_b2c if custom_b2c else None,
             "buyer_id_type":customer.custom_buyer_id_type if buyer_id_type else None,
-            "buyer_id":customer.custom_buyer_id if buyer_id else none,
+            "buyer_id":customer.custom_buyer_id if buyer_id else None,
             "vat_number": customer.tax_id,
             "pos_profiles": (
         customer.custom_pos_profile_table[0].pos_profile
