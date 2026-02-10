@@ -121,12 +121,19 @@ def opening_shift(period_start_date, company, user, pos_profile,name):
 
 
 
+
 @frappe.whitelist(allow_guest=True)
-def closing_shift(pos_opening_entry,company=None,period_end_date=None,created_invoice_status=None,name=None,details=None):
+def closing_shift(
+    pos_opening_entry,
+    company=None,
+    period_end_date=None,
+    created_invoice_status=None,
+    name=None,
+    details=None
+):
     try:
         payments = parse_json_field(frappe.form_dict.get("payment_reconciliation"))
-        details = parse_json_field(frappe.form_dict.get("details"))
-
+        details = parse_json_field(frappe.form_dict.get("details")) or {}
 
         if not payments or not isinstance(payments, list):
             return Response(
@@ -140,20 +147,43 @@ def closing_shift(pos_opening_entry,company=None,period_end_date=None,created_in
 
         pos_opening = frappe.get_doc("POS Opening Shift", pos_opening_entry)
         if pos_opening.status != "Open":
+            closing_shift = frappe.get_all(
+                "POS Closing Shift",
+                filters={"pos_opening_shift": pos_opening_entry},
+                order_by="creation desc",
+                limit=1
+            )
+
+            if not closing_shift:
+                return Response(
+                    json.dumps({
+                        "error": "POS Opening Shift is closed but no closing shift found."
+                    }),
+                    status=404,
+                    mimetype="application/json"
+                )
+
+            doc = frappe.get_doc("POS Closing Shift", closing_shift[0].name)
+
             return Response(
-                json.dumps({"success": False, "error": "Selected POS Opening Entry should be open."}),
-                status=409,
+                json.dumps({"data": build_closing_shift_response(doc)}),
+                status=200,
                 mimetype="application/json"
             )
 
-        pos_profile_doc = frappe.get_doc("POS Profile", pos_opening.pos_profile) if pos_opening.pos_profile else None
 
+        pos_profile_doc = (
+            frappe.get_doc("POS Profile", pos_opening.pos_profile)
+            if pos_opening.pos_profile else None
+        )
 
         payment_items = []
         for payment in payments:
             if not payment.get("mode_of_payment"):
                 return Response(
-                    json.dumps({"success": False, "error": "Each payment entry must have a 'mode_of_payment'."}),
+                    json.dumps({
+                        "error": "Each payment entry must have a 'mode_of_payment'."
+                    }),
                     status=400,
                     mimetype="application/json"
                 )
@@ -161,17 +191,19 @@ def closing_shift(pos_opening_entry,company=None,period_end_date=None,created_in
             mode = payment.get("mode_of_payment", "").strip()
             original_mode = mode.lower()
 
-
             if original_mode in ["cash", "card"] and pos_profile_doc:
                 mapped = None
                 for row in pos_profile_doc.get("payments") or []:
-                    if getattr(row, "custom_offline_mode_of_payment1", "").lower() == original_mode:
+                    if (
+                        getattr(row, "custom_offline_mode_of_payment1", "")
+                        .lower() == original_mode
+                    ):
                         mapped = row.mode_of_payment
                         break
+
                 if mapped:
                     mode = mapped
                 else:
-
                     continue
 
             payment_items.append({
@@ -181,7 +213,6 @@ def closing_shift(pos_opening_entry,company=None,period_end_date=None,created_in
                 "closing_amount": float(payment.get("closing_amount", 0)),
             })
 
-
         payment_details = [{
             "number_of_invoices": details.get("number_of_invoices", 0),
             "number_of_return_invoices": details.get("number_of_return_invoices", 0),
@@ -190,11 +221,12 @@ def closing_shift(pos_opening_entry,company=None,period_end_date=None,created_in
             "total_of_cash": details.get("total_of_cash", 0),
             "total_of_return_cash": details.get("total_of_return_cash", 0),
             "total_of_bank": details.get("total_of_bank", 0),
-            "total_of_return_bank": details.get("total_of_return_bank", 0)
+            "total_of_return_bank": details.get("total_of_return_bank", 0),
         }]
 
-
-        period_end_dt = datetime.strptime(period_end_date, "%Y-%m-%d %H:%M:%S")
+        period_end_dt = datetime.strptime(
+            period_end_date, "%Y-%m-%d %H:%M:%S"
+        )
 
 
         doc = frappe.get_doc({
@@ -207,7 +239,7 @@ def closing_shift(pos_opening_entry,company=None,period_end_date=None,created_in
             "period_start_date": pos_opening.period_start_date,
             "payment_reconciliation": payment_items,
             "custom_created_invoice_status": created_invoice_status,
-            "custom_details": payment_details
+            "custom_details": payment_details,
         })
 
         if name:
@@ -216,8 +248,69 @@ def closing_shift(pos_opening_entry,company=None,period_end_date=None,created_in
         doc.insert(ignore_permissions=True)
         doc.submit()
 
-        # Prepare response
-        response_data = {
+        return Response(
+            json.dumps({"data": build_closing_shift_response(doc)}),
+            status=200,
+            mimetype="application/json"
+        )
+
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "Closing Shift Error")
+        return Response(
+            json.dumps({
+                "error": "An error occurred during closing shift creation.",
+                "details": str(e)
+            }),
+            status=500,
+            mimetype="application/json"
+        )
+
+from datetime import datetime, date
+
+def format_datetime_safe(value):
+    if isinstance(value, datetime):
+        return value.strftime("%Y-%m-%d %H:%M:%S")
+    elif isinstance(value, date):
+        return datetime.combine(value, datetime.min.time()).strftime("%Y-%m-%d %H:%M:%S")
+    elif isinstance(value, str):
+        try:
+            # Try parsing string (datetime format first, fallback to date)
+            try:
+                dt = datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                dt = datetime.strptime(value, "%Y-%m-%d")
+            return dt.strftime("%Y-%m-%d %H:%M:%S")
+        except:
+            return value  # fallback
+    return str(value)
+
+
+
+
+
+
+@frappe.whitelist(allow_guest=True)
+def get_pos_profiles_with_users():
+    profiles = frappe.get_all("POS Profile", fields=["name"])
+    result = []
+
+    for profile in profiles:
+        users = frappe.get_all(
+            "POS Profile User",
+            filters={"parent": profile.name, "parenttype": "POS Profile"},
+            fields=["user"]
+        )
+        user_list = [u.user for u in users]
+        result.append({
+            "pos_profile": profile.name,
+            "applicable_users": user_list
+        })
+
+    return result
+
+
+def build_closing_shift_response(doc):
+    return {
             "sync_id": doc.name,
             "period_start_date": str(doc.period_start_date),
             "period_end_date": str(doc.period_end_date),
@@ -247,56 +340,3 @@ def closing_shift(pos_opening_entry,company=None,period_end_date=None,created_in
                 "total_of_return_bank": doc.custom_details[0].total_of_return_bank if doc.custom_details else 0
             }
         }
-
-        return Response(json.dumps({"data": response_data}), status=200, mimetype="application/json")
-
-    except Exception as e:
-        frappe.log_error(frappe.get_traceback(), "Closing Shift Error")
-        return Response(
-            json.dumps({"error": "An error occurred during closing shift creation.", "details": str(e)}),
-            status=500,
-            mimetype="application/json"
-        )
-
-from datetime import datetime, date
-
-def format_datetime_safe(value):
-    if isinstance(value, datetime):
-        return value.strftime("%Y-%m-%d %H:%M:%S")
-    elif isinstance(value, date):
-        return datetime.combine(value, datetime.min.time()).strftime("%Y-%m-%d %H:%M:%S")
-    elif isinstance(value, str):
-        try:
-            # Try parsing string (datetime format first, fallback to date)
-            try:
-                dt = datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
-            except ValueError:
-                dt = datetime.strptime(value, "%Y-%m-%d")
-            return dt.strftime("%Y-%m-%d %H:%M:%S")
-        except:
-            return value  # fallback
-    return str(value)
-
-
-
-
-import frappe
-
-@frappe.whitelist(allow_guest=True)
-def get_pos_profiles_with_users():
-    profiles = frappe.get_all("POS Profile", fields=["name"])
-    result = []
-
-    for profile in profiles:
-        users = frappe.get_all(
-            "POS Profile User",
-            filters={"parent": profile.name, "parenttype": "POS Profile"},
-            fields=["user"]
-        )
-        user_list = [u.user for u in users]
-        result.append({
-            "pos_profile": profile.name,
-            "applicable_users": user_list
-        })
-
-    return result
