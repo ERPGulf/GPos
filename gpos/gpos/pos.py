@@ -1870,7 +1870,7 @@ def get_shift_status(shift_id):
                 mimetype="application/json",
             )
 
-        # Try fetching POS Opening or Closing Shift
+
         if frappe.db.exists("POS Opening Shift", shift_id):
             doc = frappe.get_doc("POS Opening Shift", shift_id)
         elif frappe.db.exists("POS Closing Shift", shift_id):
