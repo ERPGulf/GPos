@@ -1,6 +1,6 @@
 {
  "actions": [],
- "allow_rename": 1,
+ "autoname": "autoincrement",
  "creation": "2025-05-20 13:08:44.964254",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -41,10 +41,11 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-23 09:50:24.733592",
+ "modified": "2026-03-24 10:20:09.944357",
  "modified_by": "Administrator",
  "module": "Gpos",
  "name": "gpos logs",
+ "naming_rule": "Autoincrement",
  "owner": "Administrator",
  "permissions": [
   {
