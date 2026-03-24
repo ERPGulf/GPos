@@ -41,8 +41,6 @@ def lock_invoice_numbers(offline_invoice_number: str = None, unique_id: str = No
         return False, "Cache system error"
 
 
-
-
 @frappe.whitelist(allow_guest=True)
 def handle_loyalty_points(invoice_name, customer_name, mobile_no):
 
