@@ -1772,20 +1772,27 @@ def get_pos_offers():
     return offers
 
 
+
+
+
 @frappe.whitelist(allow_guest=True)
 def sync_gpos_log(details, datetime, location, sync_id):
     try:
+        settings = frappe.get_doc("Claudion POS setting", "log_all_api_for_debugging")
 
-        settings = frappe.get_doc("Claudion POS setting","log_all_api_for_debugging")
         if not settings.log_all_api_for_debugging:
-            data={
+            data = {
                 "status": "skipped",
                 "message": "API logging is disabled",
                 "sync_id": sync_id,
             }
             return Response(
-            json.dumps({"data": data}), status=400, mimetype="application/json"
-        )
+                json.dumps({"data": data}),
+                status=400,
+                mimetype="application/json",
+            )
+
+
         existing = frappe.db.exists("gpos logs", {"sync_id": sync_id})
         if existing:
             frappe.local.response.http_status_code = 409
@@ -1801,6 +1808,19 @@ def sync_gpos_log(details, datetime, location, sync_id):
                 mimetype="application/json",
             )
 
+
+        return_invoice = 0
+
+        if details:
+            lines = details.splitlines()
+            for line in lines:
+                stripped = line.strip()
+                if stripped.startswith("Resource:"):
+                    resource = stripped.split("Resource:")[-1].strip()
+                    if resource.lower().endswith("create_credit_note"):
+                        return_invoice = 1
+                    break
+
         doc = frappe.get_doc(
             {
                 "doctype": "gpos logs",
@@ -1808,24 +1828,34 @@ def sync_gpos_log(details, datetime, location, sync_id):
                 "fatetime": datetime,
                 "location": location,
                 "sync_id": sync_id,
+                "return_invoice": return_invoice,
             }
         )
+
         doc.insert(ignore_permissions=True)
         frappe.db.commit()
 
         response_data = {"status": "success", "name": doc.name, "sync_id": sync_id}
         return Response(
-            json.dumps({"data": response_data}), status=200, mimetype="application/json"
+            json.dumps({"data": response_data}),
+            status=200,
+            mimetype="application/json",
         )
 
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "sync_gpos_log Error")
-        frappe.local.response.http_status_code = 500
-        error_data = {"status": "error", "message": str(e), "sync_id": sync_id}
-        return Response(
-            json.dumps({"data": error_data}), status=500, mimetype="application/json"
-        )
 
+        error_data = {
+            "status": "error",
+            "message": str(e),
+            "sync_id": sync_id,
+        }
+
+        return Response(
+            json.dumps({"data": error_data}),
+            status=500,
+            mimetype="application/json",
+        )
 
 @frappe.whitelist(allow_guest=True)
 def get_shift_status(shift_id):
