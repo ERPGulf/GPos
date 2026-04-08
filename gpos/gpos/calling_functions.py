@@ -20,6 +20,10 @@ def lock_invoice_numbers(offline_invoice_number: str = None, unique_id: str = No
             added1 = r.setnx(key1, 1)
 
             if not added1:
+                frappe.log_error(
+                    title="Duplicate Offline Invoice Number",
+                    message=f"Duplicate offline invoice number for credit note {offline_invoice_number}"
+                )
                 return False, f"Duplicate offline invoice number: {offline_invoice_number}"
 
             r.expire(key1, TTL_SECONDS)
@@ -30,6 +34,10 @@ def lock_invoice_numbers(offline_invoice_number: str = None, unique_id: str = No
             added2 = r.setnx(key2, 1)
 
             if not added2:
+                frappe.log_error(
+                    title="Duplicate Unique ID",
+                    message=f"Duplicate unique id for credit note {unique_id}"
+                )
                 return False, f"Duplicate unique ID: {unique_id}"
 
             r.expire(key2, TTL_SECONDS)
@@ -179,6 +187,7 @@ def handle_loyalty_points_for_return(return_invoice_name):
         original_mobile = getattr(original_inv, "custom_loyalty_customer_mobile", None)
 
         if not original_mobile:
+            frappe.log_error(return_invoice_name, "Original invoice has no mobile number. Loyalty entry skipped.")
             return {
                 "status": "success",
                 "credited_points": 0,
@@ -213,6 +222,7 @@ def handle_loyalty_points_for_return(return_invoice_name):
 
 
             if original_debit <= 0 and original_credit <= 0:
+                frappe.log_error(return_invoice_name, "No loyalty activity found on original invoice. No reversal applied.")
                 return {
                     "status": "success",
                     "credited_points": 0,

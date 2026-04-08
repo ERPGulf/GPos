@@ -1919,6 +1919,7 @@ def create_credit_note(
     ):
 
     try:
+
         ok, error = lock_invoice_numbers(
             unique_id=unique_id
         )
@@ -1975,6 +1976,7 @@ def create_credit_note(
             )
 
         if not return_invoice and not offline_no_invoice_id:
+            frappe.log_error(offline_invoice_number, "Return invoice not found for credit note")
             return Response(
                 json.dumps({"data": f"Sales Invoice {return_against} not found"}),
                 status=404,
@@ -1991,6 +1993,7 @@ def create_credit_note(
             )
 
             if existing_return:
+                frappe.log_error(offline_invoice_number,"dublicate offline invoice number for credit note {offline_invoice_number}")
                 return Response(
                     json.dumps(
                         {
@@ -2008,6 +2011,7 @@ def create_credit_note(
                 {"custom_unique_id": unique_id, "is_return": 1, "docstatus": 1},
             )
             if existing_return:
+                frappe.log_error(offline_invoice_number,"dublicate unique id for credit note {unique_id}")
                 return Response(
                     json.dumps(
                         {
@@ -2107,6 +2111,7 @@ def create_credit_note(
         new_invoice.submit()
         handle_loyalty_points_for_return(
         new_invoice.name)
+        frappe.log_error(offline_invoice_number,handle_loyalty_points_for_return)
 
 
         zatca_setting_name = pos_settings.zatca_multiple_setting
@@ -2170,6 +2175,7 @@ def create_credit_note(
 
     except ValidationError as ve:
         error_message = str(ve)
+        frappe.error_log(offline_invoice_number, error_message)
         return Response(
             json.dumps({"message": error_message}),
             status=400 if "Status code: 400" in error_message else 500,
@@ -2177,6 +2183,7 @@ def create_credit_note(
         )
 
     except Exception as e:
+        frappe.log_error(offline_invoice_number, str(e))
         return Response(
             json.dumps({"message": str(e)}), status=500, mimetype="application/json"
         )
