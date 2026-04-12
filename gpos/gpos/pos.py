@@ -1906,7 +1906,7 @@ def create_credit_note(
     items,
     PIH,
     machine_name,
-    return_against,
+    return_against=None,
     payments=None,
     discount_amount=None,
     unique_id=None,
@@ -1962,16 +1962,20 @@ def create_credit_note(
                 status=404,
                 mimetype="application/json",
             )
+        base_offline_invoice_number = None
 
         cost_center = None
         source_warehouse = None
         profile_taxes_and_charges = None
-        return_invoice = frappe.db.exists("Sales Invoice", return_against)
+        return_invoice = frappe.db.exists("Sales Invoice", return_against) if return_against else None
         offline_no_invoice_id = None
-        if not return_invoice:
+        if offline_invoice_number:
+            base_offline_invoice_number = offline_invoice_number.split("-")[0]
+
+        if not return_invoice and base_offline_invoice_number:
             offline_no_invoice_id = frappe.db.get_value(
                 "Sales Invoice",
-                {"custom_offline_invoice_number": offline_invoice_number},
+                {"custom_offline_invoice_number": base_offline_invoice_number},
                 "name",
             )
 
