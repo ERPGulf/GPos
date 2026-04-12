@@ -1921,6 +1921,7 @@ def create_credit_note(
     try:
 
         ok, error = lock_invoice_numbers(
+            offline_invoice_number=offline_invoice_number,
             unique_id=unique_id
         )
 
