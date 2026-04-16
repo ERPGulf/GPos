@@ -22,7 +22,7 @@ def lock_invoice_numbers(offline_invoice_number: str = None, unique_id: str = No
             if not added1:
                 frappe.log_error(
                     title="Duplicate Offline Invoice Number",
-                    message=f"Duplicate offline invoice number for credit note {offline_invoice_number}"
+                    message=f"Duplicate offline invoice number {offline_invoice_number}"
                 )
                 return False, f"Duplicate offline invoice number: {offline_invoice_number}"
 

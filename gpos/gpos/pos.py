@@ -1214,6 +1214,14 @@ def create_invoice_unsynced(date_time, invoice_number, clearing_status,type="Sal
             filters={"custom_offline_invoice_number": invoice_number},
             limit=1
         )
+        # ✅ Parse JSON and extract offline_invoice_number
+        if json_dump:
+            try:
+                parsed_json = json.loads(json_dump)
+                offline_invoice_no = parsed_json.get("offline_invoice_number")
+            except Exception:
+                frappe.log_error("Invalid JSON in  unsync json_dump", "create_invoice_unsynced")
+
 
         if sales_invoice:
             clearing_status = 1
@@ -1228,6 +1236,7 @@ def create_invoice_unsynced(date_time, invoice_number, clearing_status,type="Sal
                 "custom_manually_submitted": manually_submitted if manually_submitted else 0,
                 "custom_api_response": api_response if api_response else None,
                 "custom_type" : type,
+                "custom_offline_invoice_no": offline_invoice_no
             }
         )
         doc.insert()
@@ -1240,7 +1249,8 @@ def create_invoice_unsynced(date_time, invoice_number, clearing_status,type="Sal
             "json_dump": doc.custom_json_dump,
             "manually_submitted": doc.custom_manually_submitted,
             "api_response": doc.custom_api_response,
-            "type":doc.custom_type
+            "type":doc.custom_type,
+            "offline_invoice_no": offline_invoice_no,
         }
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "API: create_invoice_unsynced")
@@ -1489,6 +1499,7 @@ def create_invoice(
                 filters={"custom_unique_id": ["like", unique_id]},
             )
             if pos_sync_id:
+                frappe.log_error(offline_invoice_number, "Invoice Creation Validation Error")
                 return Response(
                     json.dumps(
                         {
@@ -1561,6 +1572,7 @@ def create_invoice(
         )
 
         if loyalty_used and not mobile_no:
+            frappe.log_error(offline_invoice_number, "Loyalty payment attempted without mobile number")
             return Response(
                 json.dumps({
                     "data": "Loyalty payment requires customer mobile number."
@@ -1710,6 +1722,7 @@ def create_invoice(
     except ValidationError as ve:
         error_message = str(ve)
         frappe.db.rollback()
+        frappe.log_error(offline_invoice_number, "Invoice Creation Validation Error")
 
         if "Status code: 400" in error_message:
             return Response(
@@ -1921,7 +1934,6 @@ def create_credit_note(
     try:
 
         ok, error = lock_invoice_numbers(
-            offline_invoice_number=offline_invoice_number,
             unique_id=unique_id
         )
 
@@ -1971,6 +1983,7 @@ def create_credit_note(
         return_invoice = frappe.db.exists("Sales Invoice", return_against) if return_against else None
         offline_no_invoice_id = None
         if offline_invoice_number:
+            frappe.log_error(offline_invoice_number, "Received offline invoice number for credit note")
             base_offline_invoice_number = offline_invoice_number.split("-")[0]
 
         if not return_invoice and base_offline_invoice_number:
@@ -2116,7 +2129,7 @@ def create_credit_note(
         new_invoice.submit()
         handle_loyalty_points_for_return(
         new_invoice.name)
-        frappe.log_error(offline_invoice_number,handle_loyalty_points_for_return)
+        frappe.log_error("Loyalty points handled", offline_invoice_number)
 
 
         zatca_setting_name = pos_settings.zatca_multiple_setting
