@@ -1257,8 +1257,6 @@ def create_invoice_unsynced(date_time, invoice_number, clearing_status,type="Sal
         return Response(json.dumps({"status": "error", "message": str(e)}), status=500, mimetype="application/json")
 
 
-
-
 @frappe.whitelist(allow_guest=True)
 def parse_json_field(field):
     try:
@@ -2349,7 +2347,10 @@ def get_promotion_list(pos_profile):
                     if uom_row.uom == item.uom:
                         matched_uom_row = uom_row
                         break
-
+                price_after_discount = (
+                float(item.price_after_discount)
+                if item.price_after_discount is not None
+                else None)
                 item_table.append(
                     {
                         "id": item.name,
@@ -2375,6 +2376,7 @@ def get_promotion_list(pos_profile):
                         "discount_percentage": item.discount_percentage,
                         "discount_price": item.discount__amount,
                         "price_after_discount":float(item.price_after_discount) if item.price_after_discount is not None else None,
+                        "is_free": True if price_after_discount == 0 else False,
                         "uom_id": matched_uom_row.name if matched_uom_row else None,
                         "uom": item.uom,
                     }
