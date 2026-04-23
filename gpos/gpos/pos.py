@@ -1351,7 +1351,6 @@ def get_number_of_files(file_storage):
     else:
         return 0
 
-
 @frappe.whitelist(allow_guest=False)
 def create_invoice(
     customer_name,
@@ -1444,6 +1443,8 @@ def create_invoice(
                 payment_items.append({"mode_of_payment": mode, "amount": amount,"custom_transaction_id":transaction_id})
 
         taxes_list = None
+        profile_cost_center = None
+        profile_discount_account = None
 
         if pos_profile:
             profile_cost_center = pos_profile_doc.cost_center
@@ -1461,22 +1462,55 @@ def create_invoice(
                     for tax in pos_settings.get("sales_taxes_and_charges")
                 ]
 
-        invoice_items = [
-            {
+
+        selling_price_list = None
+        if pos_profile_doc:
+            selling_price_list = pos_profile_doc.selling_price_list
+
+        invoice_items = []
+        for item in items:
+            rate = float(item.get("rate", 0))
+            item_code = item.get("item_code")
+
+
+            price_list_rate = 0.0
+            if item_code and selling_price_list:
+                item_price = frappe.get_all(
+                    "Item Price",
+                    fields=["price_list_rate"],
+                    filters={
+                        "item_code": item_code,
+                        "price_list": selling_price_list,
+                        "selling": 1,
+                    },
+                    limit=1,
+                )
+                if item_price:
+                    price_list_rate = float(item_price[0].get("price_list_rate", 0))
+
+
+            if price_list_rate == 0.0:
+                price_list_rate = rate
+
+            item_dict = {
                 "item_code": (
-                    item["item_code"]
-                    if frappe.get_value("Item", {"name": item["item_code"]}, "name")
+                    item_code
+                    if frappe.get_value("Item", {"name": item_code}, "name")
                     else None
                 ),
                 "qty": item.get("quantity", 0),
-                "rate": item.get("rate", 0),
+                "rate": rate,
                 "uom": item.get("uom", "Nos"),
                 "cost_center": item.get("cost_center", profile_cost_center),
                 "discount_account": item.get("discount_account", profile_discount_account),
-                "allow_zero_valuation_rate":1
+                "allow_zero_valuation_rate": 1,
             }
-            for item in items
-        ]
+
+            # If selling rate is 0 but price list rate is > 0, mark as 100% discounted
+            if rate == 0 and price_list_rate > 0:
+                item_dict["discount_percentage"] = 100
+
+            invoice_items.append(item_dict)
 
         if pos_settings.post_to_pos_invoice and pos_settings.post_to_sales_invoice:
             return Response(
@@ -1578,6 +1612,7 @@ def create_invoice(
                 status=400,
                 mimetype="application/json",
             )
+
         new_invoice = frappe.get_doc(
             {
                 "doctype": doctype,
@@ -1589,7 +1624,6 @@ def create_invoice(
                 "payments": payment_items,
                 "po_no": Customer_Purchase_Order,
                 "custom_zatca_pos_name": machine_name,
-                # "disable_rounded_total" :0,
                 "is_pos": 1,
                 "custom_offline_creation_time": custom_offline_creation_time,
                 "custom_offline_invoice_number": offline_invoice_number,
@@ -1603,8 +1637,8 @@ def create_invoice(
                 "taxes_and_charges": profile_taxes_and_charges,
                 "additional_discount_account": profile_discount_account,
                 "custom_transaction_id": transaction_id,
-                "custom_coupon_customer_name":coupen_customer_name,
-                "custom_loyalty_customer_mobile":mobile_no,
+                "custom_coupon_customer_name": coupen_customer_name,
+                "custom_loyalty_customer_mobile": mobile_no,
             }
         )
 
@@ -1682,20 +1716,22 @@ def create_invoice(
             if hasattr(new_invoice, "custom_qr_code")
             else None,
             "pih": doc.custom_pih if PIH else None,
-            "transaction_id":new_invoice.custom_transaction_id if transaction_id else None,
-            "mobile_no":new_invoice.custom_loyalty_customer_mobile,
-            "coupon_customer_name":new_invoice.custom_coupon_customer_name,
+            "transaction_id": new_invoice.custom_transaction_id if transaction_id else None,
+            "mobile_no": new_invoice.custom_loyalty_customer_mobile,
+            "coupon_customer_name": new_invoice.custom_coupon_customer_name,
             "items": [
                 {
                     "item_name": item.item_name,
                     "item_code": item.item_code,
                     "quantity": item.qty,
                     "rate": item.rate,
+                    "price_list_rate": item.price_list_rate,
+                    "discount_percentage": item.discount_percentage,
                     "uom": item.uom,
                     "income_account": item.income_account,
                     "item_tax_template": item.item_tax_template,
                     "tax_rate": item_tax_rate,
-                    "allow_zero_valuation_rate":item.allow_zero_valuation_rate
+                    "allow_zero_valuation_rate": item.allow_zero_valuation_rate,
                 }
                 for item in new_invoice.items
             ],
@@ -1743,7 +1779,6 @@ def create_invoice(
             status=500,
             mimetype="application/json",
         )
-
 
 @frappe.whitelist()
 def get_pos_offers():
