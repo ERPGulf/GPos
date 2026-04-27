@@ -236,5 +236,8 @@ scheduler_events = {
 }
 
 doctype_js = {
-    "Sales Invoice": "public/js/discount.js"
+    "Sales Invoice": [
+        "public/js/discount.js",
+        "public/js/send_otp.js"
+    ]
 }

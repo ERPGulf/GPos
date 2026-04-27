@@ -39,7 +39,13 @@
   "price_starting_position",
   "price_total_digitsexcluding_decimals",
   "no_of_decimal_in_price",
-  "tab_2_tab"
+  "tab_2_tab",
+  "app_key",
+  "app_secret",
+  "url",
+  "number_iso",
+  "sender",
+  "tab_3_tab"
  ],
  "fields": [
   {
@@ -146,7 +152,7 @@
   {
    "fieldname": "tab_2_tab",
    "fieldtype": "Tab Break",
-   "label": "Tab 2"
+   "label": "SMS Credentials"
   },
   {
    "default": "0",
@@ -219,12 +225,42 @@
    "fieldname": "log_all_api_for_debugging",
    "fieldtype": "Check",
    "label": "Log all API For Debugging"
+  },
+  {
+   "fieldname": "app_key",
+   "fieldtype": "Data",
+   "label": "App Key"
+  },
+  {
+   "fieldname": "app_secret",
+   "fieldtype": "Data",
+   "label": "App Secret"
+  },
+  {
+   "fieldname": "url",
+   "fieldtype": "Data",
+   "label": "URL"
+  },
+  {
+   "fieldname": "number_iso",
+   "fieldtype": "Data",
+   "label": "Number ISO"
+  },
+  {
+   "fieldname": "sender",
+   "fieldtype": "Data",
+   "label": "Sender"
+  },
+  {
+   "fieldname": "tab_3_tab",
+   "fieldtype": "Tab Break",
+   "label": "Tab 3"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-01-19 14:32:45.982280",
+ "modified": "2026-04-27 13:21:19.044296",
  "modified_by": "Administrator",
  "module": "Gpos",
  "name": "Claudion POS setting",

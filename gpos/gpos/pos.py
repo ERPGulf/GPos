@@ -369,6 +369,8 @@ def get_items(item_group=None, last_updated_time=None, pos_profile = None):
                 item_doc = frappe.get_doc("Item", item.name)
 
 
+
+
                 item_name_arabic = ""
                 item_name_english = ""
 
@@ -384,6 +386,7 @@ def get_items(item_group=None, last_updated_time=None, pos_profile = None):
                     filters={"parent": item.name},
                     fields=["name", "uom", "conversion_factor"],
                 )
+
 
                 barcodes = frappe.get_all(
                     "Item Barcode",
@@ -1506,7 +1509,6 @@ def create_invoice(
                 "allow_zero_valuation_rate": 1,
             }
 
-            # If selling rate is 0 but price list rate is > 0, mark as 100% discounted
             if rate == 0 and price_list_rate > 0:
                 item_dict["discount_percentage"] = 100
 
@@ -2814,7 +2816,13 @@ def generate_otp(mobile_no):
     frappe.cache().set_value(key, otp, expires_in_sec=300)
 
     data = {"otp": otp}
-    send_message(mobile_no,otp)
+    sms_text = (
+            f"رمز التحقق لاستبدال نقاط الولاء في الجواد بريميوم هو *{otp}*.\n"
+            "هذا الرمز صالح لمدة 10 دقائق يُرجى مشاركته مع أمين الصندوق للتحقق.\n\n"
+            f"The verification code for redeeming your loyalty points in Aljawad Premium is {otp}. "
+            "This is valid for 10 min and please share it with the cashier for validation."
+        )
+    send_test_sms(mobile_no, sms_text)
     return Response(
             json.dumps({"data": data}),
             status=200,
@@ -2859,6 +2867,103 @@ def validate_otp(mobile_no, otp):
             status=200,
             mimetype="application/json"
         )
+@frappe.whitelist(allow_guest=True)
+def generate_sms_otp(mobile_no):
+    try:
+        otp = str(random.randint(100000, 999999))
+        key = f"otp:{mobile_no}"
+        frappe.cache().set_value(key, otp, expires_in_sec=300)
+        sms_text = f"Your OTP is {otp}. It is valid for 10 minutes. Do not share this code with anyone."
+
+
+        send_message = send_test_sms(mobile_no, sms_text)
+
+        return {
+            "otp": otp,
+            "status_code": send_message["status_code"],
+            "response": send_message["response"]
+        }
+
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "generate_sms_otp error")
+        return Response(
+            json.dumps({"error": str(e)}),
+            status=500,
+            mimetype="application/json",
+        )
+
+@frappe.whitelist(allow_guest=True)
+def send_test_sms(phone, message):
+    setting=frappe.get_doc("Claudion POS setting")
+    app_key = setting.get("app_key")
+    app_secret = setting.get("app_secret")
+
+    token = f"{app_key}:{app_secret}"
+    encoded = base64.b64encode(token.encode()).decode()
+
+    url = setting.get("url")
+    number_iso = setting.get("number_iso")
+    sender = setting.get("sender")
+
+    headers = {
+        "Authorization": f"Basic {encoded}",
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+    }
+
+    payload = {
+        "messages": [
+            {
+                "text": message,
+                "numbers": [phone],
+                "number_iso": number_iso,
+                "sender": sender
+            }
+        ]
+    }
+
+    response = requests.post(url, json=payload, headers=headers)
+
+    if response.status_code == 200:
+        try:
+            response_dict = json.loads(response.text)
+
+            messages = response_dict.get("messages", [])
+            if messages and messages[0].get("success_count", 0) > 0:
+
+                current_time = now_datetime()
+
+                frappe.get_doc({
+                    "doctype": "whatsapp saudi success log",
+                    "title": "Message successfully sent",
+                    "message": message,
+                    "to_number": phone,
+                    "time": current_time
+                }).insert(ignore_permissions=True)
+
+            else:
+                frappe.log_error(
+                    title="SMS Sending Failed",
+                    message=response.text
+                )
+
+        except Exception:
+            frappe.log_error(
+                title="SMS Parsing Error",
+                message=frappe.get_traceback()
+            )
+
+    else:
+        frappe.log_error(
+            title="SMS API Error",
+            message=response.text
+        )
+
+    return {
+        "status_code": response.status_code,
+        "response": response.text
+    }
+
 
 @frappe.whitelist(allow_guest=True)
 def send_message(mobile_no,otp):
