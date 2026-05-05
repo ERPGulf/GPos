@@ -1,8 +1,11 @@
+from unittest import result
+import json
 import frappe
 from decimal import Decimal, getcontext, ROUND_HALF_UP
 from frappe.utils import nowdate
 from decimal import Decimal, ROUND_HALF_UP
 from frappe.utils import nowdate
+
 
 TOLERANCE = Decimal("0.01")
 TTL_SECONDS = 600
@@ -445,3 +448,98 @@ def apply_promotion_discount(items, cost_center, company, price_list):
         "status": "success",
         "items": updated_items
     }
+
+
+def add_pricing_rules_to_invoice(doc, doc_items, result_items):
+    import json
+
+    for item in doc_items:
+        for res_item in result_items:
+
+            if item.name == res_item.get("name"):
+
+                if res_item.get("pricing_rules"):
+                    rules = json.loads(res_item.get("pricing_rules"))
+
+                    for rule in rules:
+
+                        exists = any(
+                            d.pricing_rule == rule and d.child_docname == item.name
+                            for d in doc.pricing_rules
+                        )
+
+                        if not exists:
+                            doc.append("pricing_rules", {
+                                "pricing_rule": rule,
+                                "item_code": item.item_code,   # ✅ from doc
+                                "child_docname": item.name,
+                                "rule_applied": 1
+                            })
+
+@frappe.whitelist()
+def validate_sales_invoice_coupon(doc, method):
+    import frappe
+    from erpnext.accounts.doctype.pricing_rule.pricing_rule import apply_pricing_rule
+
+    if not doc.custom_coupon_code:
+        return
+
+    args = {
+        "doctype": "Sales Invoice",
+        "customer": doc.customer,
+        "items": [d.as_dict() for d in doc.items],
+        "coupon_code": doc.custom_coupon_code,
+        "posting_date": doc.posting_date,
+        "company": doc.company,
+        "currency": doc.currency,
+        "conversion_rate": doc.conversion_rate or 1,
+        "selling_price_list": doc.selling_price_list,
+        "price_list_currency": doc.currency,
+        "plc_conversion_rate": doc.conversion_rate or 1,
+        "ignore_pricing_rule": 0
+    }
+
+    result = apply_pricing_rule(args)
+
+    frappe.log_error(message=str(result), title="Pricing Rule Result")
+
+    if not result:
+        return
+
+    result_items = result if isinstance(result, list) else result.get("items", [])
+
+    # 🔹 Apply pricing rule to items
+    for item in doc.items:
+        for res_item in result_items:
+            if item.name == res_item.get("name"):
+
+                pricing_rule_for = res_item.get("pricing_rule_for")
+                discount_amount = res_item.get("discount_amount", 0)
+                discount_percentage = res_item.get("discount_percentage", 0)
+
+                item.has_pricing_rule = 1
+
+                # ✅ CONDITION BASED ON RULE TYPE
+                if pricing_rule_for == "Discount Amount":
+                    frappe.log_error(message=discount_amount, title="discount amount")
+                    item.discount_amount = discount_amount
+                    item.discount_percentage = 0
+                    item.rate = item.price_list_rate - discount_amount
+
+                elif pricing_rule_for == "Discount Percentage":
+                    frappe.log_error(message=discount_percentage, title="discount_percentage")
+                    item.discount_percentage = discount_percentage
+                    item.discount_amount = 0
+                    item.rate = item.price_list_rate * (1 - discount_percentage / 100)
+
+                else:
+                    # fallback (safe handling)
+                    frappe.log_error(message=discount_percentage, title="discount_percentageand_Amount")
+                    item.discount_amount = discount_amount
+                    item.discount_percentage = discount_percentage
+
+    # ✅ Add to parent pricing rule table (FIXED)
+    add_pricing_rules_to_invoice(doc, doc.items, result_items)
+
+    # 🔥 Recalculate totals
+    doc.calculate_taxes_and_totals()

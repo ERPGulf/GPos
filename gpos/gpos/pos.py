@@ -1372,6 +1372,8 @@ def create_invoice(
     transaction_id=None,
     mobile_no=None,
     coupen_customer_name=None,
+    coupon_code=None,
+    coupon_discount_amount=None,
     phase=1,
 
     ):
@@ -1614,6 +1616,21 @@ def create_invoice(
                 status=400,
                 mimetype="application/json",
             )
+        coupon_docname = None
+
+        if coupon_code:
+            coupon_docname = frappe.db.get_value(
+                "Coupon Code",
+                {"coupon_code": coupon_code},
+                "name"
+            )
+
+            if not coupon_docname:
+                return Response(
+                    json.dumps({"message": "Invalid Coupon Code"}),
+                    status=400,
+                    mimetype="application/json",
+                )
 
         new_invoice = frappe.get_doc(
             {
@@ -1641,6 +1658,8 @@ def create_invoice(
                 "custom_transaction_id": transaction_id,
                 "custom_coupon_customer_name": coupen_customer_name,
                 "custom_loyalty_customer_mobile": mobile_no,
+                "custom_coupon_code":coupon_docname,
+                "custom_coupon_discount_amount":coupon_discount_amount
             }
         )
 
@@ -1720,7 +1739,9 @@ def create_invoice(
             "pih": doc.custom_pih if PIH else None,
             "transaction_id": new_invoice.custom_transaction_id if transaction_id else None,
             "mobile_no": new_invoice.custom_loyalty_customer_mobile,
-            "coupon_customer_name": new_invoice.custom_coupon_customer_name,
+            "coupon_customer_name": new_invoice.custom_coupon_customer_name  if coupen_customer_name else None,
+            "coupon_code":new_invoice.custom_coupon_code if coupon_code else None,
+            "coupon_discount_amount":new_invoice.custom_coupon_discount_amount if coupon_discount_amount else None,
             "items": [
                 {
                     "item_name": item.item_name,
@@ -2728,41 +2749,70 @@ def cardpay_log(branch=None,unique_id=None, response_json=None, date_time=None, 
 
 
 
-
-
-
-
 @frappe.whitelist()
-def get_coupon_details(coupon_code):
+def get_coupon_details(coupon_code, branch):
 
     if not coupon_code:
-        frappe.throw(_("Coupon Code is required"))
+        return Response(
+            json.dumps({"message": "Coupon Code is required"}),
+            status=400,
+            mimetype="application/json"
+        )
 
-    coupon = frappe.db.get_value(
-        "Coupon Code",
-        {"coupon_code": coupon_code},
-        ["name", "pricing_rule", "valid_from", "valid_upto", "maximum_use", "used"],
-        as_dict=True,
-    )
+    try:
+        coupon = frappe.get_doc("Coupon Code", {"coupon_code": coupon_code})
+    except frappe.DoesNotExistError:
+        return Response(
+            json.dumps({"message": "Invalid Coupon Code"}),
+            status=404,
+            mimetype="application/json"
+        )
 
-    if not coupon:
-        frappe.throw(_("Invalid Coupon Code"))
+    today = datetime.strptime(frappe.utils.today(), "%Y-%m-%d").date()
 
 
-    today = frappe.utils.today()
-    if coupon.valid_from and today < str(coupon.valid_from):
-        frappe.throw(_("Coupon is not yet valid"))
-    if coupon.valid_upto and today > str(coupon.valid_upto):
-        frappe.throw(_("Coupon has expired"))
+    valid_branches = [row.cost_center for row in coupon.get("custom_branch")]
 
+    if branch not in valid_branches:
+        return Response(
+            json.dumps({"message": "This coupon is not valid for this branch"}),
+            status=403,
+            mimetype="application/json"
+        )
+
+
+    if coupon.valid_from and today < coupon.valid_from:
+        return Response(
+            json.dumps({"message": "Coupon is not yet valid"}),
+            status=400,
+            mimetype="application/json"
+        )
+
+    if coupon.valid_upto and today > coupon.valid_upto:
+        return Response(
+            json.dumps({"message": "Coupon has expired"}),
+            status=410,   # Gone (best for expired)
+            mimetype="application/json"
+        )
+
+
+    # if coupon.maximum_use and coupon.used >= coupon.maximum_use:
+    #     return Response(
+    #         json.dumps({"message": "Coupon usage limit reached"}),
+    #         status=409,
+    #         mimetype="application/json"
+    #     )
 
     pricing_rule = frappe.get_doc("Pricing Rule", coupon.pricing_rule)
+
+    raw_type = pricing_rule.rate_or_discount
+    formatted_type = "PERCENTAGE" if raw_type == "Discount Percentage" else "AMOUNT"
 
     data = {
         "coupon_name": coupon.name,
         "coupon_code": coupon_code,
         "pricing_rule": pricing_rule.name,
-        "discount_type": pricing_rule.rate_or_discount,
+        "discount_type": formatted_type,
         "discount_amount": pricing_rule.discount_amount or 0,
         "discount_percentage": pricing_rule.discount_percentage or 0,
         "currency": pricing_rule.currency,
@@ -2773,18 +2823,26 @@ def get_coupon_details(coupon_code):
         "used": coupon.used,
     }
 
+
+    data["branches"] = [{"branch": row.cost_center} for row in coupon.get("custom_branch")]
+
+
     if pricing_rule.apply_on == "Item Group":
-        item_groups = [d.item_group for d in pricing_rule.get("item_groups") if d.item_group]
-        data["applicable_item_groups"] = item_groups
+        data["applicable_item_groups"] = [
+            d.item_group for d in pricing_rule.get("item_groups") if d.item_group
+        ]
 
 
     if pricing_rule.apply_on == "Item Code":
-        items = [d.item_code for d in pricing_rule.get("items") if d.item_code]
-        data["applicable_items"] = items
+        data["applicable_items"] = [
+            d.item_code for d in pricing_rule.get("items") if d.item_code
+        ]
 
-    return Response(json.dumps({"data": data}), status=200, mimetype="application/json")
-
-
+    return Response(
+        json.dumps({"data": data, "message": "Coupon is valid"}),
+        status=200,
+        mimetype="application/json"
+    )
 
 @frappe.whitelist(allow_guest=True)
 def get_loyalty_item(item):
@@ -3052,3 +3110,111 @@ def expire_loyalty_points():
         doc.save(ignore_permissions=True)
         frappe.db.commit()
 
+
+@frappe.whitelist()
+def claim_coupon(coupon_code, user_branch, uuid):
+
+    try:
+
+        claim_key = f"coupon_claim:{coupon_code}:{uuid}"
+        already_claimed = frappe.cache().get_value(claim_key)
+
+        if already_claimed:
+            return Response(
+                json.dumps({
+                    "status": "success",
+                    "message": "Coupon already claimed",
+                    "claimed": 0,   # ❗ Already counted before
+                    "uuid": uuid
+                }),
+                status=200,
+                mimetype="application/json"
+            )
+
+        cache_key = f"coupon_data:{coupon_code}"
+        coupon_data = frappe.cache().get_value(cache_key)
+
+        if not coupon_data:
+            coupon = frappe.get_doc("Coupon Code", {"coupon_code": coupon_code})
+
+            valid_branches = [row.cost_center for row in coupon.custom_branch] if coupon.custom_branch else []
+
+            coupon_data = {
+                "used": coupon.used,
+                "max_use": coupon.maximum_use,
+                "branches": valid_branches
+            }
+
+            frappe.cache().set_value(cache_key, coupon_data, expires_in_sec=3600)
+
+
+        if user_branch not in coupon_data["branches"]:
+            return Response(
+                json.dumps({
+                    "status": "failed",
+                    "message": f"Coupon not valid for branch: {user_branch}"
+                }),
+                status=400,
+                mimetype="application/json"
+            )
+
+
+        if coupon_data["used"] >= coupon_data["max_use"]:
+            return Response(
+                json.dumps({
+                    "status": "failed",
+                    "message": "Coupon usage limit reached",
+                    "claimed": 0
+                }),
+                status=400,
+                mimetype="application/json"
+            )
+
+
+        coupon = frappe.get_doc("Coupon Code", {"coupon_code": coupon_code})
+
+        if coupon.used < coupon.maximum_use:
+            coupon.used += 1
+            coupon.save(ignore_permissions=True)
+            frappe.db.commit()
+
+
+            frappe.cache().set_value(claim_key, True, expires_in_sec=3600)
+
+
+            coupon_data["used"] = coupon.used
+            frappe.cache().set_value(cache_key, coupon_data, expires_in_sec=3600)
+
+            return Response(
+                json.dumps({
+                    "status": "success",
+                    "message": "Coupon claimed successfully",
+                    "claimed": 1,
+                    "uuid": uuid
+                }),
+                status=200,
+                mimetype="application/json"
+            )
+
+        return Response(
+            json.dumps({
+                "status": "failed",
+                "message": "Coupon usage limit reached",
+                "claimed": 0
+            }),
+            status=400,
+            mimetype="application/json"
+        )
+
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "Claim Coupon Error")
+
+        return Response(
+            json.dumps({
+                "status": "error",
+                "message": "Internal Server Error",
+                "details": str(e)
+            }),
+            status=500,
+            mimetype="application/json"
+        )
