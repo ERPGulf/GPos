@@ -3220,3 +3220,137 @@ def claim_coupon(coupon_code, user_branch, uuid):
             status=500,
             mimetype="application/json"
         )
+
+
+
+@frappe.whitelist()
+def get_coupons_by_branch(branch, last_updated_time=None):
+
+    import json
+    from werkzeug.wrappers import Response
+    from datetime import datetime
+    import frappe
+
+    if not branch:
+        return Response(
+            json.dumps({"message": "Branch is required"}),
+            status=400,
+            mimetype="application/json"
+        )
+
+    today = datetime.strptime(frappe.utils.today(), "%Y-%m-%d").date()
+
+    coupon_filters = {}
+    coupon_names_set = set()
+
+    # ✅ Incremental Sync Logic
+    if last_updated_time:
+        try:
+            last_updated_dt = datetime.strptime(last_updated_time, "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            return Response(
+                json.dumps({"error": "Invalid datetime format. Use YYYY-MM-DD HH:MM:SS"}),
+                status=400,
+                mimetype="application/json"
+            )
+
+        # 1️⃣ Coupons modified
+        modified_coupons = frappe.get_all(
+            "Coupon Code",
+            fields=["name"],
+            filters={"modified": [">", last_updated_dt]}
+        )
+        coupon_names_set.update([c.name for c in modified_coupons])
+
+        # 2️⃣ Pricing Rules modified → fetch related coupons
+        modified_pricing_rules = frappe.get_all(
+            "Pricing Rule",
+            fields=["name"],
+            filters={"modified": [">", last_updated_dt]}
+        )
+
+        if modified_pricing_rules:
+            pricing_rule_names = [pr.name for pr in modified_pricing_rules]
+
+            related_coupons = frappe.get_all(
+                "Coupon Code",
+                fields=["name"],
+                filters={"pricing_rule": ["in", pricing_rule_names]}
+            )
+            coupon_names_set.update([c.name for c in related_coupons])
+
+        # If nothing changed
+        if not coupon_names_set:
+            return Response(
+                json.dumps({"data": []}),
+                status=200,
+                mimetype="application/json"
+            )
+
+        coupon_filters["name"] = ["in", list(coupon_names_set)]
+
+    # ✅ Fetch coupons
+    coupons = frappe.get_all(
+        "Coupon Code",
+        fields=[
+            "name",
+            "coupon_code",
+            "pricing_rule",
+            "valid_from",
+            "valid_upto",
+            "maximum_use",
+            "used",
+            "modified"
+        ],
+        filters=coupon_filters
+    )
+
+    result = []
+
+    for c in coupons:
+        coupon_doc = frappe.get_doc("Coupon Code", c.name)
+
+        # ✅ Branch filter
+        valid_branches = [row.cost_center for row in coupon_doc.get("custom_branch")]
+        if branch not in valid_branches:
+            continue
+
+        # ✅ Date validation
+        if coupon_doc.valid_from and today < coupon_doc.valid_from:
+            continue
+
+        if coupon_doc.valid_upto and today > coupon_doc.valid_upto:
+            continue
+
+        # ✅ Usage check
+        if coupon_doc.maximum_use and coupon_doc.used >= coupon_doc.maximum_use:
+            continue
+
+        pricing_rule = frappe.get_doc("Pricing Rule", coupon_doc.pricing_rule)
+
+        raw_type = pricing_rule.rate_or_discount
+        formatted_type = "PERCENTAGE" if raw_type == "Discount Percentage" else "AMOUNT"
+
+        result.append({
+            "coupon_name": coupon_doc.name,
+            "coupon_code": coupon_doc.coupon_code,
+            "pricing_rule": pricing_rule.name,
+            "discount_type": formatted_type,
+            "discount_amount": pricing_rule.discount_amount or 0,
+            "discount_percentage": pricing_rule.discount_percentage or 0,
+            "currency": pricing_rule.currency,
+            "valid_from": str(coupon_doc.valid_from),
+            "valid_upto": str(coupon_doc.valid_upto),
+            "maximum_use": coupon_doc.maximum_use,
+            "used": coupon_doc.used,
+            "modified": str(coupon_doc.modified)
+        })
+
+    return Response(
+        json.dumps({
+            "data": result,
+            "message": "Coupons fetched successfully"
+        }),
+        status=200,
+        mimetype="application/json"
+    )
