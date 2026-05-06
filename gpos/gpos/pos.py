@@ -2950,6 +2950,8 @@ def generate_sms_otp(mobile_no):
             mimetype="application/json",
         )
 
+
+
 @frappe.whitelist(allow_guest=True)
 def send_test_sms(phone, message):
     setting=frappe.get_doc("Claudion POS setting")
