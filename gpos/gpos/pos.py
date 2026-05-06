@@ -3226,11 +3226,6 @@ def claim_coupon(coupon_code, user_branch, uuid):
 @frappe.whitelist()
 def get_coupons_by_branch(branch, last_updated_time=None):
 
-    import json
-    from werkzeug.wrappers import Response
-    from datetime import datetime
-    import frappe
-
     if not branch:
         return Response(
             json.dumps({"message": "Branch is required"}),
@@ -3243,7 +3238,7 @@ def get_coupons_by_branch(branch, last_updated_time=None):
     coupon_filters = {}
     coupon_names_set = set()
 
-    # ✅ Incremental Sync Logic
+
     if last_updated_time:
         try:
             last_updated_dt = datetime.strptime(last_updated_time, "%Y-%m-%d %H:%M:%S")
@@ -3254,7 +3249,7 @@ def get_coupons_by_branch(branch, last_updated_time=None):
                 mimetype="application/json"
             )
 
-        # 1️⃣ Coupons modified
+
         modified_coupons = frappe.get_all(
             "Coupon Code",
             fields=["name"],
@@ -3262,7 +3257,7 @@ def get_coupons_by_branch(branch, last_updated_time=None):
         )
         coupon_names_set.update([c.name for c in modified_coupons])
 
-        # 2️⃣ Pricing Rules modified → fetch related coupons
+
         modified_pricing_rules = frappe.get_all(
             "Pricing Rule",
             fields=["name"],
@@ -3289,7 +3284,7 @@ def get_coupons_by_branch(branch, last_updated_time=None):
 
         coupon_filters["name"] = ["in", list(coupon_names_set)]
 
-    # ✅ Fetch coupons
+
     coupons = frappe.get_all(
         "Coupon Code",
         fields=[
@@ -3310,19 +3305,19 @@ def get_coupons_by_branch(branch, last_updated_time=None):
     for c in coupons:
         coupon_doc = frappe.get_doc("Coupon Code", c.name)
 
-        # ✅ Branch filter
+
         valid_branches = [row.cost_center for row in coupon_doc.get("custom_branch")]
         if branch not in valid_branches:
             continue
 
-        # ✅ Date validation
+
         if coupon_doc.valid_from and today < coupon_doc.valid_from:
             continue
 
         if coupon_doc.valid_upto and today > coupon_doc.valid_upto:
             continue
 
-        # ✅ Usage check
+
         if coupon_doc.maximum_use and coupon_doc.used >= coupon_doc.maximum_use:
             continue
 
