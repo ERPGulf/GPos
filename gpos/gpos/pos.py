@@ -2839,7 +2839,7 @@ def get_coupon_details(coupon_code, branch):
         ]
 
     return Response(
-        json.dumps({"data": data, "message": "Coupon is valid"}),
+        json.dumps({"data": data}),
         status=200,
         mimetype="application/json"
     )
@@ -3122,12 +3122,15 @@ def claim_coupon(coupon_code, user_branch, uuid):
         already_claimed = frappe.cache().get_value(claim_key)
 
         if already_claimed:
-            return Response(
-                json.dumps({
+            data1={
                     "status": "success",
                     "message": "Coupon already claimed",
                     "claimed": 0,   # ❗ Already counted before
                     "uuid": uuid
+                }
+            return Response(
+                json.dumps({
+                    "data": data1
                 }),
                 status=200,
                 mimetype="application/json"
@@ -3162,11 +3165,14 @@ def claim_coupon(coupon_code, user_branch, uuid):
 
 
         if coupon_data["used"] >= coupon_data["max_use"]:
-            return Response(
-                json.dumps({
+            data2={
                     "status": "failed",
                     "message": "Coupon usage limit reached",
                     "claimed": 0
+                }
+            return Response(
+                json.dumps({
+                  "data": data2
                 }),
                 status=400,
                 mimetype="application/json"
@@ -3186,23 +3192,28 @@ def claim_coupon(coupon_code, user_branch, uuid):
 
             coupon_data["used"] = coupon.used
             frappe.cache().set_value(cache_key, coupon_data, expires_in_sec=3600)
-
-            return Response(
-                json.dumps({
+            data3={
                     "status": "success",
                     "message": "Coupon claimed successfully",
                     "claimed": 1,
                     "uuid": uuid
+                }
+
+            return Response(
+                json.dumps({
+                    "data": data3
                 }),
                 status=200,
                 mimetype="application/json"
             )
-
-        return Response(
-            json.dumps({
+        data4 = {
                 "status": "failed",
                 "message": "Coupon usage limit reached",
                 "claimed": 0
+            }
+        return Response(
+            json.dumps({
+                "data": data4
             }),
             status=400,
             mimetype="application/json"
@@ -3210,12 +3221,15 @@ def claim_coupon(coupon_code, user_branch, uuid):
 
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Claim Coupon Error")
-
-        return Response(
-            json.dumps({
+        data5={
                 "status": "error",
                 "message": "Internal Server Error",
                 "details": str(e)
+            }
+
+        return Response(
+            json.dumps({
+                "data": data5
             }),
             status=500,
             mimetype="application/json"
@@ -3343,8 +3357,7 @@ def get_coupons_by_branch(branch, last_updated_time=None):
 
     return Response(
         json.dumps({
-            "data": result,
-            "message": "Coupons fetched successfully"
+            "data": result
         }),
         status=200,
         mimetype="application/json"
