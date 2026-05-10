@@ -14,14 +14,14 @@
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Cost Center",
-   "options": "Cost Center"
+   "options": "POS Profile"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-05-05 08:17:36.521929",
+ "modified": "2026-05-10 06:59:00.656878",
  "modified_by": "Administrator",
  "module": "Gpos",
  "name": "Cost Center Table",
