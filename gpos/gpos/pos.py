@@ -1631,14 +1631,24 @@ def create_invoice(
                     status=400,
                     mimetype="application/json",
                 )
+        if coupon_code:
+            apply_discount_on = "Net Total"
+            final_discount_amount = (
+                float(coupon_discount_amount)
+                if coupon_discount_amount
+                else float(discount_amount or 0)
+            )
+        else:
+            apply_discount_on = "Grand Total"
+            final_discount_amount = float(discount_amount or 0)
 
         new_invoice = frappe.get_doc(
             {
                 "doctype": doctype,
                 "customer": customer_name,
                 "custom_unique_id": unique_id,
-                "apply_discount_on": "Grand Total",
-                "discount_amount": discount_amount,
+                "apply_discount_on": apply_discount_on,
+                "discount_amount":final_discount_amount,
                 "items": invoice_items,
                 "payments": payment_items,
                 "po_no": Customer_Purchase_Order,
