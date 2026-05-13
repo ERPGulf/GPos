@@ -3248,7 +3248,7 @@ def claim_coupon(coupon_code, user_branch, uuid):
 
 
 @frappe.whitelist()
-def get_coupons_by_branch(branch, last_updated_time=None):
+def get_coupons_by_branch(branch):
 
     if not branch:
         return Response(
@@ -3263,50 +3263,50 @@ def get_coupons_by_branch(branch, last_updated_time=None):
     coupon_names_set = set()
 
 
-    if last_updated_time:
-        try:
-            last_updated_dt = datetime.strptime(last_updated_time, "%Y-%m-%d %H:%M:%S")
-        except ValueError:
-            return Response(
-                json.dumps({"error": "Invalid datetime format. Use YYYY-MM-DD HH:MM:SS"}),
-                status=400,
-                mimetype="application/json"
-            )
+    # if last_updated_time:
+    #     try:
+    #         last_updated_dt = datetime.strptime(last_updated_time, "%Y-%m-%d %H:%M:%S")
+    #     except ValueError:
+    #         return Response(
+    #             json.dumps({"error": "Invalid datetime format. Use YYYY-MM-DD HH:MM:SS"}),
+    #             status=400,
+    #             mimetype="application/json"
+    #         )
 
 
-        modified_coupons = frappe.get_all(
-            "Coupon Code",
-            fields=["name"],
-            filters={"modified": [">", last_updated_dt]}
-        )
-        coupon_names_set.update([c.name for c in modified_coupons])
+        # modified_coupons = frappe.get_all(
+        #     "Coupon Code",
+        #     fields=["name"],
+        #     filters={"modified": [">", last_updated_dt]}
+        # )
+        # coupon_names_set.update([c.name for c in modified_coupons])
 
 
-        modified_pricing_rules = frappe.get_all(
-            "Pricing Rule",
-            fields=["name"],
-            filters={"modified": [">", last_updated_dt]}
-        )
+        # modified_pricing_rules = frappe.get_all(
+        #     "Pricing Rule",
+        #     fields=["name"],
+        #     filters={"modified": [">", last_updated_dt]}
+        # )
 
-        if modified_pricing_rules:
-            pricing_rule_names = [pr.name for pr in modified_pricing_rules]
+        # if modified_pricing_rules:
+        #     pricing_rule_names = [pr.name for pr in modified_pricing_rules]
 
-            related_coupons = frappe.get_all(
-                "Coupon Code",
-                fields=["name"],
-                filters={"pricing_rule": ["in", pricing_rule_names]}
-            )
-            coupon_names_set.update([c.name for c in related_coupons])
+        #     related_coupons = frappe.get_all(
+        #         "Coupon Code",
+        #         fields=["name"],
+        #         filters={"pricing_rule": ["in", pricing_rule_names]}
+        #     )
+        #     coupon_names_set.update([c.name for c in related_coupons])
 
-        # If nothing changed
-        if not coupon_names_set:
-            return Response(
-                json.dumps({"data": []}),
-                status=200,
-                mimetype="application/json"
-            )
+        # # If nothing changed
+        # if not coupon_names_set:
+        #     return Response(
+        #         json.dumps({"data": []}),
+        #         status=200,
+        #         mimetype="application/json"
+        #     )
 
-        coupon_filters["name"] = ["in", list(coupon_names_set)]
+        # coupon_filters["name"] = ["in", list(coupon_names_set)]
 
 
     coupons = frappe.get_all(
