@@ -241,3 +241,9 @@ doctype_js = {
         "public/js/send_otp.js"
     ]
 }
+
+# doc_events = {
+#     "Employee": {
+#         "on_update": "gpos.gpos.qr_code.create_qr_code"
+#     }
+# }

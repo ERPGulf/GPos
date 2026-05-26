@@ -1450,6 +1450,66 @@ def create_invoice(
         taxes_list = None
         profile_cost_center = None
         profile_discount_account = None
+        if not payment_items:
+
+            promotion_response = get_promotion_list(pos_profile)
+
+            promotion_data = json.loads(promotion_response.data)
+
+            promotions = promotion_data.get("data", [])
+
+
+            free_promotion_items = []
+
+            for promo in promotions:
+
+                for promo_item in promo.get("items", []):
+
+                    if promo_item.get("is_free") is True:
+
+                        free_promotion_items.append(
+                            (
+                                promo_item.get("item_code"),
+                                promo_item.get("uom"),
+                            )
+                        )
+
+
+            all_items_are_free = True
+
+            for invoice_item in items:
+
+                item_key = (
+                    invoice_item.get("item_code"),
+                    invoice_item.get("uom"),
+                )
+
+                if item_key not in free_promotion_items:
+                    all_items_are_free = False
+                    break
+
+            if all_items_are_free:
+
+                default_mode = None
+
+                if pos_profile_doc and pos_profile_doc.payments:
+                    default_mode = pos_profile_doc.payments[0].mode_of_payment
+
+                if default_mode:
+                    payment_items.append({
+                        "mode_of_payment": default_mode,
+                        "amount": 0
+                    })
+
+            else:
+
+                return Response(
+                    json.dumps({
+                        "data": "Payment is required for non-free items."
+                    }),
+                    status=400,
+                    mimetype="application/json",
+                )
 
         if pos_profile:
             profile_cost_center = pos_profile_doc.cost_center
@@ -2036,6 +2096,7 @@ def create_credit_note(
             filters={"name": ["like", customer_name]},
         )
         if not customer_details:
+            frappe.log_error(offline_invoice_number, "Customer name not found for credit note")
             return Response(
                 json.dumps({"data": "Customer name not found"}),
                 status=404,
