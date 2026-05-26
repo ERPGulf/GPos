@@ -1507,7 +1507,7 @@ def create_invoice(
                     json.dumps({
                         "data": "Payment is required for non-free items."
                     }),
-                    status=400,
+                    status=500,
                     mimetype="application/json",
                 )
 
