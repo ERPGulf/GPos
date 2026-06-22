@@ -38,6 +38,15 @@ frappe.ui.form.on('Sales Invoice', {
                                 'custom_promotion_applied',
                                 1
                             );
+
+                            // Prevent ERPNext's pricing rule engine from resetting
+                            // this item's rate back to price_list_rate during validate
+                            frappe.model.set_value(
+                                row.doctype,
+                                row.name,
+                                'ignore_pricing_rule',
+                                1
+                            );
                         }
                     });
 

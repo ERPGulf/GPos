@@ -1374,6 +1374,7 @@ def create_invoice(
     coupen_customer_name=None,
     coupon_code=None,
     coupon_discount_amount=None,
+    attachment=None,
     phase=1,
 
     ):
@@ -1758,6 +1759,11 @@ def create_invoice(
             new_invoice.custom_qr_code = process_file_upload(
                 uploaded_files["qr_code"], ignore_permissions=True, is_private=True
             )
+            if "attachment" in uploaded_files:
+                attachment_url = process_file_upload(
+                    uploaded_files["attachment"], ignore_permissions=True, is_private=True
+                )
+                new_invoice.custom_offline_invoice_print = attachment_url
 
         else:
             if "xml" in uploaded_files:
@@ -1769,6 +1775,11 @@ def create_invoice(
                 new_invoice.custom_qr_code = process_file_upload(
                     uploaded_files["qr_code"], ignore_permissions=True, is_private=True
                 )
+            if "attachment" in uploaded_files:
+                attachment_url = process_file_upload(
+                    uploaded_files["attachment"], ignore_permissions=True, is_private=True
+                )
+                new_invoice.custom_offline_invoice_print = attachment_url
 
         new_invoice.insert(ignore_permissions=True)
         new_invoice.submit()
@@ -1812,6 +1823,7 @@ def create_invoice(
             "coupon_customer_name": new_invoice.custom_coupon_customer_name  if coupen_customer_name else None,
             "coupon_code":new_invoice.custom_coupon_code if coupon_code else None,
             "coupon_discount_amount":new_invoice.custom_coupon_discount_amount if coupon_discount_amount else None,
+            "attachment": new_invoice.custom_offline_invoice_print if hasattr(new_invoice, "custom_offline_invoice_print") else None,
             "items": [
                 {
                     "item_name": item.item_name,
