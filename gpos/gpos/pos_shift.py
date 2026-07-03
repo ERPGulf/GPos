@@ -189,6 +189,10 @@ def closing_shift(
                 )
 
             mode = payment.get("mode_of_payment", "").strip()
+            ignored_modes = ["loyalty"]
+
+            if mode.lower() in ignored_modes:
+                continue
             original_mode = mode.lower()
             if original_mode in ["cash", "card"] and pos_profile_doc:
                 mapped = None
