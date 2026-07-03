@@ -1,0 +1,347 @@
+<!-- Filter Bar -->
+<div class="dash-filter-bar">
+    <div class="date-presets">
+        <button data-preset="today" class="preset-btn active">Today</button>
+        <button data-preset="this_week" class="preset-btn">This Week</button>
+        <button data-preset="this_month" class="preset-btn">This Month</button>
+    </div>
+    <input type="date" id="from-date" />
+    <input type="date" id="to-date" />
+    <select id="pos-profile">
+        <option value="">All POS Profiles</option>
+    </select>
+    <select id="warehouse-select">
+        <option value="">All Warehouses</option>
+    </select>
+    <button id="apply-filters" class="btn btn-primary btn-sm">Apply</button>
+    <span id="refresh-countdown" class="refresh-text"></span>
+</div>
+
+<!-- KPI Strip -->
+<div class="dash-kpis">
+    <div class="kpi-card">
+        <div class="kpi-label">💰 Total Sales</div>
+        <div id="kpi-sales" class="kpi-val">--</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">🧾 Transactions</div>
+        <div id="kpi-txns" class="kpi-val">--</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">🛍 Avg Basket</div>
+        <div id="kpi-basket" class="kpi-val">--</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">↩ Returns</div>
+        <div id="kpi-returns" class="kpi-val">--</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">📦 Stock Alerts</div>
+        <div id="kpi-alerts" class="kpi-val">--</div>
+    </div>
+</div>
+
+<!-- Dashboard Body -->
+<div class="dash-body">
+
+    <!-- Left Column -->
+    <div class="dash-col-left">
+
+        <!-- Hourly Sales Chart -->
+        <div class="dash-card">
+            <div class="dash-card-title">📈 Hourly Sales — Today vs Yesterday</div>
+            <div style="height:200px">
+                <canvas id="hourly-chart"></canvas>
+            </div>
+        </div>
+
+        <!-- Top Items -->
+        <div class="dash-card">
+            <div class="dash-card-title">🏆 Top 10 Items by Revenue</div>
+            <table class="table table-sm table-bordered">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Item</th>
+                        <th>Qty</th>
+                        <th>Revenue</th>
+                    </tr>
+                </thead>
+                <tbody id="top-items-body">
+                    <tr>
+                        <td colspan="4" style="text-align:center;color:#aaa">Loading...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Cashier Performance -->
+        <div class="dash-card">
+            <div class="dash-card-title">👤 Cashier Performance</div>
+            <table class="table table-sm table-bordered">
+                <thead>
+                    <tr>
+                        <th>Cashier</th>
+                        <th>Terminal</th>
+                        <th>Txns</th>
+                        <th>Sales</th>
+                        <th>Voids</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="cashier-body">
+                    <tr>
+                        <td colspan="6" style="text-align:center;color:#aaa">Loading...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Slow Movers -->
+        <div class="dash-card">
+            <div class="dash-card-title">🐢 Slow Movers (Last 7 Days)</div>
+            <table class="table table-sm table-bordered">
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Group</th>
+                        <th>Stock</th>
+                        <th>Last Sale</th>
+                    </tr>
+                </thead>
+                <tbody id="slow-movers-body">
+                    <tr>
+                        <td colspan="4" style="text-align:center;color:#aaa">Loading...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Margin Trend -->
+        <div class="dash-card">
+            <div class="dash-card-title">📉 Gross Margin Trend (Last 30 Days)</div>
+            <div style="height:200px">
+                <canvas id="margin-chart"></canvas>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Right Column -->
+    <div class="dash-col-right">
+
+        <!-- Payment Methods Donut -->
+        <div class="dash-card">
+            <div class="dash-card-title">💳 Payment Methods</div>
+            <div style="height:200px">
+                <canvas id="payment-donut"></canvas>
+            </div>
+        </div>
+
+        <!-- Stock Alerts -->
+        <div class="dash-card">
+            <div class="dash-card-title">🔔 Stock &amp; Operations Alerts</div>
+            <div id="stock-alerts-body">
+                <p style="color:#aaa;font-size:13px">Loading...</p>
+            </div>
+        </div>
+
+        <!-- Heatmap -->
+        <div class="dash-card">
+            <div class="dash-card-title">🕐 Transaction Heatmap (Last 7 Days)</div>
+            <div id="heatmap-body"></div>
+        </div>
+
+        <!-- Discount & Void Summary -->
+        <div class="dash-card">
+            <div class="dash-card-title">🔍 Discount &amp; Void Summary</div>
+            <table class="table table-sm">
+                <tr>
+                    <td>Total Discounts Given</td>
+                    <td style="text-align:right"><strong id="disc-discounts">--</strong></td>
+                </tr>
+                <tr>
+                    <td>Void Transactions</td>
+                    <td style="text-align:right"><strong id="disc-voids">--</strong></td>
+                </tr>
+                <tr>
+                    <td>Manual Price Overrides</td>
+                    <td style="text-align:right"><strong id="disc-overrides">--</strong></td>
+                </tr>
+                <tr>
+                    <td>Cancelled Invoices</td>
+                    <td style="text-align:right"><strong id="disc-no-sales">--</strong></td>
+                </tr>
+                <tr>
+                    <td>Supervisor Approvals</td>
+                    <td style="text-align:right"><strong id="disc-approvals">--</strong></td>
+                </tr>
+            </table>
+        </div>
+
+    </div>
+</div>
+
+<!-- Styles -->
+<style>
+    .dash-filter-bar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        padding: 14px 0;
+        margin-bottom: 16px;
+        border-bottom: 1px solid #e0ddd6;
+    }
+
+    .preset-btn {
+        padding: 6px 14px;
+        border: 1px solid #d3d1c7;
+        border-radius: 6px;
+        background: #fff;
+        cursor: pointer;
+        font-size: 13px;
+    }
+
+    .preset-btn.active {
+        background: #1a6fc4;
+        color: #fff;
+        border-color: #1a6fc4;
+    }
+
+    .refresh-text {
+        font-size: 12px;
+        color: #aaa;
+        margin-left: auto;
+    }
+
+    .dash-kpis {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .kpi-card {
+        background: #fff;
+        border-radius: 10px;
+        padding: 16px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+    }
+
+    .kpi-label {
+        font-size: 11px;
+        color: #888;
+        text-transform: uppercase;
+        letter-spacing: .4px;
+        margin-bottom: 6px;
+    }
+
+    .kpi-val {
+        font-size: 24px;
+        font-weight: 700;
+        color: #1a2540;
+    }
+
+    .dash-body {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 14px;
+    }
+
+    .dash-col-left,
+    .dash-col-right {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .dash-card {
+        background: #fff;
+        border-radius: 10px;
+        padding: 16px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+    }
+
+    .dash-card-title {
+        font-size: 12px;
+        font-weight: 700;
+        color: #444;
+        text-transform: uppercase;
+        letter-spacing: .5px;
+        margin-bottom: 14px;
+    }
+
+    .alert-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 7px 0;
+        border-bottom: 1px solid #f5f5f5;
+        font-size: 13px;
+    }
+
+    .alert-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        margin-top: 4px;
+    }
+
+    .hm-row {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        margin-bottom: 3px;
+    }
+
+    .hm-day {
+        font-size: 10px;
+        color: #aaa;
+        width: 55px;
+        flex-shrink: 0;
+    }
+
+    .hm-cell {
+        flex: 1;
+        height: 18px;
+        border-radius: 3px;
+        background: #f0ede7;
+    }
+
+    .hm-hour {
+        flex: 1;
+        font-size: 9px;
+        color: #aaa;
+        text-align: center;
+    }
+
+    .badge-status {
+        display: inline-block;
+        border-radius: 4px;
+        padding: 2px 8px;
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    .badge-green {
+        background: #eaf3de;
+        color: #3b6d11;
+    }
+
+    .badge-gray {
+        background: #f0ede7;
+        color: #666;
+    }
+
+    @media (max-width: 768px) {
+        .dash-kpis {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .dash-body {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>

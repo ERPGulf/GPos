@@ -1,0 +1,26 @@
+{
+ "content": null,
+ "creation": "2026-06-24 08:59:55.829807",
+ "docstatus": 0,
+ "doctype": "Page",
+ "idx": 0,
+ "modified": "2026-06-28 10:25:28.647917",
+ "modified_by": "Administrator",
+ "module": "Gpos",
+ "name": "gpos-super-dashboard",
+ "owner": "Administrator",
+ "page_name": "gpos-super-dashboard",
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Accounts Manager"
+  }
+ ],
+ "script": null,
+ "standard": "Yes",
+ "style": null,
+ "system_page": 1,
+ "title": "GPOS Super Dashboard"
+}

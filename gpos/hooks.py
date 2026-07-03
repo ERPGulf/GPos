@@ -247,3 +247,7 @@ doctype_js = {
 #         "on_update": "gpos.gpos.qr_code.create_qr_code"
 #     }
 # }
+
+app_include_js = [
+    "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"
+]

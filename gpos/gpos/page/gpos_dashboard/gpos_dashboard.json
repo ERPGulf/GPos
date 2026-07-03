@@ -1,0 +1,26 @@
+{
+ "content": null,
+ "creation": "2026-06-24 08:59:55.829807",
+ "docstatus": 0,
+ "doctype": "Page",
+ "idx": 0,
+ "modified": "2026-06-24 08:59:55.829807",
+ "modified_by": "Administrator",
+ "module": "Gpos",
+ "name": "gpos-dashboard",
+ "owner": "Administrator",
+ "page_name": "gpos-dashboard",
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Accounts Manager"
+  }
+ ],
+ "script": null,
+ "standard": "Yes",
+ "style": null,
+ "system_page": 0,
+ "title": "gpos dashboard"
+}
