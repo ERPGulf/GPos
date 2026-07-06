@@ -200,10 +200,10 @@ frappe.pages["gpos-super-dashboard"].on_page_load = function (wrapper) {
 		paymentDonut = new Chart(ctx, {
 			type: "doughnut",
 			data: {
-				labels: ["Cash", "Card", "Loyalty", "Credit", "Other"],
+				labels: ["Cash", "Card", "Loyalty", "Other"],
 				datasets: [{
-					data: [r.cash, r.card, r.loyalty, r.credit, r.other],
-					backgroundColor: ["#378add", "#1d9e75", "#ef9f27", "#d85a30", "#aaaaaa"],
+					data: [r.cash, r.card, r.loyalty, r.other],
+					backgroundColor: ["#378add", "#1d9e75", "#ef9f27", "#aaaaaa"],
 					borderWidth: 2
 				}]
 			},
