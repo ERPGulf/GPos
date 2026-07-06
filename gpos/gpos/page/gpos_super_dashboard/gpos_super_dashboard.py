@@ -493,29 +493,39 @@ def get_slow_movers(days=7, warehouse=None, limit=20):
 
     warehouse_condition = ""
     if warehouse:
-        warehouse_condition = "AND b.warehouse = %(warehouse)s"
+        warehouse_condition = "WHERE b.warehouse = %(warehouse)s"
 
-    # Items that have stock but zero or near-zero sales in last N days
+    # Items that have stock (in the given warehouse, or across all warehouses
+    # when none is specified) but zero sales in the last N days
     rows = frappe.db.sql("""
         SELECT
             i.item_code,
             i.item_name,
             i.item_group,
-            COALESCE(b.actual_qty, 0)       AS current_stock,
-            MAX(si.posting_date)            AS last_sale_date
+            COALESCE(stock.total_qty, 0)    AS current_stock,
+            sales.last_sale_date            AS last_sale_date
         FROM `tabItem` i
-        LEFT JOIN `tabBin` b ON b.item_code = i.item_code
+        LEFT JOIN (
+            SELECT b.item_code, SUM(b.actual_qty) AS total_qty
+            FROM `tabBin` b
             {warehouse_condition}
-        LEFT JOIN `tabSales Invoice Item` sii ON sii.item_code = i.item_code
-        LEFT JOIN `tabSales Invoice` si ON si.name = sii.parent
-            AND si.docstatus = 1
-            AND si.posting_date BETWEEN %(from_date)s AND %(to_date)s
-            AND (si.is_return = 0 OR si.is_return IS NULL)
+            GROUP BY b.item_code
+        ) stock ON stock.item_code = i.item_code
+        LEFT JOIN (
+            SELECT sii.item_code,
+                   MAX(si.posting_date) AS last_sale_date,
+                   SUM(sii.qty)         AS total_sold
+            FROM `tabSales Invoice Item` sii
+            INNER JOIN `tabSales Invoice` si ON si.name = sii.parent
+                AND si.docstatus = 1
+                AND si.posting_date BETWEEN %(from_date)s AND %(to_date)s
+                AND (si.is_return = 0 OR si.is_return IS NULL)
+            GROUP BY sii.item_code
+        ) sales ON sales.item_code = i.item_code
         WHERE i.disabled = 0
           AND i.is_stock_item = 1
-          AND COALESCE(b.actual_qty, 0) > 0
-        GROUP BY i.item_code, i.item_name, i.item_group, b.actual_qty
-        HAVING COALESCE(SUM(sii.qty), 0) = 0
+          AND COALESCE(stock.total_qty, 0) > 0
+          AND COALESCE(sales.total_sold, 0) = 0
         ORDER BY current_stock DESC
         LIMIT %(limit)s
     """.format(warehouse_condition=warehouse_condition), {
