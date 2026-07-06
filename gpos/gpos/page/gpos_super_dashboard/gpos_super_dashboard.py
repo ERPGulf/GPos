@@ -490,13 +490,12 @@ def get_discount_void_summary(from_date=None, to_date=None, pos_profile=None):
 @frappe.whitelist(allow_guest=True)
 def get_slow_movers(days=7, warehouse=None, limit=20):
 
+    if not warehouse:
+        frappe.throw(frappe._("Warehouse is mandatory to fetch slow movers"))
 
-    warehouse_condition = ""
-    if warehouse:
-        warehouse_condition = "WHERE b.warehouse = %(warehouse)s"
+    warehouse_condition = "WHERE b.warehouse = %(warehouse)s"
 
-    # Items that have stock (in the given warehouse, or across all warehouses
-    # when none is specified) but zero sales in the last N days
+    # Items that have stock in the given warehouse but zero sales in the last N days
     rows = frappe.db.sql("""
         SELECT
             i.item_code,

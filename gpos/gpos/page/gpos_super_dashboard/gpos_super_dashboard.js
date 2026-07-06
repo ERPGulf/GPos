@@ -336,6 +336,13 @@ frappe.pages["gpos-super-dashboard"].on_page_load = function (wrapper) {
 
 	// ── 9. Slow Movers ──
 	async function load_slow_movers() {
+		if (!DashState.warehouse) {
+			$("#slow-movers-body").html(
+				`<tr><td colspan="4">Select a warehouse to view slow movers</td></tr>`
+			);
+			return;
+		}
+
 		const { message: items } = await frappe.call({
 			method: "gpos.gpos.page.gpos_super_dashboard.gpos_super_dashboard.get_slow_movers",
 			args: { days: 7, warehouse: DashState.warehouse }
