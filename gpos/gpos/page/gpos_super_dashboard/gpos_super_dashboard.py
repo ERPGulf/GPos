@@ -145,13 +145,17 @@ def get_payment_breakdown(from_date=None, to_date=None, pos_profile=None):
     rows = frappe.db.sql("""
         SELECT
             sip.mode_of_payment,
+            ppm.custom_offline_mode_of_payment1 AS payment_type,
             SUM(sip.amount) AS amount
         FROM `tabSales Invoice Payment` sip
         INNER JOIN `tabSales Invoice` si ON si.name = sip.parent
+        LEFT JOIN `tabPOS Payment Method` ppm
+            ON ppm.parent = si.pos_profile
+           AND ppm.mode_of_payment = sip.mode_of_payment
         WHERE si.docstatus = 1
           AND (si.is_return = 0 OR si.is_return IS NULL)
           {conditions}
-        GROUP BY sip.mode_of_payment
+        GROUP BY sip.mode_of_payment, ppm.custom_offline_mode_of_payment1
     """.format(conditions=conditions), {
         "from_date": from_date,
         "to_date": to_date,
@@ -162,22 +166,20 @@ def get_payment_breakdown(from_date=None, to_date=None, pos_profile=None):
         "cash":    0,
         "card":    0,
         "loyalty": 0,
-        "credit":  0,
         "other":   0
     }
 
     for row in rows:
-        mop = (row.mode_of_payment or "").lower()
-        if "cash" in mop:
-            result["cash"] += float(row.amount or 0)
-        elif "card" in mop or "credit card" in mop or "debit" in mop:
-            result["card"] += float(row.amount or 0)
-        elif "loyalty" in mop:
-            result["loyalty"] += float(row.amount or 0)
-        elif "credit" in mop:
-            result["credit"] += float(row.amount or 0)
+        payment_type = (row.payment_type or "").lower()
+        amount = float(row.amount or 0)
+        if payment_type == "cash":
+            result["cash"] += amount
+        elif payment_type == "card":
+            result["card"] += amount
+        elif payment_type == "loyalty":
+            result["loyalty"] += amount
         else:
-            result["other"] += float(row.amount or 0)
+            result["other"] += amount
 
     return result
 
