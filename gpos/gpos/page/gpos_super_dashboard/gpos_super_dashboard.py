@@ -6,7 +6,7 @@ def get_kpi_summary(from_date=None, to_date=None, pos_profile=None, branch=None)
     from_date = from_date or nowdate()
     to_date   = to_date   or nowdate()
 
-    conditions = "AND posting_date BETWEEN %(from_date)s AND %(to_date)s"
+    conditions = "AND posting_date BETWEEN %(from_date)s AND %(to_date)s AND custom_invoice_type IN ('Retail', 'B2B Retail')"
     if pos_profile:
         conditions += " AND pos_profile = %(pos_profile)s"
 
@@ -49,7 +49,8 @@ def get_kpi_summary(from_date=None, to_date=None, pos_profile=None, branch=None)
             SELECT DISTINCT item_code FROM `tabSales Invoice Item`
             WHERE parent IN (SELECT name FROM `tabSales Invoice`
                              WHERE posting_date BETWEEN %(from_date)s AND %(to_date)s
-                             AND docstatus = 1)
+                             AND docstatus = 1
+                             AND custom_invoice_type IN ('Retail', 'B2B Retail'))
         )
     """, params)[0][0]
 
@@ -80,6 +81,7 @@ def get_hourly_sales(date=None, pos_profile=None):
               AND docstatus = 1
               AND is_pos = 1
               AND (is_return = 0 OR is_return IS NULL)
+              AND custom_invoice_type IN ('Retail', 'B2B Retail')
               {profile_condition}
             GROUP BY HOUR(posting_time)
             ORDER BY hour
@@ -104,7 +106,7 @@ def get_top_items(from_date=None, to_date=None, pos_profile=None, limit=10):
     from_date = from_date or nowdate()
     to_date = to_date or nowdate()
 
-    conditions = "AND si.posting_date BETWEEN %(from_date)s AND %(to_date)s"
+    conditions = "AND si.posting_date BETWEEN %(from_date)s AND %(to_date)s AND si.custom_invoice_type IN ('Retail', 'B2B Retail')"
     if pos_profile:
         conditions += " AND si.pos_profile = %(pos_profile)s"
 
@@ -138,7 +140,7 @@ def get_payment_breakdown(from_date=None, to_date=None, pos_profile=None):
     from_date = from_date or nowdate()
     to_date   = to_date   or nowdate()
 
-    conditions = "AND si.posting_date BETWEEN %(from_date)s AND %(to_date)s"
+    conditions = "AND si.posting_date BETWEEN %(from_date)s AND %(to_date)s AND si.custom_invoice_type IN ('Retail', 'B2B Retail')"
     if pos_profile:
         conditions += " AND si.pos_profile = %(pos_profile)s"
 
@@ -190,7 +192,7 @@ def get_cashier_performance(from_date=None, to_date=None, pos_profile=None):
     from_date = from_date or nowdate()
     to_date   = to_date   or nowdate()
 
-    conditions = "AND si.posting_date BETWEEN %(from_date)s AND %(to_date)s"
+    conditions = "AND si.posting_date BETWEEN %(from_date)s AND %(to_date)s AND si.custom_invoice_type IN ('Retail', 'B2B Retail')"
     if pos_profile:
         conditions += " AND si.pos_profile = %(pos_profile)s"
 
@@ -262,6 +264,7 @@ def get_stock_alerts(warehouse=None):
               INNER JOIN `tabSales Invoice` si ON si.name = sii.parent
               WHERE si.docstatus = 1
                 AND si.posting_date = %(today)s
+                AND si.custom_invoice_type IN ('Retail', 'B2B Retail')
           )
           {warehouse_condition}
     """.format(warehouse_condition=warehouse_condition), {
@@ -361,6 +364,7 @@ def get_transaction_heatmap(pos_profile=None):
         WHERE docstatus = 1
           AND (is_return = 0 OR is_return IS NULL)
           AND posting_date BETWEEN %(from_date)s AND %(to_date)s
+          AND custom_invoice_type IN ('Retail', 'B2B Retail')
           {conditions}
         GROUP BY day_num, day_name, hour
         ORDER BY day_num, hour
@@ -411,7 +415,7 @@ def get_discount_void_summary(from_date=None, to_date=None, pos_profile=None):
     from_date = from_date or nowdate()
     to_date   = to_date   or nowdate()
 
-    conditions = "AND posting_date BETWEEN %(from_date)s AND %(to_date)s"
+    conditions = "AND posting_date BETWEEN %(from_date)s AND %(to_date)s AND custom_invoice_type IN ('Retail', 'B2B Retail')"
     if pos_profile:
         conditions += " AND pos_profile = %(pos_profile)s"
 
@@ -449,6 +453,7 @@ def get_discount_void_summary(from_date=None, to_date=None, pos_profile=None):
         WHERE si.docstatus = 1
           AND sii.discount_percentage > 0
           AND si.posting_date BETWEEN %(from_date)s AND %(to_date)s
+          AND si.custom_invoice_type IN ('Retail', 'B2B Retail')
     """, {
         "from_date": from_date,
         "to_date": to_date
@@ -490,12 +495,13 @@ def get_discount_void_summary(from_date=None, to_date=None, pos_profile=None):
 @frappe.whitelist(allow_guest=True)
 def get_slow_movers(days=7, warehouse=None, limit=20):
 
-    if not warehouse:
-        frappe.throw(frappe._("Warehouse is mandatory to fetch slow movers"))
 
-    warehouse_condition = "WHERE b.warehouse = %(warehouse)s"
+    warehouse_condition = ""
+    if warehouse:
+        warehouse_condition = "WHERE b.warehouse = %(warehouse)s"
 
-    # Items that have stock in the given warehouse but zero sales in the last N days
+    # Items that have stock (in the given warehouse, or across all warehouses
+    # when none is specified) but zero sales in the last N days
     rows = frappe.db.sql("""
         SELECT
             i.item_code,
@@ -519,6 +525,7 @@ def get_slow_movers(days=7, warehouse=None, limit=20):
                 AND si.docstatus = 1
                 AND si.posting_date BETWEEN %(from_date)s AND %(to_date)s
                 AND (si.is_return = 0 OR si.is_return IS NULL)
+                AND si.custom_invoice_type IN ('Retail', 'B2B Retail')
             GROUP BY sii.item_code
         ) sales ON sales.item_code = i.item_code
         WHERE i.disabled = 0
@@ -566,6 +573,7 @@ def get_margin_trend(days=30, pos_profile=None):
         WHERE si.docstatus = 1
           AND (si.is_return = 0 OR si.is_return IS NULL)
           AND si.posting_date BETWEEN %(from_date)s AND %(to_date)s
+          AND si.custom_invoice_type IN ('Retail', 'B2B Retail')
           {conditions}
         GROUP BY si.posting_date
         ORDER BY si.posting_date ASC
