@@ -20,6 +20,8 @@ frappe.pages["gpos-super-dashboard"].on_page_load = function (wrapper) {
 	let hourlyChart = null;
 	let paymentDonut = null;
 	let marginChart = null;
+	let refreshTimer = null;
+	let countdown = 60;
 
 	// ── Load all widgets ──
 	function load_all_widgets() {
@@ -33,7 +35,6 @@ frappe.pages["gpos-super-dashboard"].on_page_load = function (wrapper) {
 		load_discount_summary();
 		load_slow_movers();
 		load_margin_trend();
-		$("#refresh-countdown").text(`Last refreshed at ${frappe.datetime.now_time()}`);
 	}
 
 	// ── Populate POS Profile dropdown ──
@@ -414,10 +415,40 @@ frappe.pages["gpos-super-dashboard"].on_page_load = function (wrapper) {
 		});
 	}
 
-	// ── Manual refresh ──
-	$("#manual-refresh").on("click", function () {
-		load_all_widgets();
-	});
+	// ── Auto refresh ──
+	function start_auto_refresh(interval_seconds) {
+		clearInterval(refreshTimer);
+		countdown = interval_seconds;
+
+		refreshTimer = setInterval(() => {
+			countdown--;
+			$("#refresh-countdown").text(
+				countdown > 0 ? `Refreshing in ${countdown}s` : "Refreshing..."
+			);
+			if (countdown <= 0) {
+				countdown = interval_seconds;
+				load_all_widgets();
+			}
+		}, 1000);
+	}
+
+	// ── Visibility change: pause/resume refresh when tab hidden ──
+	function on_visibility_change() {
+		if (document.hidden) {
+			clearInterval(refreshTimer);
+		} else {
+			start_auto_refresh(60);
+			load_all_widgets();
+		}
+	}
+
+	document.addEventListener("visibilitychange", on_visibility_change);
+
+	// ── Cleanup when navigating away from this page ──
+	frappe.pages["gpos-super-dashboard"].on_page_hide = function () {
+		clearInterval(refreshTimer);
+		document.removeEventListener("visibilitychange", on_visibility_change);
+	};
 
 	frappe.require("https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js", function () {
 		Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
@@ -426,5 +457,6 @@ frappe.pages["gpos-super-dashboard"].on_page_load = function (wrapper) {
 		Chart.defaults.devicePixelRatio = window.devicePixelRatio || 1;
 		setup_date_filters();
 		load_all_widgets();
+		start_auto_refresh(60);
 	});
 };
