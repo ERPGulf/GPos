@@ -18,6 +18,14 @@ def opening_shift(period_start_date, company, user, pos_profile,name):
     Function to handle POS Opening Shift operations.
     """
     try:
+        if name and frappe.db.exists("POS Opening Shift", name):
+            existing_doc = frappe.get_doc("POS Opening Shift", name)
+            return Response(
+                json.dumps({"data": build_opening_shift_response(existing_doc)}),
+                status=200,
+                mimetype="application/json"
+            )
+
         payments = parse_json_field(frappe.form_dict.get("balance_details"))
 
 
@@ -82,25 +90,8 @@ def opening_shift(period_start_date, company, user, pos_profile,name):
         doc.submit()
 
 
-        data = {
-            "sync_id": doc.name,
-            "period_start_date": format_datetime_safe(doc.period_start_date),
-            "posting_date": format_datetime_safe(doc.posting_date),
-            "company": doc.company,
-            "pos_profile": doc.pos_profile,
-            "user": doc.user,
-            "balance_details": [
-                {
-                    "sync_id": p.name,
-                    "mode_of_payment": p.mode_of_payment,
-                    "opening_amount": p.amount
-                }
-                for p in doc.balance_details
-            ]
-        }
-
         return Response(
-            json.dumps({"data": data}),
+            json.dumps({"data": build_opening_shift_response(doc)}),
             status=200,
             mimetype="application/json"
         )
@@ -120,6 +111,25 @@ def opening_shift(period_start_date, company, user, pos_profile,name):
         )
 
 
+
+
+def build_opening_shift_response(doc):
+    return {
+        "sync_id": doc.name,
+        "period_start_date": format_datetime_safe(doc.period_start_date),
+        "posting_date": format_datetime_safe(doc.posting_date),
+        "company": doc.company,
+        "pos_profile": doc.pos_profile,
+        "user": doc.user,
+        "balance_details": [
+            {
+                "sync_id": p.name,
+                "mode_of_payment": p.mode_of_payment,
+                "opening_amount": p.amount
+            }
+            for p in doc.balance_details
+        ]
+    }
 
 
 @frappe.whitelist(allow_guest=True)
