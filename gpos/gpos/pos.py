@@ -2051,6 +2051,47 @@ def get_shift_status(shift_id):
         )
 
 
+def _build_return_invoice_response(invoice, pih):
+    return {
+        "id": invoice.name,
+        "customer_id": invoice.customer,
+        "unique_id": invoice.custom_unique_id,
+        "customer_name": invoice.customer_name,
+        "offline_creation_time": str(invoice.custom_offline_creation_time),
+        "total_quantity": invoice.total_qty,
+        "total": invoice.total,
+        "grand_total": invoice.grand_total,
+        "discount_amount": invoice.discount_amount,
+        "xml": getattr(invoice, "custom_xml", None),
+        "qr_code": getattr(invoice, "custom_qr_code", None),
+        "pih": pih,
+        "return_against": invoice.return_against,
+        "is_return": invoice.is_return,
+        "items": [
+            {
+                "item_name": item.item_name,
+                "item_code": item.item_code,
+                "quantity": item.qty,
+                "rate": item.rate,
+                "uom": item.uom,
+                "income_account": item.income_account,
+                "item_tax_template": item.item_tax_template
+                if item.item_tax_template
+                else None,
+                "allow_zero_valuation_rate": item.allow_zero_valuation_rate,
+                "tax_rate": frappe.get_value(
+                    "Item Tax Template Detail",
+                    {"parent": item.item_tax_template},
+                    "tax_rate",
+                )
+                if item.item_tax_template
+                else None,
+            }
+            for item in invoice.items
+        ],
+    }
+
+
 @frappe.whitelist(allow_guest=False)
 def create_credit_note(
     customer_name,
@@ -2076,6 +2117,19 @@ def create_credit_note(
         )
 
         if not ok:
+            existing_invoice_name = frappe.db.exists(
+                "Sales Invoice",
+                {"custom_unique_id": unique_id, "is_return": 1, "docstatus": 1},
+            )
+            if existing_invoice_name:
+                existing_invoice = frappe.get_doc("Sales Invoice", existing_invoice_name)
+                zatca_setting_name = frappe.get_doc("Claudion POS setting").zatca_multiple_setting
+                pih = frappe.db.get_value("ZATCA Multiple Setting", zatca_setting_name, "custom_pih")
+                return Response(
+                    json.dumps({"data": _build_return_invoice_response(existing_invoice, pih)}),
+                    status=200,
+                    mimetype="application/json",
+                )
             return Response(
                 json.dumps({"data": error}),
                 status=409,
@@ -2151,13 +2205,12 @@ def create_credit_note(
 
             if existing_return:
                 frappe.log_error(offline_invoice_number,"dublicate offline invoice number for credit note {offline_invoice_number}")
+                existing_invoice = frappe.get_doc("Sales Invoice", existing_return)
+                zatca_setting_name = pos_settings.zatca_multiple_setting
+                pih = frappe.db.get_value("ZATCA Multiple Setting", zatca_setting_name, "custom_pih")
                 return Response(
-                    json.dumps(
-                        {
-                            "data": f"Credit note already exists for offline invoice number {offline_invoice_number}"
-                        }
-                    ),
-                    status=409,
+                    json.dumps({"data": _build_return_invoice_response(existing_invoice, pih)}),
+                    status=200,
                     mimetype="application/json",
                 )
 
@@ -2169,13 +2222,12 @@ def create_credit_note(
             )
             if existing_return:
                 frappe.log_error(offline_invoice_number,"dublicate unique id for credit note {unique_id}")
+                existing_invoice = frappe.get_doc("Sales Invoice", existing_return)
+                zatca_setting_name = pos_settings.zatca_multiple_setting
+                pih = frappe.db.get_value("ZATCA Multiple Setting", zatca_setting_name, "custom_pih")
                 return Response(
-                    json.dumps(
-                        {
-                            "data": f"Credit note already created with unique_id {unique_id}"
-                        }
-                    ),
-                    status=409,
+                    json.dumps({"data": _build_return_invoice_response(existing_invoice, pih)}),
+                    status=200,
                     mimetype="application/json",
                 )
         if pos_profile:
@@ -2264,6 +2316,32 @@ def create_credit_note(
                 uploaded_files["qr_code"], ignore_permissions=True, is_private=True
             )
 
+        frappe.log_error(
+            offline_invoice_number,
+            "Credit Note Debug: "
+            + json.dumps(
+                {
+                    "customer_name": customer_name,
+                    "unique_id": unique_id,
+                    "offline_invoice_number": offline_invoice_number,
+                    "return_against_param": return_against,
+                    "return_invoice_exists": bool(return_invoice),
+                    "offline_no_invoice_id": offline_no_invoice_id,
+                    "resolved_return_against": return_against if return_invoice else offline_no_invoice_id,
+                    "pos_profile": pos_profile,
+                    "pos_shift": pos_shift,
+                    "cashier": cashier,
+                    "cost_center": cost_center,
+                    "set_warehouse": source_warehouse,
+                    "taxes_and_charges": profile_taxes_and_charges,
+                    "items": invoice_items,
+                    "payments": payment_items,
+                    "discount_amount": discount_amount,
+                },
+                default=str,
+            ),
+        )
+
         new_invoice.save(ignore_permissions=True)
         new_invoice.submit()
         handle_loyalty_points_for_return(
@@ -2278,53 +2356,7 @@ def create_credit_note(
 
         doc = frappe.get_doc("ZATCA Multiple Setting", zatca_setting_name)
 
-
-        item_tax_rate = None
-
-        if new_invoice.items[0].item_tax_template:
-            template = frappe.get_doc(
-                "Item Tax Template", new_invoice.items[0].item_tax_template
-            )
-            item_tax_rate = template.taxes[0].tax_rate if template.taxes else None
-
-        response_data = {
-            "id": new_invoice.name,
-            "customer_id": new_invoice.customer,
-            "unique_id": new_invoice.custom_unique_id,
-            "customer_name": new_invoice.customer_name,
-            "offline_creation_time":str(new_invoice.custom_offline_creation_time),
-            "total_quantity": new_invoice.total_qty,
-            "total": new_invoice.total,
-            "grand_total": new_invoice.grand_total,
-            "discount_amount": new_invoice.discount_amount,
-            "xml": getattr(new_invoice, "custom_xml", None),
-            "qr_code": getattr(new_invoice, "custom_qr_code", None),
-            "pih": doc.custom_pih,
-            "return_against": new_invoice.return_against,
-            "is_return": new_invoice.is_return,
-            "items": [
-                {
-                    "item_name": item.item_name,
-                    "item_code": item.item_code,
-                    "quantity": item.qty,
-                    "rate": item.rate,
-                    "uom": item.uom,
-                    "income_account": item.income_account,
-                    "item_tax_template": item.item_tax_template
-                    if item.item_tax_template
-                    else None,
-                    "allow_zero_valuation_rate": item.allow_zero_valuation_rate,
-                    "tax_rate": frappe.get_value(
-                        "Item Tax Template Detail",
-                        {"parent": item.item_tax_template},
-                        "tax_rate",
-                    )
-                    if item.item_tax_template
-                    else None,
-                }
-                for item in new_invoice.items
-            ],
-        }
+        response_data = _build_return_invoice_response(new_invoice, doc.custom_pih)
 
         return Response(
             json.dumps({"data": response_data}), status=200, mimetype="application/json"
@@ -2332,7 +2364,7 @@ def create_credit_note(
 
     except ValidationError as ve:
         error_message = str(ve)
-        frappe.error_log(offline_invoice_number, error_message)
+        frappe.log_error(offline_invoice_number, error_message)
         return Response(
             json.dumps({"message": error_message}),
             status=400 if "Status code: 400" in error_message else 500,
