@@ -2111,6 +2111,7 @@ def create_credit_note(
     ):
 
     try:
+        frappe.log_error(offline_invoice_number, "Received offline invoice number for credit note"  )
 
         ok, error = lock_invoice_numbers(
             unique_id=unique_id
