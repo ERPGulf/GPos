@@ -7,7 +7,8 @@
  "field_order": [
   "date_time",
   "invoice_number",
-  "clearing_status"
+  "clearing_status",
+  "notification_email"
  ],
  "fields": [
   {
@@ -25,11 +26,17 @@
    "fieldname": "clearing_status",
    "fieldtype": "Check",
    "label": "Clearing Status"
+  },
+  {
+   "fieldname": "notification_email",
+   "fieldtype": "Data",
+   "label": "Notification Email",
+   "options": "Email"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-08-06 11:49:26.008596",
+ "modified": "2026-08-04 16:16:45.745113",
  "modified_by": "Administrator",
  "module": "Gpos",
  "name": "Invoice Unsynced",
@@ -61,6 +68,7 @@
   }
  ],
  "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": []
