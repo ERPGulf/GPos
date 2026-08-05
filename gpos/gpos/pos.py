@@ -16,6 +16,7 @@ from frappe import _
 from frappe import ValidationError
 from frappe.utils import add_days, getdate
 from gpos.gpos.calling_functions import  lock_invoice_numbers
+from gpos.gpos.calling_functions import  release_invoice_lock
 from gpos.gpos.calling_functions import  handle_loyalty_points
 from gpos.gpos.calling_functions import  handle_loyalty_points_for_return
 from datetime import datetime
@@ -1217,14 +1218,6 @@ def create_invoice_unsynced(date_time, invoice_number, clearing_status,type="Sal
             filters={"custom_offline_invoice_number": invoice_number},
             limit=1
         )
-        # ✅ Parse JSON and extract offline_invoice_number
-        if json_dump:
-            try:
-                parsed_json = json.loads(json_dump)
-                offline_invoice_no = parsed_json.get("offline_invoice_number")
-            except Exception:
-                frappe.log_error("Invalid JSON in  unsync json_dump", "create_invoice_unsynced")
-
 
         if sales_invoice:
             clearing_status = 1
@@ -1246,7 +1239,6 @@ def create_invoice_unsynced(date_time, invoice_number, clearing_status,type="Sal
                 "custom_api_response": api_response if api_response else None,
                 "notification_email": default_email if default_email else None,
                 "custom_type" : type,
-                "custom_offline_invoice_no": offline_invoice_no
             }
         )
         doc.insert()
@@ -1388,6 +1380,7 @@ def create_invoice(
     ):
     try:
 
+
         ok, error = lock_invoice_numbers(
             offline_invoice_number=offline_invoice_number,
             unique_id=unique_id
@@ -1396,7 +1389,7 @@ def create_invoice(
         if not ok:
             return Response(
                 json.dumps({"data": error}),
-                status=409,
+                status=500,
                 mimetype="application/json"
             )
 
@@ -1869,6 +1862,7 @@ def create_invoice(
     except ValidationError as ve:
         error_message = str(ve)
         frappe.db.rollback()
+        release_invoice_lock(offline_invoice_number=offline_invoice_number, unique_id=unique_id)
         frappe.log_error(offline_invoice_number, "Invoice Creation Validation Error")
 
         if "Status code: 400" in error_message:
@@ -1887,6 +1881,7 @@ def create_invoice(
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Invoice API Error")
         frappe.db.rollback()
+        release_invoice_lock(offline_invoice_number=offline_invoice_number, unique_id=unique_id)
         return Response(
             json.dumps({"message Fallback 500": str(e)}),
             status=500,
@@ -2124,6 +2119,8 @@ def create_credit_note(
         ok, error = lock_invoice_numbers(
             unique_id=unique_id
         )
+        debug_code={"customer_name":customer_name,"items":items,"PIH":PIH,"machine_name":machine_name,"return_against":return_against,"payments":payments,"discount_amount":discount_amount,"unique_id":unique_id,"offline_invoice_number":offline_invoice_number,"offline_creation_time":offline_creation_time,"pos_profile":pos_profile,"pos_shift":pos_shift,"cashier":cashier,"reason":reason}
+        frappe.log_error(offline_invoice_number, json.dumps(debug_code))
 
         if not ok:
             existing_invoice_name = frappe.db.exists(
@@ -2139,11 +2136,7 @@ def create_credit_note(
                     status=200,
                     mimetype="application/json",
                 )
-            return Response(
-                json.dumps({"data": error}),
-                status=409,
-                mimetype="application/json"
-            )
+
         pos_settings = frappe.get_doc("Claudion POS setting")
 
         items = parse_json_field(frappe.form_dict.get("items"))
@@ -2199,7 +2192,7 @@ def create_credit_note(
             frappe.log_error(offline_invoice_number, "Return invoice not found for credit note")
             return Response(
                 json.dumps({"data": f"Sales Invoice {return_against} not found"}),
-                status=404,
+                status=500,
                 mimetype="application/json",
             )
         if offline_invoice_number:
@@ -2325,31 +2318,7 @@ def create_credit_note(
                 uploaded_files["qr_code"], ignore_permissions=True, is_private=True
             )
 
-        frappe.log_error(
-            offline_invoice_number,
-            "Credit Note Debug: "
-            + json.dumps(
-                {
-                    "customer_name": customer_name,
-                    "unique_id": unique_id,
-                    "offline_invoice_number": offline_invoice_number,
-                    "return_against_param": return_against,
-                    "return_invoice_exists": bool(return_invoice),
-                    "offline_no_invoice_id": offline_no_invoice_id,
-                    "resolved_return_against": return_against if return_invoice else offline_no_invoice_id,
-                    "pos_profile": pos_profile,
-                    "pos_shift": pos_shift,
-                    "cashier": cashier,
-                    "cost_center": cost_center,
-                    "set_warehouse": source_warehouse,
-                    "taxes_and_charges": profile_taxes_and_charges,
-                    "items": invoice_items,
-                    "payments": payment_items,
-                    "discount_amount": discount_amount,
-                },
-                default=str,
-            ),
-        )
+
 
         new_invoice.save(ignore_permissions=True)
         new_invoice.submit()
@@ -2373,6 +2342,8 @@ def create_credit_note(
 
     except ValidationError as ve:
         error_message = str(ve)
+        frappe.db.rollback()
+        release_invoice_lock(unique_id=unique_id)
         frappe.log_error(offline_invoice_number, error_message)
         return Response(
             json.dumps({"message": error_message}),
@@ -2381,6 +2352,8 @@ def create_credit_note(
         )
 
     except Exception as e:
+        frappe.db.rollback()
+        release_invoice_lock(unique_id=unique_id)
         frappe.log_error(offline_invoice_number, str(e))
         return Response(
             json.dumps({"message": str(e)}), status=500, mimetype="application/json"

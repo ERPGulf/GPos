@@ -52,6 +52,20 @@ def lock_invoice_numbers(offline_invoice_number: str = None, unique_id: str = No
         return False, "Cache system error"
 
 
+def release_invoice_lock(offline_invoice_number: str = None, unique_id: str = None):
+    r = frappe.cache()
+
+    try:
+        if offline_invoice_number:
+            r.delete_key(f"myapp:offline_invoice_cache:{offline_invoice_number}")
+
+        if unique_id:
+            r.delete_key(f"myapp:unique_id_cache:{unique_id}")
+
+    except Exception:
+        frappe.log_error(frappe.get_traceback(), "Redis Lock Release Error")
+
+
 @frappe.whitelist(allow_guest=True)
 def handle_loyalty_points(invoice_name, customer_name, mobile_no):
 
