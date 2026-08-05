@@ -1353,6 +1353,80 @@ def get_number_of_files(file_storage):
     else:
         return 0
 
+def build_invoice_response_data(
+    invoice,
+    pos_settings,
+    PIH=None,
+    transaction_id=None,
+    coupen_customer_name=None,
+    coupon_code=None,
+    coupon_discount_amount=None,
+):
+    zatca_setting_name = pos_settings.zatca_multiple_setting
+    if PIH:
+        frappe.db.set_value(
+            "ZATCA Multiple Setting", zatca_setting_name, "custom_pih", PIH
+        )
+
+    doc = frappe.get_doc("ZATCA Multiple Setting", zatca_setting_name)
+
+    item_tax_rate = None
+
+    return {
+        "id": invoice.name,
+        "customer_id": invoice.customer,
+        "unique_id": invoice.custom_unique_id,
+        "customer_name": invoice.customer_name,
+        "total_quantity": invoice.total_qty,
+        "total": invoice.total,
+        "net_total": invoice.net_total,
+        "grand_total": invoice.grand_total,
+        "Customer's Purchase Order": (
+            int(invoice.po_no) if invoice.po_no else None
+        ),
+        "discount_amount": invoice.discount_amount,
+        "xml": invoice.custom_xml if hasattr(invoice, "custom_xml") else None,
+        "qr_code": invoice.custom_qr_code
+        if hasattr(invoice, "custom_qr_code")
+        else None,
+        "pih": doc.custom_pih if PIH else None,
+        "transaction_id": invoice.custom_transaction_id if transaction_id else None,
+        "mobile_no": invoice.custom_loyalty_customer_mobile,
+        "coupon_customer_name": invoice.custom_coupon_customer_name if coupen_customer_name else None,
+        "coupon_code": invoice.custom_coupon_code if coupon_code else None,
+        "coupon_discount_amount": invoice.custom_coupon_discount_amount if coupon_discount_amount else None,
+        "attachment": invoice.custom_offline_invoice_print if hasattr(invoice, "custom_offline_invoice_print") else None,
+        "items": [
+            {
+                "item_name": item.item_name,
+                "item_code": item.item_code,
+                "quantity": item.qty,
+                "rate": item.rate,
+                "price_list_rate": item.price_list_rate,
+                "discount_percentage": item.discount_percentage,
+                "uom": item.uom,
+                "income_account": item.income_account,
+                "item_tax_template": item.item_tax_template,
+                "tax_rate": item_tax_rate,
+                "allow_zero_valuation_rate": item.allow_zero_valuation_rate,
+            }
+            for item in invoice.items
+        ],
+        "taxes": [
+            {
+                "charge_type": tax.charge_type,
+                "account_head": tax.account_head,
+                "tax_rate": tax.rate,
+                "total": tax.total,
+                "description": tax.description,
+                "included_in_paid_amount": tax.get("included_in_paid_amount"),
+                "included_in_print_rate": tax.get("included_in_print_rate"),
+            }
+            for tax in invoice.taxes
+        ],
+    }
+
+
 @frappe.whitelist(allow_guest=False)
 def create_invoice(
     customer_name,
@@ -1379,6 +1453,63 @@ def create_invoice(
     ):
     try:
 
+        pos_settings = frappe.get_doc("Claudion POS setting")
+
+        offline_invoice_number = frappe.form_dict.get("offline_invoice_number")
+        unique_id = frappe.form_dict.get("unique_id")
+
+        if pos_settings.post_to_pos_invoice and pos_settings.post_to_sales_invoice:
+            return Response(
+                json.dumps(
+                    {
+                        "data": "Both POS Invoice and Sales Invoice creation are enabled. Please enable only one."
+                    }
+                ),
+                status=400,
+                mimetype="application/json",
+            )
+
+        if pos_settings.post_to_sales_invoice == 0:
+            doctype = "POS Invoice"
+        elif pos_settings.post_to_sales_invoice:
+            doctype = "Sales Invoice"
+        else:
+            return Response(
+                json.dumps(
+                    {
+                        "data": "Neither POS Invoice nor Sales Invoice creation is enabled in settings."
+                    }
+                ),
+                status=400,
+                mimetype="application/json",
+            )
+
+        if offline_invoice_number and unique_id:
+            duplicate_invoice = frappe.get_all(
+                doctype,
+                ["name"],
+                filters={
+                    "custom_offline_invoice_number": offline_invoice_number,
+                    "custom_unique_id": unique_id,
+                },
+                limit=1,
+            )
+            if duplicate_invoice:
+                existing_invoice = frappe.get_doc(doctype, duplicate_invoice[0].name)
+                response_data = build_invoice_response_data(
+                    existing_invoice,
+                    pos_settings,
+                    PIH=PIH,
+                    transaction_id=transaction_id,
+                    coupen_customer_name=coupen_customer_name,
+                    coupon_code=coupon_code,
+                    coupon_discount_amount=coupon_discount_amount,
+                )
+                return Response(
+                    json.dumps({"data": response_data}),
+                    status=200,
+                    mimetype="application/json",
+                )
 
         ok, error = lock_invoice_numbers(
             offline_invoice_number=offline_invoice_number,
@@ -1391,10 +1522,6 @@ def create_invoice(
                 status=500,
                 mimetype="application/json"
             )
-
-
-
-        pos_settings = frappe.get_doc("Claudion POS setting")
 
         items = parse_json_field(frappe.form_dict.get("items"))
         payments = parse_json_field(frappe.form_dict.get("payments"))
@@ -1577,79 +1704,41 @@ def create_invoice(
 
             invoice_items.append(item_dict)
 
-        if pos_settings.post_to_pos_invoice and pos_settings.post_to_sales_invoice:
+        sync_id = frappe.get_all(
+            doctype,
+            ["name"],
+            filters={"custom_unique_id": ["like", unique_id]},
+        )
+        if sync_id:
+            frappe.log_error(offline_invoice_number, "Invoice Creation Validation Error")
+            release_invoice_lock(offline_invoice_number=offline_invoice_number, unique_id=unique_id)
             return Response(
                 json.dumps(
                     {
-                        "data": "Both POS Invoice and Sales Invoice creation are enabled. Please enable only one."
+                        "data": "A duplicate entry was detected, unique ID already exists."
                     }
                 ),
-                status=400,
+                status=409,
                 mimetype="application/json",
             )
 
-        if pos_settings.post_to_sales_invoice == 0:
-            doctype = "POS Invoice"
-            pos_sync_id = frappe.get_all(
-                "POS Invoice",
+        if offline_invoice_number:
+            offline_invoice_no = frappe.get_all(
+                doctype,
                 ["name"],
-                filters={"custom_unique_id": ["like", unique_id]},
+                filters={"custom_offline_invoice_number": offline_invoice_number},
             )
-            if pos_sync_id:
-                frappe.log_error(offline_invoice_number, "Invoice Creation Validation Error")
+            if offline_invoice_no:
+                release_invoice_lock(offline_invoice_number=offline_invoice_number, unique_id=unique_id)
                 return Response(
                     json.dumps(
                         {
-                            "data": "A duplicate entry was detected, unique ID already exists."
+                            "data": "A duplicate entry was detected, offline invoice number already exists."
                         }
                     ),
                     status=409,
                     mimetype="application/json",
                 )
-        elif pos_settings.post_to_sales_invoice:
-            doctype = "Sales Invoice"
-            sales_sync_id = frappe.get_all(
-                "Sales Invoice",
-                ["name"],
-                filters={"custom_unique_id": ["like", unique_id]},
-            )
-            if offline_invoice_number:
-                offline_invoice_no = frappe.get_all(
-                    "Sales Invoice",
-                    ["name"],
-                    filters={"custom_offline_invoice_number": offline_invoice_number},
-                )
-                if offline_invoice_no:
-                    return Response(
-                        json.dumps(
-                            {
-                                "data": "A duplicate entry was detected, offline invoice number already exists."
-                            }
-                        ),
-                        status=409,
-                        mimetype="application/json",
-                    )
-
-            if sales_sync_id:
-                return Response(
-                    json.dumps(
-                        {
-                            "data": "A duplicate entry was detected, unique ID already exists."
-                        }
-                    ),
-                    status=409,
-                    mimetype="application/json",
-                )
-        else:
-            return Response(
-                json.dumps(
-                    {
-                        "data": "Neither POS Invoice nor Sales Invoice creation is enabled in settings."
-                    }
-                ),
-                status=400,
-                mimetype="application/json",
-            )
 
         cost_center = None
         source_warehouse = None
@@ -1790,69 +1879,15 @@ def create_invoice(
             mobile_no=mobile_no,
         )
 
-        zatca_setting_name = pos_settings.zatca_multiple_setting
-        if PIH:
-            frappe.db.set_value(
-                "ZATCA Multiple Setting", zatca_setting_name, "custom_pih", PIH
-            )
-
-        doc = frappe.get_doc("ZATCA Multiple Setting", zatca_setting_name)
-
-        item_tax_rate = None
-
-        response_data = {
-            "id": new_invoice.name,
-            "customer_id": new_invoice.customer,
-            "unique_id": new_invoice.custom_unique_id,
-            "customer_name": new_invoice.customer_name,
-            "total_quantity": new_invoice.total_qty,
-            "total": new_invoice.total,
-            "net_total": new_invoice.net_total,
-            "grand_total": new_invoice.grand_total,
-            "Customer's Purchase Order": (
-                int(new_invoice.po_no) if new_invoice.po_no else None
-            ),
-            "discount_amount": new_invoice.discount_amount,
-            "xml": new_invoice.custom_xml if hasattr(new_invoice, "custom_xml") else None,
-            "qr_code": new_invoice.custom_qr_code
-            if hasattr(new_invoice, "custom_qr_code")
-            else None,
-            "pih": doc.custom_pih if PIH else None,
-            "transaction_id": new_invoice.custom_transaction_id if transaction_id else None,
-            "mobile_no": new_invoice.custom_loyalty_customer_mobile,
-            "coupon_customer_name": new_invoice.custom_coupon_customer_name  if coupen_customer_name else None,
-            "coupon_code":new_invoice.custom_coupon_code if coupon_code else None,
-            "coupon_discount_amount":new_invoice.custom_coupon_discount_amount if coupon_discount_amount else None,
-            "attachment": new_invoice.custom_offline_invoice_print if hasattr(new_invoice, "custom_offline_invoice_print") else None,
-            "items": [
-                {
-                    "item_name": item.item_name,
-                    "item_code": item.item_code,
-                    "quantity": item.qty,
-                    "rate": item.rate,
-                    "price_list_rate": item.price_list_rate,
-                    "discount_percentage": item.discount_percentage,
-                    "uom": item.uom,
-                    "income_account": item.income_account,
-                    "item_tax_template": item.item_tax_template,
-                    "tax_rate": item_tax_rate,
-                    "allow_zero_valuation_rate": item.allow_zero_valuation_rate,
-                }
-                for item in new_invoice.items
-            ],
-            "taxes": [
-                {
-                    "charge_type": tax.charge_type,
-                    "account_head": tax.account_head,
-                    "tax_rate": tax.rate,
-                    "total": tax.total,
-                    "description": tax.description,
-                    "included_in_paid_amount": tax.get("included_in_paid_amount"),
-                    "included_in_print_rate": tax.get("included_in_print_rate"),
-                }
-                for tax in new_invoice.taxes
-            ],
-        }
+        response_data = build_invoice_response_data(
+            new_invoice,
+            pos_settings,
+            PIH=PIH,
+            transaction_id=transaction_id,
+            coupen_customer_name=coupen_customer_name,
+            coupon_code=coupon_code,
+            coupon_discount_amount=coupon_discount_amount,
+        )
 
         return Response(
             json.dumps({"data": response_data}), status=200, mimetype="application/json"
