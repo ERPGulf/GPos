@@ -1252,7 +1252,6 @@ def create_invoice_unsynced(date_time, invoice_number, clearing_status,type="Sal
             "manually_submitted": doc.custom_manually_submitted,
             "api_response": doc.custom_api_response,
             "type":doc.custom_type,
-            "offline_invoice_no": offline_invoice_no,
             "notification_email": doc.notification_email,
         }
     except Exception as e:
