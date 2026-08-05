@@ -8,7 +8,7 @@ from frappe.utils import nowdate
 
 
 TOLERANCE = Decimal("0.01")
-TTL_SECONDS = 600
+TTL_SECONDS = 120
 
 def lock_invoice_numbers(offline_invoice_number: str = None, unique_id: str = None):
     r = frappe.cache()
