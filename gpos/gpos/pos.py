@@ -1458,17 +1458,6 @@ def create_invoice(
         offline_invoice_number = frappe.form_dict.get("offline_invoice_number")
         unique_id = frappe.form_dict.get("unique_id")
 
-        if pos_settings.post_to_pos_invoice and pos_settings.post_to_sales_invoice:
-            return Response(
-                json.dumps(
-                    {
-                        "data": "Both POS Invoice and Sales Invoice creation are enabled. Please enable only one."
-                    }
-                ),
-                status=400,
-                mimetype="application/json",
-            )
-
         if pos_settings.post_to_sales_invoice == 0:
             doctype = "POS Invoice"
         elif pos_settings.post_to_sales_invoice:
@@ -1480,7 +1469,7 @@ def create_invoice(
                         "data": "Neither POS Invoice nor Sales Invoice creation is enabled in settings."
                     }
                 ),
-                status=400,
+                status=500,
                 mimetype="application/json",
             )
 
@@ -1489,8 +1478,7 @@ def create_invoice(
                 doctype,
                 ["name"],
                 filters={
-                    "custom_offline_invoice_number": offline_invoice_number,
-                    "custom_unique_id": unique_id,
+                    "custom_offline_invoice_number": offline_invoice_number
                 },
                 limit=1,
             )
@@ -1543,15 +1531,6 @@ def create_invoice(
             fields=["name"],
             filters={"name": ["like", customer_name]},
         )
-
-        if not customer_details:
-            return Response(
-                json.dumps({"data": "Customer name not found"}),
-                status=404,
-                mimetype="application/json",
-            )
-
-
         pos_profile_doc = (
             frappe.get_doc("POS Profile", pos_profile) if pos_profile else None
         )
@@ -1710,35 +1689,19 @@ def create_invoice(
             filters={"custom_unique_id": ["like", unique_id]},
         )
         if sync_id:
-            frappe.log_error(offline_invoice_number, "Invoice Creation Validation Error")
-            release_invoice_lock(offline_invoice_number=offline_invoice_number, unique_id=unique_id)
+            invoice_data =frappe.get_doc(doctype, sync_id[0].name),
+            response_data=build_invoice_response_data(
+                invoice_data,
+                pos_settings)
             return Response(
                 json.dumps(
                     {
-                        "data": "A duplicate entry was detected, unique ID already exists."
+                        "data": response_data
                     }
                 ),
-                status=409,
+                status=200,
                 mimetype="application/json",
             )
-
-        if offline_invoice_number:
-            offline_invoice_no = frappe.get_all(
-                doctype,
-                ["name"],
-                filters={"custom_offline_invoice_number": offline_invoice_number},
-            )
-            if offline_invoice_no:
-                release_invoice_lock(offline_invoice_number=offline_invoice_number, unique_id=unique_id)
-                return Response(
-                    json.dumps(
-                        {
-                            "data": "A duplicate entry was detected, offline invoice number already exists."
-                        }
-                    ),
-                    status=409,
-                    mimetype="application/json",
-                )
 
         cost_center = None
         source_warehouse = None
@@ -1896,7 +1859,7 @@ def create_invoice(
     except ValidationError as ve:
         error_message = str(ve)
         frappe.db.rollback()
-        release_invoice_lock(offline_invoice_number=offline_invoice_number, unique_id=unique_id)
+
         frappe.log_error(offline_invoice_number, "Invoice Creation Validation Error")
 
         if "Status code: 400" in error_message:
@@ -1915,7 +1878,6 @@ def create_invoice(
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Invoice API Error")
         frappe.db.rollback()
-        release_invoice_lock(offline_invoice_number=offline_invoice_number, unique_id=unique_id)
         return Response(
             json.dumps({"message Fallback 500": str(e)}),
             status=500,
@@ -2088,7 +2050,14 @@ def get_shift_status(shift_id):
         )
 
 
-def _build_return_invoice_response(invoice, pih):
+def _build_return_invoice_response(invoice):
+    pos_settings = frappe.get_doc("Claudion POS setting")
+    zatca_setting_name = pos_settings.zatca_multiple_setting
+    pih = (
+        frappe.db.get_value("ZATCA Multiple Setting", zatca_setting_name, "custom_pih")
+        if zatca_setting_name
+        else None
+    )
     return {
         "id": invoice.name,
         "customer_id": invoice.customer,
@@ -2133,8 +2102,8 @@ def _build_return_invoice_response(invoice, pih):
 def create_credit_note(
     customer_name,
     items,
-    PIH,
     machine_name,
+    PIH=None,
     return_against=None,
     payments=None,
     discount_amount=None,
@@ -2163,10 +2132,8 @@ def create_credit_note(
             )
             if existing_invoice_name:
                 existing_invoice = frappe.get_doc("Sales Invoice", existing_invoice_name)
-                zatca_setting_name = frappe.get_doc("Claudion POS setting").zatca_multiple_setting
-                pih = frappe.db.get_value("ZATCA Multiple Setting", zatca_setting_name, "custom_pih")
                 return Response(
-                    json.dumps({"data": _build_return_invoice_response(existing_invoice, pih)}),
+                    json.dumps({"data": _build_return_invoice_response(existing_invoice)}),
                     status=200,
                     mimetype="application/json",
                 )
@@ -2197,13 +2164,6 @@ def create_credit_note(
             fields=["name"],
             filters={"name": ["like", customer_name]},
         )
-        if not customer_details:
-            frappe.log_error(offline_invoice_number, "Customer name not found for credit note")
-            return Response(
-                json.dumps({"data": "Customer name not found"}),
-                status=404,
-                mimetype="application/json",
-            )
         base_offline_invoice_number = None
 
         cost_center = None
@@ -2242,10 +2202,8 @@ def create_credit_note(
             if existing_return:
                 frappe.log_error(offline_invoice_number,"dublicate offline invoice number for credit note {offline_invoice_number}")
                 existing_invoice = frappe.get_doc("Sales Invoice", existing_return)
-                zatca_setting_name = pos_settings.zatca_multiple_setting
-                pih = frappe.db.get_value("ZATCA Multiple Setting", zatca_setting_name, "custom_pih")
                 return Response(
-                    json.dumps({"data": _build_return_invoice_response(existing_invoice, pih)}),
+                    json.dumps({"data": _build_return_invoice_response(existing_invoice)}),
                     status=200,
                     mimetype="application/json",
                 )
@@ -2259,10 +2217,8 @@ def create_credit_note(
             if existing_return:
                 frappe.log_error(offline_invoice_number,"dublicate unique id for credit note {unique_id}")
                 existing_invoice = frappe.get_doc("Sales Invoice", existing_return)
-                zatca_setting_name = pos_settings.zatca_multiple_setting
-                pih = frappe.db.get_value("ZATCA Multiple Setting", zatca_setting_name, "custom_pih")
                 return Response(
-                    json.dumps({"data": _build_return_invoice_response(existing_invoice, pih)}),
+                    json.dumps({"data": _build_return_invoice_response(existing_invoice)}),
                     status=200,
                     mimetype="application/json",
                 )
@@ -2361,14 +2317,13 @@ def create_credit_note(
         frappe.log_error("Loyalty points handled", offline_invoice_number)
 
 
-        zatca_setting_name = pos_settings.zatca_multiple_setting
-        frappe.db.set_value(
-            "ZATCA Multiple Setting", zatca_setting_name, "custom_pih", PIH
-        )
+        if PIH:
+            zatca_setting_name = pos_settings.zatca_multiple_setting
+            frappe.db.set_value(
+                "ZATCA Multiple Setting", zatca_setting_name, "custom_pih", PIH
+            )
 
-        doc = frappe.get_doc("ZATCA Multiple Setting", zatca_setting_name)
-
-        response_data = _build_return_invoice_response(new_invoice, doc.custom_pih)
+        response_data = _build_return_invoice_response(new_invoice)
 
         return Response(
             json.dumps({"data": response_data}), status=200, mimetype="application/json"
