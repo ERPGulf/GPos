@@ -1678,7 +1678,8 @@ def create_invoice(
             filters={"custom_unique_id": ["like", unique_id]},
         )
         if sync_id:
-            invoice_data =frappe.get_doc(doctype, sync_id[0].name),
+            invoice_data = frappe.get_doc(doctype, sync_id[0].name)
+
             response_data=build_invoice_response_data(
                 invoice_data,
                 pos_settings)
