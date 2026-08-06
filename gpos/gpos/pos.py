@@ -1499,17 +1499,6 @@ def create_invoice(
                     mimetype="application/json",
                 )
 
-        ok, error = lock_invoice_numbers(
-            offline_invoice_number=offline_invoice_number,
-            unique_id=unique_id
-        )
-
-        if not ok:
-            return Response(
-                json.dumps({"data": error}),
-                status=500,
-                mimetype="application/json"
-            )
 
         items = parse_json_field(frappe.form_dict.get("items"))
         payments = parse_json_field(frappe.form_dict.get("payments"))
@@ -2119,24 +2108,36 @@ def create_credit_note(
     try:
         frappe.log_error(offline_invoice_number, "Received offline invoice number for credit note"  )
 
-        ok, error = lock_invoice_numbers(
-            unique_id=unique_id
-        )
+
         debug_code={"customer_name":customer_name,"items":items,"PIH":PIH,"machine_name":machine_name,"return_against":return_against,"payments":payments,"discount_amount":discount_amount,"unique_id":unique_id,"offline_invoice_number":offline_invoice_number,"offline_creation_time":offline_creation_time,"pos_profile":pos_profile,"pos_shift":pos_shift,"cashier":cashier,"reason":reason}
         frappe.log_error(offline_invoice_number, json.dumps(debug_code))
+        if offline_invoice_number:
 
-        if not ok:
-            existing_invoice_name = frappe.db.exists(
+            return_invoice_name = frappe.db.exists(
                 "Sales Invoice",
-                {"custom_unique_id": unique_id, "is_return": 1, "docstatus": 1},
+                {"custom_offline_invoice_number": offline_invoice_number, "is_return": 1, "docstatus": 1},
             )
-            if existing_invoice_name:
-                existing_invoice = frappe.get_doc("Sales Invoice", existing_invoice_name)
+            if return_invoice_name:
+                existing_invoice = frappe.get_doc("Sales Invoice", return_invoice_name)
                 return Response(
                     json.dumps({"data": _build_return_invoice_response(existing_invoice)}),
                     status=200,
                     mimetype="application/json",
                 )
+
+
+
+        existing_invoice_name = frappe.db.exists(
+            "Sales Invoice",
+            {"custom_unique_id": unique_id, "is_return": 1, "docstatus": 1},
+        )
+        if existing_invoice_name:
+            existing_invoice = frappe.get_doc("Sales Invoice", existing_invoice_name)
+            return Response(
+                json.dumps({"data": _build_return_invoice_response(existing_invoice)}),
+                status=200,
+                mimetype="application/json",
+            )
 
         pos_settings = frappe.get_doc("Claudion POS setting")
 
@@ -2189,25 +2190,6 @@ def create_credit_note(
                 status=500,
                 mimetype="application/json",
             )
-        if offline_invoice_number:
-            existing_return = frappe.db.exists(
-                "Sales Invoice",
-                {
-                    "custom_offline_invoice_number": offline_invoice_number,
-                    "is_return": 1,
-                    "docstatus": 1,
-                },
-            )
-
-            if existing_return:
-                frappe.log_error(offline_invoice_number,"dublicate offline invoice number for credit note {offline_invoice_number}")
-                existing_invoice = frappe.get_doc("Sales Invoice", existing_return)
-                return Response(
-                    json.dumps({"data": _build_return_invoice_response(existing_invoice)}),
-                    status=200,
-                    mimetype="application/json",
-                )
-
 
         if unique_id:
             existing_return = frappe.db.exists(
@@ -3338,51 +3320,6 @@ def get_coupons_by_branch(branch):
     coupon_filters = {}
     coupon_names_set = set()
 
-
-    # if last_updated_time:
-    #     try:
-    #         last_updated_dt = datetime.strptime(last_updated_time, "%Y-%m-%d %H:%M:%S")
-    #     except ValueError:
-    #         return Response(
-    #             json.dumps({"error": "Invalid datetime format. Use YYYY-MM-DD HH:MM:SS"}),
-    #             status=400,
-    #             mimetype="application/json"
-    #         )
-
-
-        # modified_coupons = frappe.get_all(
-        #     "Coupon Code",
-        #     fields=["name"],
-        #     filters={"modified": [">", last_updated_dt]}
-        # )
-        # coupon_names_set.update([c.name for c in modified_coupons])
-
-
-        # modified_pricing_rules = frappe.get_all(
-        #     "Pricing Rule",
-        #     fields=["name"],
-        #     filters={"modified": [">", last_updated_dt]}
-        # )
-
-        # if modified_pricing_rules:
-        #     pricing_rule_names = [pr.name for pr in modified_pricing_rules]
-
-        #     related_coupons = frappe.get_all(
-        #         "Coupon Code",
-        #         fields=["name"],
-        #         filters={"pricing_rule": ["in", pricing_rule_names]}
-        #     )
-        #     coupon_names_set.update([c.name for c in related_coupons])
-
-        # # If nothing changed
-        # if not coupon_names_set:
-        #     return Response(
-        #         json.dumps({"data": []}),
-        #         status=200,
-        #         mimetype="application/json"
-        #     )
-
-        # coupon_filters["name"] = ["in", list(coupon_names_set)]
 
 
     coupons = frappe.get_all(
