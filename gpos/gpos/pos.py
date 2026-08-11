@@ -2333,24 +2333,30 @@ def create_credit_note(
 
 
 @frappe.whitelist(allow_guest=False)
-def get_invoice_details(invoice_number):
+def get_invoice_details(offline_invoice_number):
     try:
-        if not invoice_number:
+        if not offline_invoice_number:
             return Response(
-                json.dumps({"message": "Invoice number is required."}),
+                json.dumps({"message": "Offline invoice number is required."}),
                 status=400,
                 mimetype="application/json",
             )
 
-        # Fetch the Sales Invoice
-        invoice = frappe.get_doc("Sales Invoice", invoice_number)
+        # Fetch the Sales Invoice by its offline invoice number
+        invoice_name = frappe.db.get_value(
+            "Sales Invoice",
+            {"custom_offline_invoice_number": offline_invoice_number},
+            "name",
+        )
 
-        if not invoice:
+        if not invoice_name:
             return Response(
                 json.dumps({"message": "Invoice not found."}),
                 status=404,
                 mimetype="application/json",
             )
+
+        invoice = frappe.get_doc("Sales Invoice", invoice_name)
 
         # Get tax rate from first item's tax template
         item_tax_rate = None
@@ -2382,6 +2388,7 @@ def get_invoice_details(invoice_number):
                     "income_account": item.income_account,
                     "item_tax_template": item.item_tax_template,
                     "tax_rate": item_tax_rate,
+                    "is_promotion_item": bool(item.is_free_item),
                 }
                 for item in invoice.items
             ],
@@ -2415,6 +2422,16 @@ def get_invoice_details(invoice_number):
                 invoice.custom_qr_code if hasattr(invoice, "custom_qr_code") else None
             ),
         }
+
+        return_invoice_names = frappe.get_all(
+            "Sales Invoice",
+            filters={"return_against": invoice.name, "is_return": 1, "docstatus": 1},
+            pluck="name",
+        )
+        response_data["return_invoices"] = [
+            _build_return_invoice_response(frappe.get_doc("Sales Invoice", name))
+            for name in return_invoice_names
+        ]
 
         return Response(
             json.dumps({"data": response_data}), status=200, mimetype="application/json"
