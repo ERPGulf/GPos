@@ -2367,6 +2367,36 @@ def get_invoice_details(offline_invoice_number):
             if template.taxes:
                 item_tax_rate = template.taxes[0].tax_rate
 
+        # Build a map of item_code -> set of promotional prices from promotions
+        # that were valid (valid_from <= posting_date <= valid_upto) on the
+        # invoice's posting date, so invoice items priced at that rate can be
+        # flagged as promotion items.
+        promotion_names = frappe.get_all(
+            "promotion",
+            filters={
+                "docstatus": 1,
+                "enabled": 1,
+                "company": invoice.company,
+                "valid_from": ["<=", invoice.posting_date],
+                "valid_upto": [">=", invoice.posting_date],
+            },
+            pluck="name",
+        )
+
+        promotion_price_map = {}
+        for promo_name in promotion_names:
+            promo_doc = frappe.get_doc("promotion", promo_name)
+            for promo_item in promo_doc.item_table:
+                if promo_item.price_after_discount in (None, ""):
+                    continue
+                try:
+                    price_after_discount = round(float(promo_item.price_after_discount), 2)
+                except (TypeError, ValueError):
+                    continue
+                promotion_price_map.setdefault(promo_item.item_code, set()).add(
+                    price_after_discount
+                )
+
         # Prepare response
         response_data = {
             "id": invoice.name,
@@ -2388,7 +2418,8 @@ def get_invoice_details(offline_invoice_number):
                     "income_account": item.income_account,
                     "item_tax_template": item.item_tax_template,
                     "tax_rate": item_tax_rate,
-                    "is_promotion_item": bool(item.is_free_item),
+                    "is_promotion_item": round(item.rate, 2)
+                    in promotion_price_map.get(item.item_code, set()),
                 }
                 for item in invoice.items
             ],
