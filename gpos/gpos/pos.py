@@ -2357,46 +2357,67 @@ def get_invoice_details(offline_invoice_number):
                 mimetype="application/json",
             )
 
-        invoice = frappe.get_doc("Sales Invoice", invoice_name)
+        def _log_step(title):
+            frappe.log_error(title=title, message=frappe.get_traceback())
+
+        try:
+            invoice = frappe.get_doc("Sales Invoice", invoice_name)
+        except Exception:
+            _log_step("get_invoice_details: fetch Sales Invoice failed")
+            raise
 
         # Get tax rate from first item's tax template
-        item_tax_rate = None
-        if invoice.items and invoice.items[0].item_tax_template:
-            template = frappe.get_doc(
-                "Item Tax Template", invoice.items[0].item_tax_template
-            )
-            if template.taxes:
-                item_tax_rate = template.taxes[0].tax_rate
+        try:
+            item_tax_rate = None
+            if invoice.items and invoice.items[0].item_tax_template:
+                template = frappe.get_doc(
+                    "Item Tax Template", invoice.items[0].item_tax_template
+                )
+                if template.taxes:
+                    item_tax_rate = template.taxes[0].tax_rate
+        except Exception:
+            _log_step("get_invoice_details: fetch item tax rate failed")
+            raise
 
         # Build a map of item_code -> set of promotional prices from promotions
         # that were valid (valid_from <= posting_date <= valid_upto) on the
         # invoice's posting date, so invoice items priced at that rate can be
         # flagged as promotion items.
-        promotion_names = frappe.get_all(
-            "promotion",
-            filters={
-                "docstatus": 1,
-                "enabled": 1,
-                "company": invoice.company,
-                "valid_from": ["<=", invoice.posting_date],
-                "valid_upto": [">=", invoice.posting_date],
-            },
-            pluck="name",
-        )
+        try:
+            promotion_names = frappe.get_all(
+                "promotion",
+                filters={
+                    "docstatus": 1,
+                    "enabled": 1,
+                    "company": invoice.company,
+                    "valid_from": ["<=", invoice.posting_date],
+                    "valid_upto": [">=", invoice.posting_date],
+                },
+                pluck="name",
+            )
+        except Exception:
+            _log_step("get_invoice_details: fetch promotion list failed")
+            raise
 
-        promotion_price_map = {}
-        for promo_name in promotion_names:
-            promo_doc = frappe.get_doc("promotion", promo_name)
-            for promo_item in promo_doc.item_table:
-                if promo_item.price_after_discount in (None, ""):
-                    continue
-                try:
-                    price_after_discount = round(float(promo_item.price_after_discount), 2)
-                except (TypeError, ValueError):
-                    continue
-                promotion_price_map.setdefault(promo_item.item_code, {})[
-                    price_after_discount
-                ] = promo_name
+        try:
+            promotion_price_map = {}
+            for promo_name in promotion_names:
+                promo_doc = frappe.get_doc("promotion", promo_name)
+                for promo_item in promo_doc.item_table:
+                    if promo_item.price_after_discount in (None, ""):
+                        continue
+                    try:
+                        price_after_discount = round(
+                            float(promo_item.price_after_discount), 2
+                        )
+                    except (TypeError, ValueError):
+                        continue
+                    promotion_price_map.setdefault(promo_item.item_code, {})[
+                        price_after_discount
+                    ] = promo_name
+        except Exception:
+            _log_step("get_invoice_details: build promotion price map failed")
+            raise
 
         # Render each matched promotion's print PDF once and cache it, since
         # multiple invoice items can be flagged under the same promotion.
@@ -2404,90 +2425,120 @@ def get_invoice_details(offline_invoice_number):
 
         def get_promotion_pdf(promo_name):
             if promo_name not in promotion_pdf_cache:
-                pdf_content = get_pdf(frappe.get_print("promotion", promo_name))
-                promotion_pdf_cache[promo_name] = base64.b64encode(pdf_content).decode(
-                    "utf-8"
-                )
+                try:
+                    pdf_content = get_pdf(frappe.get_print("promotion", promo_name))
+                    promotion_pdf_cache[promo_name] = base64.b64encode(
+                        pdf_content
+                    ).decode("utf-8")
+                except Exception:
+                    _log_step(
+                        f"get_invoice_details: render promotion PDF failed ({promo_name})"
+                    )
+                    raise
             return promotion_pdf_cache[promo_name]
 
-        items_data = []
-        for item in invoice.items:
-            matched_promo_name = promotion_price_map.get(item.item_code, {}).get(
-                round(item.rate, 2)
-            )
-            items_data.append(
-                {
-                    "item_name": item.item_name,
-                    "item_code": item.item_code,
-                    "quantity": item.qty,
-                    "rate": item.rate,
-                    "uom": item.uom,
-                    "income_account": item.income_account,
-                    "item_tax_template": item.item_tax_template,
-                    "tax_rate": item_tax_rate,
-                    "is_promotion_item": matched_promo_name is not None,
-                    "promotion_attachment": get_promotion_pdf(matched_promo_name)
-                    if matched_promo_name
-                    else None,
-                }
-            )
+        try:
+            items_data = []
+            for item in invoice.items:
+                matched_promo_name = promotion_price_map.get(item.item_code, {}).get(
+                    round(item.rate, 2)
+                )
+                items_data.append(
+                    {
+                        "item_name": item.item_name,
+                        "item_code": item.item_code,
+                        "quantity": item.qty,
+                        "rate": item.rate,
+                        "uom": item.uom,
+                        "income_account": item.income_account,
+                        "item_tax_template": item.item_tax_template,
+                        "tax_rate": item_tax_rate,
+                        "is_promotion_item": matched_promo_name is not None,
+                        "promotion_attachment": get_promotion_pdf(matched_promo_name)
+                        if matched_promo_name
+                        else None,
+                    }
+                )
+        except Exception:
+            _log_step("get_invoice_details: build items data failed")
+            raise
 
         # Prepare response
-        response_data = {
-            "id": invoice.name,
-            "customer_id": invoice.customer,
-            "customer_name": invoice.customer_name,
-            "posting_date": str(invoice.posting_date),
-            "total_quantity": invoice.total_qty,
-            "total": invoice.total,
-            "grand_total": invoice.grand_total,
-            "discount_amount": invoice.discount_amount,
-            "po_no": invoice.po_no,
-            "items": items_data,
-            "taxes": [
-                {
-                    "charge_type": tax.charge_type,
-                    "account_head": tax.account_head,
-                    "tax_rate": tax.rate,
-                    "total": tax.total,
-                    "description": tax.description,
-                    "included_in_paid_amount": tax.included_in_paid_amount,
-                    "included_in_print_rate": tax.included_in_print_rate,
-                }
-                for tax in invoice.taxes
-            ],
-            "payments": [
-                {
-                    "mode_of_payment": p.mode_of_payment,
-                    "amount": p.amount,
-                }
-                for p in invoice.payments
-            ],
-            "offline_invoice_number": invoice.custom_offline_invoice_number,
-            "offline_creation_time": (
-                str(invoice.custom_offline_creation_time)
-                if invoice.custom_offline_creation_time
-                else None
-            ),
-            "xml": invoice.custom_xml if hasattr(invoice, "custom_xml") else None,
-            "qr_code": (
-                invoice.custom_qr_code if hasattr(invoice, "custom_qr_code") else None
-            ),
-        }
+        try:
+            response_data = {
+                "id": invoice.name,
+                "customer_id": invoice.customer,
+                "customer_name": invoice.customer_name,
+                "posting_date": str(invoice.posting_date),
+                "total_quantity": invoice.total_qty,
+                "total": invoice.total,
+                "grand_total": invoice.grand_total,
+                "discount_amount": invoice.discount_amount,
+                "po_no": invoice.po_no,
+                "items": items_data,
+                "taxes": [
+                    {
+                        "charge_type": tax.charge_type,
+                        "account_head": tax.account_head,
+                        "tax_rate": tax.rate,
+                        "total": tax.total,
+                        "description": tax.description,
+                        "included_in_paid_amount": tax.included_in_paid_amount,
+                        "included_in_print_rate": tax.included_in_print_rate,
+                    }
+                    for tax in invoice.taxes
+                ],
+                "payments": [
+                    {
+                        "mode_of_payment": p.mode_of_payment,
+                        "amount": p.amount,
+                    }
+                    for p in invoice.payments
+                ],
+                "offline_invoice_number": invoice.custom_offline_invoice_number,
+                "offline_creation_time": (
+                    str(invoice.custom_offline_creation_time)
+                    if invoice.custom_offline_creation_time
+                    else None
+                ),
+                "xml": invoice.custom_xml if hasattr(invoice, "custom_xml") else None,
+                "qr_code": (
+                    invoice.custom_qr_code
+                    if hasattr(invoice, "custom_qr_code")
+                    else None
+                ),
+            }
+        except Exception:
+            _log_step("get_invoice_details: build response data failed")
+            raise
 
-        return_invoice_names = frappe.get_all(
-            "Sales Invoice",
-            filters={"return_against": invoice.name, "is_return": 1, "docstatus": 1},
-            pluck="name",
-        )
-        response_data["return_invoices"] = [
-            _build_return_invoice_response(frappe.get_doc("Sales Invoice", name))
-            for name in return_invoice_names
-        ]
+        try:
+            return_invoice_names = frappe.get_all(
+                "Sales Invoice",
+                filters={
+                    "return_against": invoice.name,
+                    "is_return": 1,
+                    "docstatus": 1,
+                },
+                pluck="name",
+            )
+            response_data["return_invoices"] = [
+                _build_return_invoice_response(frappe.get_doc("Sales Invoice", name))
+                for name in return_invoice_names
+            ]
+        except Exception:
+            _log_step("get_invoice_details: build return invoices failed")
+            raise
 
-        return Response(
-            json.dumps({"data": response_data}), status=200, mimetype="application/json"
-        )
+        try:
+            return Response(
+                json.dumps({"data": response_data}),
+                status=200,
+                mimetype="application/json",
+            )
+        except Exception:
+            _log_step("get_invoice_details: serialize response failed")
+            raise
 
     except frappe.DoesNotExistError:
         return Response(
@@ -2496,8 +2547,14 @@ def get_invoice_details(offline_invoice_number):
             mimetype="application/json",
         )
     except Exception as e:
+        frappe.log_error(
+            title="get_invoice_details failed",
+            message=frappe.get_traceback(),
+        )
         return Response(
-            json.dumps({"message": str(e)}), status=500, mimetype="application/json"
+            json.dumps({"message": str(e) or repr(e)}),
+            status=500,
+            mimetype="application/json",
         )
 
 
