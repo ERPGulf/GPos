@@ -8,6 +8,7 @@ from werkzeug.wrappers import Response
 from frappe.utils import now_datetime
 from frappe.utils.password import get_decrypted_password
 from frappe.utils.image import optimize_image
+from frappe.utils.pdf import get_pdf
 from mimetypes import guess_type
 from frappe.utils import now_datetime, cint
 from datetime import datetime, timedelta
@@ -2393,9 +2394,43 @@ def get_invoice_details(offline_invoice_number):
                     price_after_discount = round(float(promo_item.price_after_discount), 2)
                 except (TypeError, ValueError):
                     continue
-                promotion_price_map.setdefault(promo_item.item_code, set()).add(
+                promotion_price_map.setdefault(promo_item.item_code, {})[
                     price_after_discount
+                ] = promo_name
+
+        # Render each matched promotion's print PDF once and cache it, since
+        # multiple invoice items can be flagged under the same promotion.
+        promotion_pdf_cache = {}
+
+        def get_promotion_pdf(promo_name):
+            if promo_name not in promotion_pdf_cache:
+                pdf_content = get_pdf(frappe.get_print("promotion", promo_name))
+                promotion_pdf_cache[promo_name] = base64.b64encode(pdf_content).decode(
+                    "utf-8"
                 )
+            return promotion_pdf_cache[promo_name]
+
+        items_data = []
+        for item in invoice.items:
+            matched_promo_name = promotion_price_map.get(item.item_code, {}).get(
+                round(item.rate, 2)
+            )
+            items_data.append(
+                {
+                    "item_name": item.item_name,
+                    "item_code": item.item_code,
+                    "quantity": item.qty,
+                    "rate": item.rate,
+                    "uom": item.uom,
+                    "income_account": item.income_account,
+                    "item_tax_template": item.item_tax_template,
+                    "tax_rate": item_tax_rate,
+                    "is_promotion_item": matched_promo_name is not None,
+                    "promotion_attachment": get_promotion_pdf(matched_promo_name)
+                    if matched_promo_name
+                    else None,
+                }
+            )
 
         # Prepare response
         response_data = {
@@ -2408,21 +2443,7 @@ def get_invoice_details(offline_invoice_number):
             "grand_total": invoice.grand_total,
             "discount_amount": invoice.discount_amount,
             "po_no": invoice.po_no,
-            "items": [
-                {
-                    "item_name": item.item_name,
-                    "item_code": item.item_code,
-                    "quantity": item.qty,
-                    "rate": item.rate,
-                    "uom": item.uom,
-                    "income_account": item.income_account,
-                    "item_tax_template": item.item_tax_template,
-                    "tax_rate": item_tax_rate,
-                    "is_promotion_item": round(item.rate, 2)
-                    in promotion_price_map.get(item.item_code, set()),
-                }
-                for item in invoice.items
-            ],
+            "items": items_data,
             "taxes": [
                 {
                     "charge_type": tax.charge_type,
