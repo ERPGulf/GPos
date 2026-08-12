@@ -2419,23 +2419,13 @@ def get_invoice_details(offline_invoice_number):
             _log_step("get_invoice_details: build promotion price map failed")
             raise
 
-        # Render each matched promotion's print PDF once and cache it, since
-        # multiple invoice items can be flagged under the same promotion.
-        promotion_pdf_cache = {}
-
-        def get_promotion_pdf(promo_name):
-            if promo_name not in promotion_pdf_cache:
-                try:
-                    pdf_content = get_pdf(frappe.get_print("promotion", promo_name))
-                    promotion_pdf_cache[promo_name] = base64.b64encode(
-                        pdf_content
-                    ).decode("utf-8")
-                except Exception:
-                    _log_step(
-                        f"get_invoice_details: render promotion PDF failed ({promo_name})"
-                    )
-                    raise
-            return promotion_pdf_cache[promo_name]
+        # Instead of embedding the promotion PDF inline, point to the
+        # get_promotion_pdf endpoint which renders it on demand.
+        def get_promotion_pdf_url(promo_name):
+            return (
+                f"{frappe.utils.get_url()}/api/method/gpos.gpos.pos.get_promotion_pdf"
+                f"?promotion={urllib.parse.quote(promo_name)}"
+            )
 
         try:
             items_data = []
@@ -2454,7 +2444,7 @@ def get_invoice_details(offline_invoice_number):
                         "item_tax_template": item.item_tax_template,
                         "tax_rate": item_tax_rate,
                         "is_promotion_item": matched_promo_name is not None,
-                        "promotion_attachment": get_promotion_pdf(matched_promo_name)
+                        "promotion_attachment": get_promotion_pdf_url(matched_promo_name)
                         if matched_promo_name
                         else None,
                     }
@@ -2549,6 +2539,30 @@ def get_invoice_details(offline_invoice_number):
     except Exception as e:
         frappe.log_error(
             title="get_invoice_details failed",
+            message=frappe.get_traceback(),
+        )
+        return Response(
+            json.dumps({"message": str(e) or repr(e)}),
+            status=500,
+            mimetype="application/json",
+        )
+
+
+@frappe.whitelist(allow_guest=False)
+def get_promotion_pdf(promotion):
+    try:
+        if not frappe.db.exists("promotion", promotion):
+            return Response(
+                json.dumps({"message": "Promotion not found."}),
+                status=404,
+                mimetype="application/json",
+            )
+
+        pdf_content = get_pdf(frappe.get_print("promotion", promotion))
+        return Response(pdf_content, status=200, mimetype="application/pdf")
+    except Exception as e:
+        frappe.log_error(
+            title="get_promotion_pdf failed",
             message=frappe.get_traceback(),
         )
         return Response(
