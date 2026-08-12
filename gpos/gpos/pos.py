@@ -8,7 +8,6 @@ from werkzeug.wrappers import Response
 from frappe.utils import now_datetime
 from frappe.utils.password import get_decrypted_password
 from frappe.utils.image import optimize_image
-from frappe.utils.pdf import get_pdf
 from mimetypes import guess_type
 from frappe.utils import now_datetime, cint
 from datetime import datetime, timedelta
@@ -2414,23 +2413,26 @@ def get_invoice_details(offline_invoice_number):
                         continue
                     promotion_price_map.setdefault(promo_item.item_code, {})[
                         price_after_discount
-                    ] = promo_name
+                    ] = {
+                        "id": promo_doc.name,
+                        "name": promo_doc.name1,
+                        "type": promo_item.discount_type,
+                        "min": promo_item.min_qty,
+                        "max": promo_item.max_qty,
+                        "discount_percentage": promo_item.discount_percentage,
+                        "discount_amount": promo_item.discount__amount,
+                        "price_after_discount": promo_item.price_after_discount,
+                        "valid_from": str(promo_doc.valid_from),
+                        "valid_upto": str(promo_doc.valid_upto),
+                    }
         except Exception:
             _log_step("get_invoice_details: build promotion price map failed")
             raise
 
-        # Instead of embedding the promotion PDF inline, point to the
-        # get_promotion_pdf endpoint which renders it on demand.
-        def get_promotion_pdf_url(promo_name):
-            return (
-                f"{frappe.utils.get_url()}/api/method/gpos.gpos.pos.get_promotion_pdf"
-                f"?promotion={urllib.parse.quote(promo_name)}"
-            )
-
         try:
             items_data = []
             for item in invoice.items:
-                matched_promo_name = promotion_price_map.get(item.item_code, {}).get(
+                applied_promotion = promotion_price_map.get(item.item_code, {}).get(
                     round(item.rate, 2)
                 )
                 items_data.append(
@@ -2443,10 +2445,8 @@ def get_invoice_details(offline_invoice_number):
                         "income_account": item.income_account,
                         "item_tax_template": item.item_tax_template,
                         "tax_rate": item_tax_rate,
-                        "is_promotion_item": matched_promo_name is not None,
-                        "promotion_attachment": get_promotion_pdf_url(matched_promo_name)
-                        if matched_promo_name
-                        else None,
+                        "is_promotion_item": applied_promotion is not None,
+                        "applied_promotion": applied_promotion,
                     }
                 )
         except Exception:
@@ -2539,30 +2539,6 @@ def get_invoice_details(offline_invoice_number):
     except Exception as e:
         frappe.log_error(
             title="get_invoice_details failed",
-            message=frappe.get_traceback(),
-        )
-        return Response(
-            json.dumps({"message": str(e) or repr(e)}),
-            status=500,
-            mimetype="application/json",
-        )
-
-
-@frappe.whitelist(allow_guest=False)
-def get_promotion_pdf(promotion):
-    try:
-        if not frappe.db.exists("promotion", promotion):
-            return Response(
-                json.dumps({"message": "Promotion not found."}),
-                status=404,
-                mimetype="application/json",
-            )
-
-        pdf_content = get_pdf(frappe.get_print("promotion", promotion))
-        return Response(pdf_content, status=200, mimetype="application/pdf")
-    except Exception as e:
-        frappe.log_error(
-            title="get_promotion_pdf failed",
             message=frappe.get_traceback(),
         )
         return Response(
