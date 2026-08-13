@@ -1711,6 +1711,17 @@ def create_invoice(
         )
 
         if loyalty_used and not mobile_no:
+            loyalty_entry = frappe.get_all(
+                "Loyalty Point Entry Gpos",
+                filters={"custom_customer": customer_name, "mobile_no": ["is", "set"]},
+                fields=["mobile_no"],
+                order_by="creation asc",
+                limit=1,
+            )
+            if loyalty_entry:
+                mobile_no = loyalty_entry[0].mobile_no
+
+        if loyalty_used and not mobile_no:
             frappe.log_error(offline_invoice_number, "Loyalty payment attempted without mobile number")
             return Response(
                 json.dumps({
