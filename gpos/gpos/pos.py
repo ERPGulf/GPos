@@ -1835,13 +1835,19 @@ def create_invoice(
                 new_invoice.custom_offline_invoice_print = attachment_url
 
         new_invoice.insert(ignore_permissions=True)
-        new_invoice.submit()
 
-        handle_loyalty_points(
-            new_invoice.name,
-            customer_name,
-            mobile_no=mobile_no,
-        )
+        try:
+            new_invoice.submit()
+            handle_loyalty_points(
+                new_invoice.name,
+                customer_name,
+                mobile_no=mobile_no,
+            )
+        except Exception:
+            frappe.log_error(
+                frappe.get_traceback(), "Invoice Submission Failed - Saved As Draft"
+            )
+            frappe.db.commit()
 
         response_data = build_invoice_response_data(
             new_invoice,
