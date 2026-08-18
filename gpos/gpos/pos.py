@@ -169,7 +169,7 @@ def get_loyalty_points(customer_number=None):
             total_loyalty_points = Decimal(0)
 
 
-        points = float(total_loyalty_points)
+        points = round(float(total_loyalty_points), 2)
 
         data = {
             "customer_id": customer,
