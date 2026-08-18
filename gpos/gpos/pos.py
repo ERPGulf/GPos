@@ -19,6 +19,11 @@ from gpos.gpos.calling_functions import  lock_invoice_numbers
 from gpos.gpos.calling_functions import  release_invoice_lock
 from gpos.gpos.calling_functions import  handle_loyalty_points
 from gpos.gpos.calling_functions import  handle_loyalty_points_for_return
+import json
+from decimal import Decimal
+import frappe
+from werkzeug.wrappers import Response
+
 from datetime import datetime
 BACKEND_SERVER_SETTINGS = "Backend Server Settings"
 @frappe.whitelist(allow_guest=True)
@@ -101,64 +106,111 @@ def generate_token_secure(api_key, api_secret, app_key):
         )
 
 
-@frappe.whitelist(allow_guest=True)
-def get_loyalty_points(customer_number):
 
+
+@frappe.whitelist(allow_guest=True)
+def get_loyalty_points(customer_number=None):
+    """Return the redeemable loyalty point balance for a mobile number.
+
+    Entries form a ledger, not independent rows: a credit (redemption) draws
+    down specific, earlier debit (earn) entries. `is_expired` is set per-row
+    by `expire_loyalty_points`, on the *original* earn amount, regardless of
+    how much of it a later credit already consumed. So a flat
+    `SUM(debit WHERE not expired) - SUM(credit WHERE not expired)` double-
+    counts: once an earn row expires it drops out of the debit sum entirely,
+    while the credit that already drew from it keeps subtracting -- e.g.
+    debit 100, credit 90 (drawn from it), debit 2, debit 1: once the 100
+    expires, the flat formula computes (2 + 1) - 90 = -87 -> clamped to 0,
+    even though only the unspent 10 points from the expired lot should be
+    forfeited (correct balance: 0 + 2 + 1 = 3).
+
+    Fix: replay the ledger in creation order, consuming each credit FIFO
+    against the earliest debit "lots" with remaining balance (consumption
+    already happened historically, so it applies regardless of today's
+    expiry flags). Only after netting do we drop the *remaining* balance of
+    lots that are currently flagged expired.
+    """
     try:
 
-        customer_doc = frappe.get_all(
-            "Loyalty Point Entry Gpos",
-            filters={"mobile_no": customer_number},
-            fields=["custom_customer"],
-            limit=1
+        customer_number = (customer_number or "").strip()
+        if not customer_number:
+            return Response(
+                json.dumps({"success": False, "error": "customer_number is required"}),
+                status=400,
+                mimetype="application/json",
+            )
+
+
+        entries = frappe.db.sql(
+            """
+            SELECT custom_customer, debit, credit, is_expired
+            FROM `tabLoyalty Point Entry Gpos`
+            WHERE mobile_no = %(mobile_no)s
+            ORDER BY creation ASC, name ASC
+            """,
+            {"mobile_no": customer_number},
+            as_dict=True,
         )
 
-        customer = customer_doc[0]["custom_customer"] if customer_doc else None
 
-        total_points = frappe.db.sql("""
-            SELECT
-                COALESCE(SUM(debit), 0) - COALESCE(SUM(credit), 0) AS total_loyalty_points
-            FROM
-                `tabLoyalty Point Entry Gpos`
-            WHERE
-                mobile_no = %s
-                AND used_loyalty_point = '0'
-                AND is_expired = 0
-        """, (customer_number,), as_dict=True)
+        customer = ""
+        lots = []
+        for row in entries:
+            if row.get("custom_customer"):
+                customer = row["custom_customer"]
 
-        total_loyalty_points = (
-            total_points[0]["total_loyalty_points"] if total_points else 0
+            debit = Decimal(str(row.get("debit") or 0))
+            credit = Decimal(str(row.get("credit") or 0))
+            is_expired = int(row.get("is_expired") or 0) == 1
+
+            if debit > 0:
+                lots.append({"remaining": debit, "is_expired": is_expired})
+
+            if credit > 0:
+                remaining_credit = credit
+                for lot in lots:
+                    if remaining_credit <= 0:
+                        break
+                    if lot["remaining"] <= 0:
+                        continue
+                    consume = min(lot["remaining"], remaining_credit)
+                    lot["remaining"] -= consume
+                    remaining_credit -= consume
+
+        total_loyalty_points = sum(
+            (lot["remaining"] for lot in lots if not lot["is_expired"]),
+            Decimal(0),
         )
 
-        # -----------------------------
-        # New condition: No negative balance
-        # -----------------------------
+
+
         if total_loyalty_points < 0:
-            total_loyalty_points = 0
+            total_loyalty_points = Decimal(0)
 
-        rounded_points = round(float(total_loyalty_points))
+
+        points = float(total_loyalty_points)
 
         data = {
-            "customer_id": customer or "",
+            "customer_id": customer,
             "customer_number": customer_number,
-            "loyalty_points": rounded_points,
-            "Amount": rounded_points,
+            "loyalty_points": points,
+            "Amount": points,
         }
 
         return Response(
             json.dumps({"data": data}),
             status=200,
-            mimetype="application/json"
+            mimetype="application/json",
         )
 
-    except Exception as e:
+    except Exception:
+
         frappe.log_error(frappe.get_traceback(), "Get Loyalty Points Error")
         return Response(
-            json.dumps({"success": False, "error": str(e)}),
+            json.dumps({"success": False, "error": "Unable to fetch loyalty points"}),
             status=500,
-            mimetype="application/json"
+            mimetype="application/json",
         )
-
 
 
 @frappe.whitelist(allow_guest=True)
@@ -1835,19 +1887,13 @@ def create_invoice(
                 new_invoice.custom_offline_invoice_print = attachment_url
 
         new_invoice.insert(ignore_permissions=True)
+        new_invoice.submit()
 
-        try:
-            new_invoice.submit()
-            handle_loyalty_points(
-                new_invoice.name,
-                customer_name,
-                mobile_no=mobile_no,
-            )
-        except Exception:
-            frappe.log_error(
-                frappe.get_traceback(), "Invoice Submission Failed - Saved As Draft"
-            )
-            frappe.db.commit()
+        handle_loyalty_points(
+            new_invoice.name,
+            customer_name,
+            mobile_no=mobile_no,
+        )
 
         response_data = build_invoice_response_data(
             new_invoice,
