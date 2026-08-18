@@ -110,26 +110,7 @@ def generate_token_secure(api_key, api_secret, app_key):
 
 @frappe.whitelist(allow_guest=True)
 def get_loyalty_points(customer_number=None):
-    """Return the redeemable loyalty point balance for a mobile number.
 
-    Entries form a ledger, not independent rows: a credit (redemption) draws
-    down specific, earlier debit (earn) entries. `is_expired` is set per-row
-    by `expire_loyalty_points`, on the *original* earn amount, regardless of
-    how much of it a later credit already consumed. So a flat
-    `SUM(debit WHERE not expired) - SUM(credit WHERE not expired)` double-
-    counts: once an earn row expires it drops out of the debit sum entirely,
-    while the credit that already drew from it keeps subtracting -- e.g.
-    debit 100, credit 90 (drawn from it), debit 2, debit 1: once the 100
-    expires, the flat formula computes (2 + 1) - 90 = -87 -> clamped to 0,
-    even though only the unspent 10 points from the expired lot should be
-    forfeited (correct balance: 0 + 2 + 1 = 3).
-
-    Fix: replay the ledger in creation order, consuming each credit FIFO
-    against the earliest debit "lots" with remaining balance (consumption
-    already happened historically, so it applies regardless of today's
-    expiry flags). Only after netting do we drop the *remaining* balance of
-    lots that are currently flagged expired.
-    """
     try:
 
         customer_number = (customer_number or "").strip()
