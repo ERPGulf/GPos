@@ -235,6 +235,8 @@ def closing_shift(
             "total_of_return_cash": details.get("total_of_return_cash", 0),
             "total_of_bank": details.get("total_of_bank", 0),
             "total_of_return_bank": details.get("total_of_return_bank", 0),
+            "loyalty_points": details.get("loyalty_points", 0),
+            "total_cash_and_loyalty": details.get("total_cash_and_loyalty", 0)
         }]
 
         period_end_dt = datetime.strptime(
@@ -350,6 +352,8 @@ def build_closing_shift_response(doc):
                 "total_of_cash": doc.custom_details[0].total_of_cash if doc.custom_details else 0,
                 "total_of_return_cash": doc.custom_details[0].total_of_return_cash if doc.custom_details else 0,
                 "total_of_bank": doc.custom_details[0].total_of_bank if doc.custom_details else 0,
-                "total_of_return_bank": doc.custom_details[0].total_of_return_bank if doc.custom_details else 0
+                "total_of_return_bank": doc.custom_details[0].total_of_return_bank if doc.custom_details else 0,
+                "loyalty_points": doc.custom_details[0].loyalty_points if doc.custom_details else 0,
+                "total_cash_and_loyalty": doc.custom_details[0].total_cash_and_loyalty if doc.custom_details else 0
             }
         }

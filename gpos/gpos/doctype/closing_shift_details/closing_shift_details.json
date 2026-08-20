@@ -13,7 +13,10 @@
   "total_of_cash",
   "total_of_return_cash",
   "total_of_bank",
-  "total_of_return_bank"
+  "total_of_return_bank",
+  "loyalty_points",
+  "total_cash_and_loyalty",
+  "column_break_klfd"
  ],
  "fields": [
   {
@@ -63,19 +66,34 @@
    "fieldtype": "Int",
    "in_list_view": 1,
    "label": "Total of Return Bank"
+  },
+  {
+   "fieldname": "loyalty_points",
+   "fieldtype": "Float",
+   "label": "Total Loyalty Points"
+  },
+  {
+   "fieldname": "total_cash_and_loyalty",
+   "fieldtype": "Float",
+   "label": "Total Cash And Loyalty"
+  },
+  {
+   "fieldname": "column_break_klfd",
+   "fieldtype": "Column Break"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-09-23 09:42:26.005334",
+ "modified": "2026-08-20 18:12:43.281869",
  "modified_by": "Administrator",
  "module": "Gpos",
  "name": "closing shift details",
  "owner": "Administrator",
  "permissions": [],
  "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": []
