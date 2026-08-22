@@ -19,6 +19,7 @@ from gpos.gpos.calling_functions import  lock_invoice_numbers
 from gpos.gpos.calling_functions import  release_invoice_lock
 from gpos.gpos.calling_functions import  handle_loyalty_points
 from gpos.gpos.calling_functions import  handle_loyalty_points_for_return
+from gpos.gpos.calling_functions import  get_merged_item_id
 import json
 from decimal import Decimal
 import frappe
@@ -1666,6 +1667,10 @@ def create_invoice(
             rate = float(item.get("rate", 0))
             item_code = item.get("item_code")
 
+            if item_code and not frappe.db.exists("Item", item_code):
+                merged_item_code = get_merged_item_id(item_code)
+                if merged_item_code and frappe.db.exists("Item", merged_item_code):
+                    item_code = merged_item_code
 
             price_list_rate = 0.0
             if item_code and selling_price_list:
@@ -1687,11 +1692,7 @@ def create_invoice(
                 price_list_rate = rate
 
             item_dict = {
-                "item_code": (
-                    item_code
-                    if frappe.get_value("Item", {"name": item_code}, "name")
-                    else None
-                ),
+                "item_code": item_code,
                 "qty": item.get("quantity", 0),
                 "rate": rate,
                 "uom": item.get("uom", "Nos"),

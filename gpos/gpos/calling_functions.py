@@ -555,5 +555,64 @@ def validate_sales_invoice_coupon(doc, method):
     # ✅ Add to parent pricing rule table (FIXED)
     add_pricing_rules_to_invoice(doc, doc.items, result_items)
 
-    # 🔥 Recalculate totals
+
     doc.calculate_taxes_and_totals()
+
+
+
+@frappe.whitelist()
+def get_merged_item_id(old_item=None):
+
+    try:
+
+        if not old_item:
+            return json.dumps({"error": "old_item is required", "message": "Error occurred while fetching merged item ID."})
+
+        if frappe.db.exists("Item", old_item):
+            return old_item
+
+        # follow the merge chain: old_item -> B -> C ... until we hit an item that still exists
+        visited = set()
+        current_item = old_item
+
+        while current_item not in visited:
+            visited.add(current_item)
+
+            comments = frappe.get_all(
+                "Comment",
+                filters={
+                    "reference_doctype": "Item",
+                    "content": ["like", f"%{current_item}%"],
+                },
+                fields=[
+                    "name",
+                    "reference_name",
+                    "content",
+                    "creation",
+                ],
+                order_by="creation asc",
+            )
+
+            next_item = None
+            for comment in comments:
+                content = comment.content or ""
+                if (
+                    "merged" in content.lower()
+                    and "into" in content.lower()
+                    and current_item in content
+                ):
+                    next_item = comment.reference_name
+                    break
+
+            if not next_item:
+                return None
+
+            if frappe.db.exists("Item", next_item):
+                return next_item
+
+            current_item = next_item
+
+        return None
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "Error in get_merged_item_id")
+        return json.dumps({"error": str(e), "message": "Error occurred while fetching merged item ID."})
