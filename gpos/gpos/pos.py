@@ -1255,13 +1255,6 @@ def create_invoice_unsynced(date_time, invoice_number, clearing_status,type="Sal
 
         if sales_invoice:
             clearing_status = 1
-        default_email = frappe.db.get_value(
-                "Email Account",
-                {
-                    "default_outgoing": 1
-                },
-                "email_id"
-            )
         doc = frappe.get_doc(
             {
                 "doctype": "Invoice Unsynced",
@@ -1271,7 +1264,6 @@ def create_invoice_unsynced(date_time, invoice_number, clearing_status,type="Sal
                 "custom_json_dump": json_dump if json_dump else None,
                 "custom_manually_submitted": manually_submitted if manually_submitted else 0,
                 "custom_api_response": api_response if api_response else None,
-                "notification_email": default_email if default_email else None,
                 "custom_type" : type,
             }
         )
@@ -1285,8 +1277,7 @@ def create_invoice_unsynced(date_time, invoice_number, clearing_status,type="Sal
             "json_dump": doc.custom_json_dump,
             "manually_submitted": doc.custom_manually_submitted,
             "api_response": doc.custom_api_response,
-            "type":doc.custom_type,
-            "notification_email": doc.notification_email,
+            "type":doc.custom_type
         }
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "API: create_invoice_unsynced")
