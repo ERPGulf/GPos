@@ -81,7 +81,8 @@ def generate_token_secure(api_key, api_secret, app_key):
         files = []
         headers = {"Content-Type": "application/json"}
 
-        response = requests.request("POST", url, data=payload, files=files)
+        # response = requests.request("POST", url, data=payload, files=files)
+        response = requests.request("POST", url, data=payload, files=files, timeout=(10, 30))
 
         if response.status_code == 200:
 
@@ -247,7 +248,8 @@ def generate_token_for_offline_user(api_key, api_secret, app_key):
         files = []
         headers = {"Content-Type": "application/json"}
 
-        response = requests.request("POST", url, data=payload, files=files)
+        # response = requests.request("POST", url, data=payload, files=files)
+        response = requests.request("POST", url, data=payload, files=files, timeout=(10, 30))
 
         if response.status_code == 200:
 
@@ -282,7 +284,8 @@ def create_refresh_token(refresh_token):
     payload = f"grant_type=refresh_token&refresh_token={refresh_token}"
     headers = {"Content-Type": "application/x-www-form-urlencoded"}
     files = []
-    response = requests.post(url, headers=headers, data=payload, files=files)
+    # response = requests.post(url, headers=headers, data=payload, files=files)
+    response = requests.post(url, headers=headers, data=payload, files=files, timeout=(10, 30))
 
     if response.status_code == 200:
         try:
@@ -1151,7 +1154,8 @@ def generate_token_secure_for_users(username, password, app_key):
         }
         files = []
         headers = {"Content-Type": "application/json"}
-        response = requests.request("POST", url, data=payload, files=files)
+        # response = requests.request("POST", url, data=payload, files=files)
+        response = requests.request("POST", url, data=payload, files=files, timeout=(10, 30))
         # var = frappe.get_list("Customer", fields=["name as id", "full_name","email", "mobile_no as phone",], filters={'name': ['like', username]})
         qid = frappe.get_list(
             "User",
@@ -3203,7 +3207,8 @@ def send_test_sms(phone, message):
         ]
     }
 
-    response = requests.post(url, json=payload, headers=headers)
+    # response = requests.post(url, json=payload, headers=headers)
+    response = requests.post(url, json=payload, headers=headers, timeout=(10, 30))
 
     if response.status_code == 200:
         try:
@@ -3269,7 +3274,8 @@ def send_message(mobile_no,otp):
         }
         try:
             frappe.log_error("WhatsApp API Payload", f"Query: {frappe.as_json(querystring)}")
-            response = requests.get(url, params=querystring)
+            # response = requests.get(url, params=querystring)
+            response = requests.get(url, params=querystring, timeout=(10, 30))
             response_json=response.text
             if response.status_code == 200:
                 response_dict = json.loads(response_json)
