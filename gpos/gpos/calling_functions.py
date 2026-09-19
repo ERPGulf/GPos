@@ -101,11 +101,7 @@ def handle_loyalty_points(invoice_name, customer_name, mobile_no):
         total_loyalty_points = sum(loyalty_by_group.values())
 
 
-        redeemed_points = 0
-        for pay in invoice_doc.payments:
-            if pay.mode_of_payment and pay.mode_of_payment.lower() in ["loyalty", "loyalty point"]:
-                redeemed_points = float(pay.amount)
-                break
+        redeemed_points = float(invoice_doc.custom_loyalty_point or 0)
 
 
         if total_loyalty_points > 0 or redeemed_points > 0:

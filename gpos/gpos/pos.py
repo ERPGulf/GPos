@@ -27,6 +27,10 @@ from werkzeug.wrappers import Response
 
 from datetime import datetime
 BACKEND_SERVER_SETTINGS = "Backend Server Settings"
+# Frontend-side rounding can leave halalah-level gaps between the displayed
+# grand total and the amount actually collected/refunded. Differences up to
+# this amount are absorbed automatically instead of being rejected.
+PAYMENT_ROUNDING_TOLERANCE = 0.1
 @frappe.whitelist(allow_guest=True)
 def generate_token_secure(api_key, api_secret, app_key):
     try:
@@ -1107,10 +1111,10 @@ def wallet_refund_request(user, amount, transaction_id=None):
 def generate_token_secure_for_users(username, password, app_key):
 
     # return Response(json.dumps({"message": "2222 Security Parameters are not valid" , "user_count": 0}), status=401, mimetype='application/json')
-    frappe.log_error(
-        title="Login attempt",
-        message=str(username) + "    " + str(password) + "    " + str(app_key + "  "),
-    )
+    # frappe.log_error(
+    #     title="Login attempt",
+    #     message=str(username) + "    " + str(password) + "    " + str(app_key + "  "),
+    # )
     try:
         try:
             app_key = base64.b64decode(app_key).decode("utf-8")
@@ -1482,6 +1486,7 @@ def create_invoice(
     ):
     try:
 
+
         pos_settings = frappe.get_doc("Claudion POS setting")
 
         offline_invoice_number = frappe.form_dict.get("offline_invoice_number")
@@ -1554,14 +1559,18 @@ def create_invoice(
         )
 
         payment_items = []
+        loyalty_amount = 0.0
         if payments:
             for payment in payments:
                 mode = payment.get("mode_of_payment", "").strip()
-                amount = float(payment.get("amount", 0))
+                amount = round(float(payment.get("amount", 0)), 2)
                 transaction_id=payment.get("transaction_id","")
 
+                if mode.lower() == "loyalty":
+                    loyalty_amount += amount
+                    continue
 
-                if mode.lower() in ["cash", "card","loyalty"] and pos_profile:
+                if mode.lower() in ["cash", "card"] and pos_profile:
                     for row in pos_profile_doc.get("payments") or []:
                         if (
                             row.custom_offline_mode_of_payment1
@@ -1575,7 +1584,7 @@ def create_invoice(
         taxes_list = None
         profile_cost_center = None
         profile_discount_account = None
-        if not payment_items:
+        if not payment_items and loyalty_amount <= 0:
 
             promotion_response = get_promotion_list(pos_profile)
 
@@ -1635,6 +1644,18 @@ def create_invoice(
                     status=500,
                     mimetype="application/json",
                 )
+
+        elif not payment_items and loyalty_amount > 0:
+            default_mode = None
+
+            if pos_profile_doc and pos_profile_doc.payments:
+                default_mode = pos_profile_doc.payments[0].mode_of_payment
+
+            if default_mode:
+                payment_items.append({
+                    "mode_of_payment": default_mode,
+                    "amount": 0
+                })
 
         if pos_profile:
             profile_cost_center = pos_profile_doc.cost_center
@@ -1734,10 +1755,7 @@ def create_invoice(
             profile_taxes_and_charges = pos_doc.taxes_and_charges
             profile_discount_account = pos_doc.custom_discount_account
 
-        loyalty_used = any(
-            p.get("mode_of_payment", "").strip().lower() == "loyalty"
-            for p in payments or []
-        )
+        loyalty_used = loyalty_amount > 0
 
         if loyalty_used and not mobile_no:
             loyalty_entry = frappe.get_all(
@@ -1768,22 +1786,25 @@ def create_invoice(
                 "name"
             )
 
+
             if not coupon_docname:
                 return Response(
                     json.dumps({"message": "Invalid Coupon Code"}),
                     status=400,
                     mimetype="application/json",
                 )
+        apply_discount_on = "Net Total"
         if coupon_code:
-            apply_discount_on = "Net Total"
+
             final_discount_amount = (
                 float(coupon_discount_amount)
                 if coupon_discount_amount
                 else float(discount_amount or 0)
             )
         else:
-            apply_discount_on = "Grand Total"
             final_discount_amount = float(discount_amount or 0)
+
+        final_discount_amount += loyalty_amount
 
         new_invoice = frappe.get_doc(
             {
@@ -1806,13 +1827,15 @@ def create_invoice(
                 "update_stock": True,
                 "set_warehouse": source_warehouse,
                 "custom_invoice_type": "Retail",
+                "disable_rounded_total": 1,
                 "taxes_and_charges": profile_taxes_and_charges,
                 "additional_discount_account": profile_discount_account,
                 "custom_transaction_id": transaction_id,
                 "custom_coupon_customer_name": coupen_customer_name,
                 "custom_loyalty_customer_mobile": mobile_no,
                 "custom_coupon_code":coupon_docname,
-                "custom_coupon_discount_amount":coupon_discount_amount
+                "custom_coupon_discount_amount":coupon_discount_amount,
+                "custom_loyalty_point": int(round(loyalty_amount)),
             }
         )
 
@@ -1862,6 +1885,27 @@ def create_invoice(
                     uploaded_files["attachment"], ignore_permissions=True, is_private=True
                 )
                 new_invoice.custom_offline_invoice_print = attachment_url
+
+        new_invoice.calculate_taxes_and_totals()
+
+        total_paid_amount = sum(float(p.get("amount", 0)) for p in payment_items)
+        rounding_difference = round(new_invoice.grand_total - total_paid_amount, 2)
+
+        if abs(rounding_difference) > PAYMENT_ROUNDING_TOLERANCE:
+            return Response(
+                json.dumps({
+                    "data": f"Payment amount ({total_paid_amount}) should be equal to grand total ({new_invoice.grand_total})."
+                }),
+                status=500,
+                mimetype="application/json",
+            )
+
+        if rounding_difference != 0 and new_invoice.payments:
+            # Absorb a halalah-level gap into the last payment row so paid_amount
+            # exactly matches grand_total, instead of leaving a residual that
+            # later breaks the return/credit-note flow.
+            last_payment = new_invoice.payments[-1]
+            last_payment.amount = round(last_payment.amount + rounding_difference, 2)
 
         new_invoice.insert(ignore_permissions=True)
         new_invoice.submit()
@@ -2276,7 +2320,7 @@ def create_credit_note(
 
             for payment in payments:
                 mode = payment.get("payment_mode", "").strip()
-                amount = float(payment.get("amount", 0))
+                amount = round(float(payment.get("amount", 0)), 2)
 
                 if mode.lower() in ["cash", "card"] and pos_profile:
                     for row in pos_profile_doc.get("payments") or []:
@@ -2288,6 +2332,43 @@ def create_credit_note(
                             break
 
                 payment_items.append({"mode_of_payment": mode, "amount": amount})
+
+        if payment_items:
+            # Work out the return's true grand total up front (without is_pos/is_return
+            # set) so halalah-level rounding gaps can be reconciled here, before ERPNext's
+            # POS-return logic sees a mismatched payment total. Left unreconciled, a refund
+            # total that is even 1 halalah more negative than the computed grand total makes
+            # ERPNext silently replace the payments table with a single POSITIVE adjustment
+            # row, which then fails the "Amount must be negative" validation on submit.
+            totals_probe = frappe.get_doc({
+                "doctype": "Sales Invoice",
+                "customer": customer_name,
+                "apply_discount_on": "Grand Total",
+                "discount_amount": discount_amount,
+                "items": invoice_items,
+                "cost_center": cost_center,
+                "set_warehouse": source_warehouse,
+                "taxes_and_charges": profile_taxes_and_charges,
+                "disable_rounded_total": 1,
+            })
+            totals_probe.calculate_taxes_and_totals()
+            expected_grand_total = round(float(totals_probe.grand_total), 2)
+
+            total_paid_amount = sum(p["amount"] for p in payment_items)
+            rounding_difference = round(expected_grand_total - total_paid_amount, 2)
+
+            if abs(rounding_difference) > PAYMENT_ROUNDING_TOLERANCE:
+                frappe.log_error(offline_invoice_number, f"Return payment mismatch: paid {total_paid_amount}, expected {expected_grand_total}")
+                return Response(
+                    json.dumps({
+                        "data": f"Payment amount ({total_paid_amount}) should be equal to grand total ({expected_grand_total})."
+                    }),
+                    status=500,
+                    mimetype="application/json",
+                )
+
+            if rounding_difference != 0:
+                payment_items[-1]["amount"] = round(payment_items[-1]["amount"] + rounding_difference, 2)
 
         # if pos_profile:
         #     pos_doc = frappe.get_doc("POS Profile", pos_profile)
@@ -2318,6 +2399,7 @@ def create_credit_note(
                 "set_warehouse": source_warehouse,
                 "taxes_and_charges": profile_taxes_and_charges,
                 "custom_invoice_type": "Retail",
+                "disable_rounded_total": 1,
             }
         )
 
